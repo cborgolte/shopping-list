@@ -1,12 +1,29 @@
-<h1>
-  {{title}}
-</h1>
+<md-card>
+  <md-card-content>
+    <h2 class="example-h2">Gemüse</h2>
+    <section class="" *ngFor="let item of lineItems">
+      <md-checkbox class="example-margin" [(ngModel)]="item.selected">{{item.name}}</md-checkbox>
+    </section>
+    <section>
+      <md-input-container>
+        <input md-input (keyup.enter)="onEnter(box)" #box placeholder="add item" value="">
+      </md-input-container>
+
+    </section>
+  </md-card-content>
+</md-card>
+<!--
+
+<md-cart>
+<md-cart-content>
 <h2>Küche</h2>
+</md-cart-content>
+</md-cart>
 <ul>
   <li *ngFor="let item of lineItems">
-    <label>
-      <input [(ngModel)]="item.selected" type="checkbox">
+      <md-checkbox [(ngModel)]="item.selected" type="checkbox"> </md-checkbox>
       <input [(ngModel)]="item.qty" type="number">
+    <label>
       <span>{{item.name}}</span>
     </label>
   </li>
@@ -14,3 +31,5 @@
 <pre>
   {{lineItems|json}}
 </pre>
+
+-->

@@ -25,7 +25,6 @@ const LINE_ITEMS : LineItem[] = [
   }
 ];
 
-
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
@@ -35,5 +34,18 @@ const LINE_ITEMS : LineItem[] = [
 export class AppComponent {
   title = 'Shopping List';
   lineItems = LINE_ITEMS;
-  lineItem = new LineItem();
+
+  // handle entering a new item
+  onEnter(input: any) { 
+    console.log(input.value);
+    let lineItem = new LineItem();
+    lineItem.id = this.lineItems[this.lineItems.length-1].id + 1;
+    lineItem.qty = 1;
+    lineItem.name = input.value;
+    lineItem.selected = true;
+    LINE_ITEMS.push(lineItem);
+    // clear input
+    input.value = "";
+  }
+
 }
