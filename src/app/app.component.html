@@ -1,3 +1,16 @@
 <h1>
   {{title}}
 </h1>
+<h2>Küche</h2>
+<ul>
+  <li *ngFor="let item of lineItems">
+    <label>
+      <input [(ngModel)]="item.selected" type="checkbox">
+      <input [(ngModel)]="item.qty" type="number">
+      <span>{{item.name}}</span>
+    </label>
+  </li>
+</ul>
+<pre>
+  {{lineItems|json}}
+</pre>
