@@ -1,17 +1,32 @@
 <md-card>
-  <md-card-content>
-    <h2 class="example-h2">Gemüse</h2>
-    <section class="" *ngFor="let item of lineItems">
-      <md-checkbox class="example-margin" [(ngModel)]="item.selected">
-        {{item.name}}
-      <input type="number" step="any" [(ngModel)]="item.qty" min="1" />
-        </md-checkbox>
-    </section>
-    <section>
-      <md-input-container>
-        <input md-input (keyup.enter)="onEnter(box)" #box placeholder="add item" value="">
-      </md-input-container>
-
-    </section>
-  </md-card-content>
+    <md-card-title>
+        <h2>Gemüse</h2>
+    </md-card-title>
+    <md-card-content>
+        <md-list dense>
+            <md-list-item *ngFor="let item of lineItems">
+                <md-checkbox class="example-margin" [(ngModel)]="item.selected">
+                    {{item.qty}} x {{item.name}}
+                </md-checkbox>
+                <div class="md-secondary">
+                    <button md-icon-button (click)="decrease(item)">
+                        <md-icon>remove</md-icon>
+                    </button>
+                    <button md-icon-button (click)="increase(item)">
+                        <md-icon>add</md-icon>
+                    </button>
+                    <button md-icon-button (click)="remove(item)">
+                        <md-icon>delete</md-icon>
+                    </button>
+                </div>
+                <md-divider ng-if="!$last"></md-divider>
+            </md-list-item>
+        </md-list>
+        <md-divider></md-divider>
+        <section>
+            <md-input-container>
+                <input md-input (keyup.enter)="onEnter(box)" #box placeholder="add item" value="">
+            </md-input-container>
+        </section>
+    </md-card-content>
 </md-card>

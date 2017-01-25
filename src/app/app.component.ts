@@ -37,15 +37,44 @@ export class AppComponent {
 
   // handle entering a new item
   onEnter(input: any) { 
-    console.log(input.value);
+    let value = input.value;
+    let amount = parseInt(value.split(' ', 1));
+    if (!isNaN(amount)) {
+      let valueSplitted = value.split(' ');
+      value = valueSplitted.slice(1).join(' ');
+    }
+    else {
+      amount = 1;
+    }
     let lineItem = new LineItem();
     lineItem.id = this.lineItems[this.lineItems.length-1].id + 1;
-    lineItem.qty = 1;
-    lineItem.name = input.value;
+    lineItem.qty = amount;
+    lineItem.name = value;
     lineItem.selected = true;
     LINE_ITEMS.push(lineItem);
     // clear input
     input.value = "";
   }
 
+  // decrease item quantity
+  decrease(item: any) {
+    const minValue = 1;
+    if (item.qty > minValue) {
+      item.qty -= 1;
+    }
+  }
+
+  // increase item quantity
+  increase(item: LineItem) {
+    if (item.qty === undefined || item.qty === null) {
+      item.qty = 0;
+    }
+    item.qty += 1;
+  }
+
+  // remove item from list
+  remove(item: LineItem) {
+    // TODO  
+    // this.lineItems.remove(item);
+  }
 }
