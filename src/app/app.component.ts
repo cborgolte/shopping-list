@@ -1,42 +1,22 @@
 import { Component } from '@angular/core';
-
-export class LineItem {
-  id: number;
-  qty: number;
-  // unit: string;
-  name: string;
-  selected: boolean;
-  // bought: boolean;
-  // categories: Array<string>;
-}
-
-const LINE_ITEMS : LineItem[] = [
-  {
-    id: 1,
-    qty: 1,
-    name: "Kartoffeln",
-    selected: false
-  },
-  {
-    id: 2,
-    qty: 5,
-    name: "Zwiebeln",
-    selected: true
-  }
-];
+import { LineItem } from './line_item';
+import { ShoppingListService } from './shoppinglist.service';
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
-  styleUrls: ['./app.component.css']
+  styleUrls: ['./app.component.css'],
+  providers: [ShoppingListService]
 })
 
 export class AppComponent {
+  constructor(private shoppingListService: ShoppingListService) { }
+
   title = 'Shopping List';
-  lineItems = LINE_ITEMS;
+  lineItems = this.shoppingListService.getLineItems();
 
   // handle entering a new item
-  onEnter(input: any) { 
+  onEnter(input: any) {
     let value = input.value;
     let amount = parseInt(value.split(' ', 1));
     if (!isNaN(amount)) {
@@ -46,12 +26,7 @@ export class AppComponent {
     else {
       amount = 1;
     }
-    let lineItem = new LineItem();
-    lineItem.id = this.lineItems[this.lineItems.length-1].id + 1;
-    lineItem.qty = amount;
-    lineItem.name = value;
-    lineItem.selected = true;
-    LINE_ITEMS.push(lineItem);
+    this.shoppingListService.createLineItem(value, amount, true);
     // clear input
     input.value = "";
   }
@@ -74,7 +49,7 @@ export class AppComponent {
 
   // remove item from list
   remove(item: LineItem) {
-    // TODO  
+    // TODO
     // this.lineItems.remove(item);
   }
 }
