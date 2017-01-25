@@ -9,4 +9,9 @@ if (environment.production) {
   enableProdMode();
 }
 
+// const _window: any = (<any>window);
+// const hoodie = _window.hoodie;
+// 
+// hoodie.ready.then(function() {platformBrowserDynamic().bootstrapModule(AppModule);});
 platformBrowserDynamic().bootstrapModule(AppModule);
+

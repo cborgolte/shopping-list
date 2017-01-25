@@ -1,6 +1,6 @@
 
 export class LineItem {
-  id: number;
+  pos: number;
   qty: number;
   // unit: string;
   name: string;

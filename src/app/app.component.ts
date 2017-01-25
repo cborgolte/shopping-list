@@ -8,12 +8,14 @@ import { ShoppingListService } from './shoppinglist.service';
   styleUrls: ['./app.component.css'],
   providers: [ShoppingListService]
 })
-
 export class AppComponent {
-  constructor(private shoppingListService: ShoppingListService) { }
-
   title = 'Shopping List';
-  lineItems = this.shoppingListService.getLineItems();
+  lineItems = null;
+
+  constructor(private shoppingListService: ShoppingListService) { 
+    this.lineItems = shoppingListService.getLineItems();
+    console.log('LineItems', JSON.stringify(this.lineItems));
+  }
 
   // handle entering a new item
   onEnter(input: any) {
