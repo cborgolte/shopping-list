@@ -1,61 +1,60 @@
 import {Injectable} from '@angular/core';
 import { LineItem } from './line_item';
 
-const LINE_ITEMS: LineItem[] = [
-  // {
-  //   pos: 1,
-  //   qty: 1,
-  //   name: "Kartoffeln",
-  //   selected: false
-  // },
-  // {
-  //   pos: 2,
-  //   qty: 5,
-  //   name: "Zwiebeln",
-  //   selected: true
-  // }
-];
-
 const _window: any = (<any>window);
 const hoodie = _window.hoodie;
 
-hoodie.ready.then(
-
-  function setupDB() {
-
-    console.log('hoodie is ready');
-
-    function init(items: any[]) {
-      console.log("init");
-      LINE_ITEMS.length = 0; // clear the array
-      let dbItems = items.filter(function (element, index, array) {
-        let retval = element.type === 'LineItem';
-        return retval;
-      });
-      Array.prototype.push.apply(LINE_ITEMS, dbItems);
-    }
-
-    function dbHasChanged() {
-      console.log("DB has changed");
-      hoodie.store.findAll().then(init);
-    }
-
-    hoodie.store.on('change', dbHasChanged);
-    dbHasChanged();
-  }
-);
-
 @Injectable()
 export class ShoppingListService {
-  lineItems = LINE_ITEMS;
+  lineItems = [];
+
+  constructor() { 
+    const li = this.lineItems; // alias
+    hoodie.ready.then(
+      function setupDB() {
+        function init(items: any[]) {
+          li.length = 0; // clear the array
+          let dbItems = items.filter(function (element, index, array) {
+            let retval = element.type === 'LineItem';
+            return retval;
+          });
+          // merge dbItems in li
+          Array.prototype.push.apply(li, dbItems);
+        }
+
+        function dbHasChanged() {
+          console.log("DB has changed");
+          hoodie.store.findAll().then(init);
+        }
+        hoodie.store.on('change', dbHasChanged);
+        dbHasChanged();
+      }
+    );
+  }
+
+  private db_addLineItem(lineItem: LineItem): void {
+    const lineItemRepr = (<any>lineItem);
+    lineItemRepr.type = 'LineItem';
+    hoodie.store.add(lineItemRepr).then(function(){
+      console.log('persisted line item', JSON.stringify(lineItem));
+    });
+  }
+
+  private db_updateLineItem(lineItem: LineItem): void {
+    const lineItemRepr = (<any>lineItem);
+    hoodie.store.update(
+      lineItemRepr.id,
+      lineItem
+    );
+  }
+
+  private db_deleteLineItem(lineItem: LineItem) {
+    const lineItemRepr = (<any>lineItem);
+    hoodie.store.remove({id: lineItemRepr.id});
+  }
 
   getLineItems(): LineItem[] {
     return this.lineItems;
-  }
-
-  persistLineItem(lineItem: any): void {
-    lineItem.type = 'LineItem';
-    hoodie.store.add(lineItem).then(function(){console.log('persisted line item', JSON.stringify(lineItem));});
   }
 
   createLineItem(name: string, qty: number, selected: boolean): LineItem {
@@ -64,8 +63,15 @@ export class ShoppingListService {
     lineItem.qty = qty;
     lineItem.name = name;
     lineItem.selected = selected;
-    // this.lineItems.push(lineItem);
-    this.persistLineItem(lineItem);
+    this.db_addLineItem(lineItem);
     return lineItem;
+  }
+
+  updateLineItem(item: LineItem) {
+    this.db_updateLineItem(item);
+  }
+
+  removeItem(item: LineItem) {
+    this.db_deleteLineItem(item);
   }
 };

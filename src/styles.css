@@ -1,2 +1,12 @@
 /* You can add global styles to this file, and also import other style files */
 @import '~@angular/material/core/theming/prebuilt/deeppurple-amber.css';
+
+.qty {
+    display: inline-block;
+    width: 30px;
+}
+
+.item {
+    display: inline-block;
+    width: 100px;
+}
