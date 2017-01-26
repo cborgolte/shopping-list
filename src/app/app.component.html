@@ -4,7 +4,7 @@
     </md-card-title>
     <md-card-content>
         <md-list>
-            <md-list-item *ngFor="let item of lineItems" layout="row">
+            <md-list-item *ngFor="let item of lineItems; trackBy: trackLineItems" layout="row">
                 <md-checkbox [(ngModel)]="item.selected" (click)="shoppingListService.updateLineItem(item)">
                     <span class="qty">{{item.qty}}</span>
                     <span class="item">{{item.name}}</span>
