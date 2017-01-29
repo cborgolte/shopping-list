@@ -1,0 +1,34 @@
+<md-card>
+    <md-card-title>
+        <h2>Einzukaufen</h2>
+    </md-card-title>
+    <md-card-content>
+        <md-list>
+            <md-list-item *ngFor="let item of lineItems; trackBy: trackLineItems" layout="row">
+                <md-checkbox [(ngModel)]="item.selected" (click)="shoppingListService.updateLineItem(item)">
+                    <span class="qty">{{item.qty}}</span>
+                    <span class="item">{{item.name}}</span>
+                </md-checkbox>
+                <div class="button-list" flex>
+                    <button md-icon-button (click)="decrease(item)">
+                        <md-icon>remove</md-icon>
+                    </button>
+                    <button md-icon-button (click)="increase(item)">
+                        <md-icon>add</md-icon>
+                    </button>
+                    <button md-icon-button (click)="remove(item)">
+                        <md-icon>delete</md-icon>
+                    </button>
+                </div>
+                <md-divider ng-if="!$last"></md-divider>
+            </md-list-item>
+        </md-list>
+        <md-divider></md-divider>
+        <section>
+            <md-input-container>
+                <input md-input (keyup.enter)="onEnter(box)" #box placeholder="add item" value="">
+            </md-input-container>
+        </section>
+    </md-card-content>
+</md-card>
+<pre>{{lineItems|json}}</pre>

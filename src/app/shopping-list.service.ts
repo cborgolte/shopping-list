@@ -1,5 +1,5 @@
 import {Injectable} from '@angular/core';
-import { LineItem } from './line_item';
+import { LineItem } from './line-item';
 
 const _window: any = (<any>window);
 const hoodie = _window.hoodie;

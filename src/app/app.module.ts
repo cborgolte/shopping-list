@@ -5,18 +5,23 @@ import { HttpModule } from '@angular/http';
 import { MaterialModule } from '@angular/material';
 
 import { AppComponent } from './app.component';
+import { ShoppingListModifyComponent } from './shopping-list-modify.component';
+import { AppRoutingModule }   from './app-routing.module';
+import { ShoppingListService } from './shopping-list.service';
 
 @NgModule({
   declarations: [
-    AppComponent
+    AppComponent,
+    ShoppingListModifyComponent
   ],
   imports: [
     BrowserModule,
     FormsModule,
     HttpModule,
     MaterialModule.forRoot(),
+    AppRoutingModule
   ],
-  providers: [],
+  providers: [ShoppingListService],
   bootstrap: [AppComponent]
 })
 export class AppModule { }
