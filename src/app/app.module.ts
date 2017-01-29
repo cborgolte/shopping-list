@@ -5,14 +5,16 @@ import { HttpModule } from '@angular/http';
 import { MaterialModule } from '@angular/material';
 
 import { AppComponent } from './app.component';
-import { ShoppingListModifyComponent } from './shopping-list-modify.component';
 import { AppRoutingModule }   from './app-routing.module';
 import { ShoppingListService } from './shopping-list.service';
+import { ShoppingListComponent }  from './shopping-list.component';
+import { ShoppingListModifyComponent } from './shopping-list-modify.component';
 
 @NgModule({
   declarations: [
     AppComponent,
-    ShoppingListModifyComponent
+    ShoppingListModifyComponent,
+    ShoppingListComponent
   ],
   imports: [
     BrowserModule,
