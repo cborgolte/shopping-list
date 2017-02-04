@@ -1,6 +1,6 @@
 import { NgFirstPage } from './app.po';
 
-describe('ng-first App', function() {
+describe('shopping-list', function() {
   let page: NgFirstPage;
 
   beforeEach(() => {
