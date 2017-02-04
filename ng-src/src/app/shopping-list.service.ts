@@ -28,6 +28,15 @@ export class ShoppingListService {
         }
         hoodie.store.on('change', dbHasChanged);
         dbHasChanged();
+
+        let email = 'oberweg';
+        let password = '123iu9lksjdf!lkjpi-adfllkj';
+        let options = { username: email, password: password };
+        // hoodie.account.signUp(options)
+        // .finally(() => hoodie.account.signIn(options))
+        // .then((sessionProp) => console.log("logged in as " + sessionProp.account.username));
+        hoodie.account.signIn(options)
+          .then((sessionProp) => console.log("logged in as " + sessionProp.username));
       }
     );
   }

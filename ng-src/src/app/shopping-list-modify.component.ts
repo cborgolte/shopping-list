@@ -59,7 +59,6 @@ export class ShoppingListModifyComponent {
   // track items
   trackLineItems(index: number, lineItem: LineItem) { 
     const lineItemRepr = (<any>lineItem);
-    console.log('track by:' + lineItemRepr);
     return lineItemRepr.id;
    }
 
