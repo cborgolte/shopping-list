@@ -26,17 +26,19 @@ var ShoppingListService = (function () {
         var li = this.lineItems; // alias
         hoodie.ready.then(function setupDB() {
             function init(items) {
+                console.log('init: ' + JSON.stringify(items));
                 li.length = 0; // clear the array
                 var dbItems = items.filter(function (element, index, array) {
                     var retval = element.type === 'LineItem';
                     return retval;
                 });
-                // merge dbItems in li
+                // merge dbItems in (empty) li
                 Array.prototype.push.apply(li, dbItems);
             }
             function dbHasChanged() {
-                console.log("DB has changed");
+                console.log("DB has changed in");
                 hoodie.store.findAll().then(init);
+                console.log("DB has changed out");
             }
             hoodie.store.on('change', dbHasChanged);
             dbHasChanged();
