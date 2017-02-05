@@ -1,4 +1,5 @@
-import {Injectable} from '@angular/core';
+import {Injectable, Component, NgZone} from '@angular/core';
+
 import { LineItem } from './line-item';
 
 const _window: any = (<any>window);
@@ -8,10 +9,10 @@ const hoodie = _window.hoodie;
 export class ShoppingListService {
   lineItems = [];
 
-  constructor() { 
+  constructor(zone: NgZone) { 
     const li = this.lineItems; // alias
-    hoodie.ready.then(
-      function setupDB() {
+    hoodie.ready.then( function setupDB() {
+
         function init(items: any[]) {
           console.log('init: ' + JSON.stringify(items));
           li.length = 0; // clear the array
@@ -19,8 +20,11 @@ export class ShoppingListService {
             let retval = element.type === 'LineItem';
             return retval;
           });
-          // merge dbItems in (empty) li
-          Array.prototype.push.apply(li, dbItems);
+
+          zone.run(() =>
+            // merge dbItems in (empty) li
+            Array.prototype.push.apply(li, dbItems)
+           );
         }
 
         function dbHasChanged() {
