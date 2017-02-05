@@ -21,7 +21,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var _window = window;
 var hoodie = _window.hoodie;
 var ShoppingListService = (function () {
-    function ShoppingListService() {
+    function ShoppingListService(zone) {
         this.lineItems = [];
         var li = this.lineItems; // alias
         hoodie.ready.then(function setupDB() {
@@ -32,8 +32,10 @@ var ShoppingListService = (function () {
                     var retval = element.type === 'LineItem';
                     return retval;
                 });
-                // merge dbItems in (empty) li
-                Array.prototype.push.apply(li, dbItems);
+                zone.run(function () {
+                    // merge dbItems in (empty) li
+                    return Array.prototype.push.apply(li, dbItems);
+                });
             }
             function dbHasChanged() {
                 console.log("DB has changed in");
@@ -87,9 +89,10 @@ var ShoppingListService = (function () {
     };
     ShoppingListService = __decorate([
         __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__angular_core__["c" /* Injectable */])(), 
-        __metadata('design:paramtypes', [])
+        __metadata('design:paramtypes', [(typeof (_a = typeof __WEBPACK_IMPORTED_MODULE_0__angular_core__["d" /* NgZone */] !== 'undefined' && __WEBPACK_IMPORTED_MODULE_0__angular_core__["d" /* NgZone */]) === 'function' && _a) || Object])
     ], ShoppingListService);
     return ShoppingListService;
+    var _a;
 }());
 ;
 //# sourceMappingURL=/Users/christophborgolte/code/playground/shopping-list/ng-src/src/shopping-list.service.js.map

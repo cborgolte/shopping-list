@@ -22,5 +22,5 @@ set -o nounset                              # Treat unset variables as an error
 cd ng-src
 ng build
 cd -
-git commit -am "$@"
+git commit -am "\"$@\""
 git push heroku master
