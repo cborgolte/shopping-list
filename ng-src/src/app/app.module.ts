@@ -9,6 +9,7 @@ import { AppRoutingModule }   from './app-routing.module';
 import { ShoppingListService } from './shopping-list.service';
 import { ShoppingListComponent }  from './shopping-list.component';
 import { ShoppingListModifyComponent } from './shopping-list-modify.component';
+import {DragulaModule, DragulaService} from 'ng2-dragula/ng2-dragula';
 
 @NgModule({
   declarations: [
@@ -21,9 +22,10 @@ import { ShoppingListModifyComponent } from './shopping-list-modify.component';
     FormsModule,
     HttpModule,
     MaterialModule.forRoot(),
-    AppRoutingModule
+    AppRoutingModule,
+    DragulaModule
   ],
-  providers: [ShoppingListService],
+  providers: [ShoppingListService, DragulaService],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

@@ -1,5 +1,5 @@
 import {Injectable, Component, NgZone} from '@angular/core';
-
+import {DragulaService} from 'ng2-dragula/ng2-dragula';
 import { LineItem } from './line-item';
 
 const _window: any = (<any>window);
@@ -9,17 +9,23 @@ const hoodie = _window.hoodie;
 export class ShoppingListService {
   lineItems = [];
 
-  constructor(zone: NgZone) { 
+  constructor(zone: NgZone, private dragulaService: DragulaService) { 
+
     const li = this.lineItems; // alias
+
+    dragulaService.drop.subscribe((value) => {
+      console.log(`drop: ${value[0]}`);
+      this.onDrop(value);
+    });
+
     hoodie.ready.then( function setupDB() {
 
         function init(items: any[]) {
-          console.log('init: ' + JSON.stringify(items));
           li.length = 0; // clear the array
           let dbItems = items.filter(function (element, index, array) {
             let retval = element.type === 'LineItem';
             return retval;
-          });
+          }).sort((lhs, rhs) => lhs.pos - rhs.pos);
 
           zone.run(() =>
             // merge dbItems in (empty) li
@@ -28,9 +34,7 @@ export class ShoppingListService {
         }
 
         function dbHasChanged() {
-          console.log("DB has changed in");
           hoodie.store.findAll().then(init);
-          console.log("DB has changed out");
         }
 
         hoodie.store.on('change', dbHasChanged);
@@ -64,10 +68,30 @@ export class ShoppingListService {
     );
   }
 
+  private db_updateLineItems(lineItems: LineItem[]): void {
+    const lineItemsRepr = (<any[]>lineItems);
+    hoodie.store.update(lineItemsRepr);
+  }
+
   private db_deleteLineItem(lineItem: LineItem) {
     const lineItemRepr = (<any>lineItem);
     hoodie.store.remove({id: lineItemRepr.id});
   }
+
+  private onDrop(args: any[]) {
+    // since lineItems are the model of the dragula container,
+    //  they are in correct order now. That is,
+    //  we have to persist this new order here.
+    let dbItems = this.lineItems.map((lineItem: LineItem, pos: number, array: LineItem[]) => {
+      if (pos != lineItem.pos) {
+        lineItem.pos = pos;
+        return lineItem;
+      }
+      return null;
+    }).filter((lineItem: LineItem, pos: number, array: LineItem[]) => {return lineItem != null});
+    this.db_updateLineItems(dbItems);
+  }
+
 
   getLineItems(): LineItem[] {
     return this.lineItems;
