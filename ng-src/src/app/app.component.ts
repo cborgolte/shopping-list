@@ -13,4 +13,8 @@ import {DragulaService} from 'ng2-dragula/ng2-dragula';
 })
 export class AppComponent {
   title = 'Shopping List';
+  user = {
+    name: "Einar Maleben",
+    isLoggedIn: true
+  };
 }
