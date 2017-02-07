@@ -3,11 +3,11 @@ import {DragulaService} from 'ng2-dragula/ng2-dragula';
 import { LineItem } from './line-item';
 
 const _window: any = (<any>window);
-const hoodie = _window.hoodie;
+const hoodie: any = _window.hoodie;
 
 @Injectable()
 export class ShoppingListService {
-  lineItems = [];
+  lineItems: LineItem[] = [];
 
   constructor(zone: NgZone, private dragulaService: DragulaService) { 
 
@@ -18,7 +18,7 @@ export class ShoppingListService {
       this.onDrop(value);
     });
 
-    hoodie.ready.then( function setupDB() {
+    hoodie.ready.then( () => {
 
         function init(items: any[]) {
           li.length = 0; // clear the array
@@ -27,7 +27,7 @@ export class ShoppingListService {
             return retval;
           }).sort((lhs, rhs) => lhs.pos - rhs.pos);
 
-          zone.run(() =>
+          zone.run( () =>
             // merge dbItems in (empty) li
             Array.prototype.push.apply(li, dbItems)
            );
@@ -46,8 +46,8 @@ export class ShoppingListService {
         // hoodie.account.signUp(options)
         // .finally(() => hoodie.account.signIn(options))
         // .then((sessionProp) => console.log("logged in as " + sessionProp.account.username));
-        hoodie.account.signIn(options)
-          .then((sessionProp) => console.log("logged in as " + sessionProp.username));
+        // hoodie.account.signIn(options)
+        //   .then((sessionProp) => console.log("logged in as " + sessionProp.username));
       }
     );
   }

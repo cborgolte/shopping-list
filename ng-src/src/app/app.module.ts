@@ -7,6 +7,7 @@ import { MaterialModule } from '@angular/material';
 import { AppComponent } from './app.component';
 import { AppRoutingModule }   from './app-routing.module';
 import { ShoppingListService } from './shopping-list.service';
+import { AccountService } from './account/account.service';
 import { ShoppingListComponent }  from './shopping-list.component';
 import { ShoppingListModifyComponent } from './shopping-list-modify.component';
 import {DragulaModule, DragulaService} from 'ng2-dragula/ng2-dragula';
@@ -25,7 +26,7 @@ import {DragulaModule, DragulaService} from 'ng2-dragula/ng2-dragula';
     AppRoutingModule,
     DragulaModule
   ],
-  providers: [ShoppingListService, DragulaService],
+  providers: [ShoppingListService, AccountService, DragulaService],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

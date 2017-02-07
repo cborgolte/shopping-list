@@ -4,7 +4,7 @@
         <a routerLink="/shop" routerLinkActive="active">Einkaufen</a>
     </nav>
     <span class="spacer"></span>
-    <span class="user">Hi <strong>{{user.name || "Anonymous"}}</strong>&nbsp;|&nbsp;</span>
+    <span class="user">Hi <strong>{{user.username || "-"}}</strong>&nbsp;|&nbsp;</span>
     <nav>
         <a *ngIf="!user.logged_in" routerLink="/log-in" routerLinkActive="active">Log in</a>
         <a *ngIf="user.logged_in" routerLink="/log-out" routerLinkActive="active">Log out</a>
