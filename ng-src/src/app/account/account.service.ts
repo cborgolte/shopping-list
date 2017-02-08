@@ -13,16 +13,19 @@ export class AccountService {
         this.zone = zone;
         hoodie.ready.then( () => {
             console.log("account ready");
-            let email = 'oberweg';
-            let password = '123iu9lksjdf!lkjpi-adfllkj';
-            this.login(email, password);
-            let options = { username: email, password: password };
-            hoodie.account.signUp(options)
-                .then(() => this.login(email, password));
+            if (hoodie.account.isSignedIn()) {
+                this.account.username = hoodie.account.username;
+            }
+            /// let email = 'oberweg';
+            /// let password = '123iu9lksjdf!lkjpi-adfllkj';
+            /// this.signIn(email, password);
+            /// let options = { username: email, password: password };
+            /// hoodie.account.signUp(options)
+            ///     .then(() => this.signIn(email, password));
         });
   }
 
-  login(username: String, password: String) {
+  public signIn(username: String, password: String): any {
 
         /// let email = 'oberweg';
         /// let password = '123iu9lksjdf!lkjpi-adfllkj';
@@ -30,7 +33,7 @@ export class AccountService {
         // hoodie.account.signUp(options)
         // .finally(() => hoodie.account.signIn(options))
         // .then((sessionProp) => console.log("logged in as " + sessionProp.account.username));
-        hoodie.account.signIn(options)
+        return hoodie.account.signIn(options)
             .then((sessionProp) => {
                 console.log("logged in as " + sessionProp.username);
                 this.zone.run(() => {
