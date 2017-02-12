@@ -2,6 +2,6 @@
 mkdir -p logs/nginx
 tmux new-session -d 'cd ng-src && npm start'
 tmux split-window -v 'npm start'
-tmux split-window -v 'nginx -c $PWD/nginx.conf'
+tmux split-window -v 'nginx -p $PWD -c nginx.conf'
 #tmux new-window 'mutt'
 tmux -2 attach-session -d 
