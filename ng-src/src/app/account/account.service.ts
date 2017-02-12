@@ -1,52 +1,63 @@
 import {Injectable, Component, NgZone} from '@angular/core';
 
+// HACK: Get a handle to the hoodie client
 const _window: any = (<any>window);
 const hoodie: any = _window.hoodie;
 
 @Injectable()
 export class AccountService {
 
-    account: any = {}
-    zone: NgZone
+    private account: any = {}
 
-    constructor(zone: NgZone) { 
-        this.zone = zone;
+    constructor(private zone: NgZone) { 
         hoodie.ready.then( () => {
-            console.log("account ready");
             if (hoodie.account.isSignedIn()) {
-                this.account.username = hoodie.account.username;
+                this.setUser(hoodie.account.username);
             }
-            /// let email = 'oberweg';
-            /// let password = '123iu9lksjdf!lkjpi-adfllkj';
-            /// this.signIn(email, password);
-            /// let options = { username: email, password: password };
-            /// hoodie.account.signUp(options)
-            ///     .then(() => this.signIn(email, password));
+            else {
+                this.clearUser();
+            }
         });
+  }
+
+  private setUser(username: string) {
+      this.zone.runOutsideAngular( () => {
+          this.account.username = username;
+          this.account.logged_in = true;
+          console.log(this.account);
+      });
+  }
+
+  private clearUser() {
+      this.zone.runOutsideAngular( () => {
+          this.account.username = "";
+          this.account.logged_in = false;
+          // for (let attr in this.account) {
+          //     delete (this.account[attr]);
+          // }
+      });
   }
 
   public signIn(username: String, password: String): any {
 
-        /// let email = 'oberweg';
-        /// let password = '123iu9lksjdf!lkjpi-adfllkj';
-        let options = { username: username, password: password };
-        // hoodie.account.signUp(options)
-        // .finally(() => hoodie.account.signIn(options))
-        // .then((sessionProp) => console.log("logged in as " + sessionProp.account.username));
+      let options = { username: username, password: password };
         return hoodie.account.signIn(options)
             .then((sessionProp) => {
                 console.log("logged in as " + sessionProp.username);
-                this.zone.run(() => {
-                    this.account.username = sessionProp.username;
-                    this.account.logged_in = true;
-                });
+                this.setUser(sessionProp.username);
             })
-            .catch( (error) => {
+            .catch((error) => {
                 console.log("log in failed " + error);
             });
     }
 
-    getAccount(): any {
-        return this.account;
-    }
+  public getAccount(): any {
+      return this.account;
+  }
+
+  public signOut(): void {
+      hoodie.account.signOut().then(() => {
+          this.clearUser();
+      });
+  }
 }

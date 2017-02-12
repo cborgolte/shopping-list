@@ -1,5 +1,7 @@
 import { Component } from '@angular/core';
+import { Router, ActivatedRoute } from '@angular/router';
 import { AccountService } from './account.service';
+
 
 @Component({
     selector: 'sign-in',
@@ -8,16 +10,24 @@ import { AccountService } from './account.service';
 })
 export class AccountSignInComponent {
 
+    // ngModel
     account = {
         username: "",
         password: "",
     };
 
-    constructor(private accountService: AccountService) { }
+    constructor(
+        private accountService: AccountService,
+        private router: Router,
+        private route: ActivatedRoute
+    ) { }
 
     signIn(): void {
         console.log(this.account);
         this.accountService.signIn(this.account.username, this.account.password)
-        .then( () => {console.log("TODO: redirect");})
+        .then( () => {
+            // TODO: check for redirect URL in query parameters
+            this.router.navigate(["/modify"]);
+        });
     }
 }

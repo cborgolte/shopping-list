@@ -14,9 +14,9 @@ export class ShoppingListService {
     const li = this.lineItems; // alias
 
     dragulaService.drop.subscribe((value) => {
-      console.log(`drop: ${value[0]}`);
       this.onDrop(value);
     });
+
 
     hoodie.ready.then( () => {
 
@@ -30,24 +30,31 @@ export class ShoppingListService {
           zone.run( () =>
             // merge dbItems in (empty) li
             Array.prototype.push.apply(li, dbItems)
-           );
+          );
         }
 
         function dbHasChanged() {
           hoodie.store.findAll().then(init);
         }
 
-        hoodie.store.on('change', dbHasChanged);
+        // initalize db
         dbHasChanged();
 
-        let email = 'oberweg';
-        let password = '123iu9lksjdf!lkjpi-adfllkj';
-        let options = { username: email, password: password };
-        // hoodie.account.signUp(options)
-        // .finally(() => hoodie.account.signIn(options))
-        // .then((sessionProp) => console.log("logged in as " + sessionProp.account.username));
-        // hoodie.account.signIn(options)
-        //   .then((sessionProp) => console.log("logged in as " + sessionProp.username));
+        //// Events
+
+        // Handle store changes
+        hoodie.store.on('change', dbHasChanged);
+
+        // Load new user's data after a new user signs in
+        hoodie.account.on('signin', (accountProperties) => {
+          init([]);
+        });
+
+        // Clear data after a user signs out
+        hoodie.account.on('signout', (accountProperties) => {
+          init([]);
+        });
+
       }
     );
   }
@@ -56,7 +63,6 @@ export class ShoppingListService {
     const lineItemRepr = (<any>lineItem);
     lineItemRepr.type = 'LineItem';
     hoodie.store.add(lineItemRepr).then(function(){
-      console.log('persisted line item', JSON.stringify(lineItem));
     });
   }
 

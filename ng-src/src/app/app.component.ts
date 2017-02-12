@@ -13,13 +13,10 @@ import {DragulaService} from 'ng2-dragula/ng2-dragula';
 })
 export class AppComponent {
 
-  title = 'Shopping List';
-  accountService: AccountService
-  user: any = null;
-
-  constructor(accountService: AccountService) {
-    this.accountService = accountService;
+  private user: any;
+  constructor(private accountService: AccountService) {
     this.user = accountService.getAccount();
+    window['UUUUU'] = this.user;
   }
 
 }

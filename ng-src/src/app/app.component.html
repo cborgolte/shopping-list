@@ -7,7 +7,8 @@
     <span class="user">Hi <strong>{{user.username || "-"}}</strong>&nbsp;|&nbsp;</span>
     <nav>
         <a *ngIf="!user.logged_in" routerLink="/log-in" routerLinkActive="active">Log in</a>
-        <a *ngIf="user.logged_in" routerLink="/log-out" routerLinkActive="active">Log out</a>
+        <!-- <a *ngIf="user.logged_in" routerLink="/log-out" routerLinkActive="active">Log out</a> -->
+        <a *ngIf="user.logged_in" (click)="accountService.signOut()">Log out</a>
         <a *ngIf="!user.logged_in" routerLink="/sign-up" routerLinkActive="active">Sign up</a>
     </nav>
 </md-toolbar>
