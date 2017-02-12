@@ -3,6 +3,7 @@ import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpModule } from '@angular/http';
 import { MaterialModule } from '@angular/material';
+import 'hammerjs';
 
 import { AppComponent } from './app.component';
 import { AppRoutingModule }   from './app-routing.module';
@@ -12,6 +13,7 @@ import { AccountSignInComponent }  from './account/account-sign-in.component';
 import { ShoppingListComponent }  from './shopping-list.component';
 import { ShoppingListModifyComponent } from './shopping-list-modify.component';
 import {DragulaModule, DragulaService} from 'ng2-dragula/ng2-dragula';
+
 
 @NgModule({
   declarations: [
