@@ -6,7 +6,7 @@ var options = {
 }
 module.exports = new Hoodie(options)
 
-},{"@hoodie/client":27,"pouchdb-browser":292}],2:[function(require,module,exports){
+},{"@hoodie/client":27,"pouchdb-browser":291}],2:[function(require,module,exports){
 module.exports = Account
 
 var getUsername = require('./lib/username')
@@ -95,7 +95,7 @@ function destroy (state) {
   })
 }
 
-},{"../utils/request":25,"./get":6,"./is-signed-in":9,"lodash/clone":254}],4:[function(require,module,exports){
+},{"../utils/request":25,"./get":6,"./is-signed-in":9,"lodash/clone":253}],4:[function(require,module,exports){
 module.exports = {
   on: on,
   one: one,
@@ -195,7 +195,7 @@ function fetch (state, path) {
   })
 }
 
-},{"../utils/fetch-properties":21,"lie":101,"lodash/get":261,"lodash/merge":280,"lodash/set":284}],6:[function(require,module,exports){
+},{"../utils/fetch-properties":21,"lie":100,"lodash/get":260,"lodash/merge":279,"lodash/set":283}],6:[function(require,module,exports){
 module.exports = accountGet
 
 var internals = module.exports.internals = {}
@@ -222,7 +222,7 @@ function hasInvalidSession (state) {
   return get(state, 'account.session.invalid')
 }
 
-},{"lodash/get":261}],8:[function(require,module,exports){
+},{"lodash/get":260}],8:[function(require,module,exports){
 module.exports = getId
 
 function getId (state) {
@@ -245,7 +245,7 @@ function isSignedIn (state) {
   return get(state, 'account.session') !== undefined
 }
 
-},{"lodash/get":261}],10:[function(require,module,exports){
+},{"lodash/get":260}],10:[function(require,module,exports){
 module.exports = profileFetch
 
 var get = require('lodash/get')
@@ -289,7 +289,7 @@ function profileFetch (state, path) {
   })
 }
 
-},{"../utils/fetch-properties":21,"lodash/get":261,"lodash/set":284}],11:[function(require,module,exports){
+},{"../utils/fetch-properties":21,"lodash/get":260,"lodash/set":283}],11:[function(require,module,exports){
 module.exports = profileGet
 
 var get = require('lodash/get')
@@ -307,10 +307,15 @@ function profileGet (state, path) {
     return undefined
   }
   var profile = get(state, 'account.profile')
-  return internals.getProperties(profile, path) || {}
+
+  if (!path) {
+    return profile || {}
+  }
+
+  return internals.getProperties(profile, path)
 }
 
-},{"../utils/get-properties":23,"./is-signed-in":9,"lodash/get":261}],12:[function(require,module,exports){
+},{"../utils/get-properties":23,"./is-signed-in":9,"lodash/get":260}],12:[function(require,module,exports){
 module.exports = updateProfile
 
 var clone = require('lodash/clone')
@@ -365,7 +370,7 @@ function updateProfile (state, options) {
   })
 }
 
-},{"../utils/request":25,"../utils/serialise":26,"lie":101,"lodash/clone":254,"lodash/merge":280}],13:[function(require,module,exports){
+},{"../utils/request":25,"../utils/serialise":26,"lie":100,"lodash/clone":253,"lodash/merge":279}],13:[function(require,module,exports){
 module.exports = request
 
 var Promise = require('lie')
@@ -398,7 +403,7 @@ function request (state, options) {
   })
 }
 
-},{"../utils/deserialise":20,"../utils/request":25,"../utils/serialise":26,"lie":101}],14:[function(require,module,exports){
+},{"../utils/deserialise":20,"../utils/request":25,"../utils/serialise":26,"lie":100}],14:[function(require,module,exports){
 module.exports = signIn
 
 var Promise = require('lie')
@@ -411,8 +416,12 @@ internals.request = require('../utils/request')
 internals.serialise = require('../utils/serialise')
 
 function signIn (state, options) {
-  if (!options || !options.username || !options.password) {
-    return Promise.reject(new Error('options.username and options.password is required'))
+  if (!options) {
+    options = {}
+  }
+  var usernameOrPasswordUnset = !options.username || !options.password
+  if (usernameOrPasswordUnset && !options.token) {
+    return Promise.reject(new Error('options.username/options.password or options.token required'))
   }
 
   return state.ready
@@ -464,7 +473,7 @@ function signIn (state, options) {
   })
 }
 
-},{"../utils/deserialise":20,"../utils/request":25,"../utils/serialise":26,"lie":101,"lodash/clone":254,"lodash/get":261}],15:[function(require,module,exports){
+},{"../utils/deserialise":20,"../utils/request":25,"../utils/serialise":26,"lie":100,"lodash/clone":253,"lodash/get":260}],15:[function(require,module,exports){
 module.exports = signOut
 
 var clone = require('lodash/clone')
@@ -514,7 +523,7 @@ function signOut (state) {
   })
 }
 
-},{"../utils/generate-id":22,"../utils/request":25,"./get":6,"./is-signed-in":9,"lodash/clone":254}],16:[function(require,module,exports){
+},{"../utils/generate-id":22,"../utils/request":25,"./get":6,"./is-signed-in":9,"lodash/clone":253}],16:[function(require,module,exports){
 module.exports = signUp
 
 var get = require('lodash/get')
@@ -559,7 +568,7 @@ function signUp (state, options) {
   })
 }
 
-},{"../utils/deserialise":20,"../utils/request":25,"../utils/serialise":26,"lie":101,"lodash/get":261}],17:[function(require,module,exports){
+},{"../utils/deserialise":20,"../utils/request":25,"../utils/serialise":26,"lie":100,"lodash/get":260}],17:[function(require,module,exports){
 module.exports = update
 
 var clone = require('lodash/clone')
@@ -619,7 +628,7 @@ function update (state, options) {
   })
 }
 
-},{"../utils/deserialise":20,"../utils/request":25,"../utils/serialise":26,"lie":101,"lodash/clone":254,"lodash/merge":280,"lodash/omit":282}],18:[function(require,module,exports){
+},{"../utils/deserialise":20,"../utils/request":25,"../utils/serialise":26,"lie":100,"lodash/clone":253,"lodash/merge":279,"lodash/omit":281}],18:[function(require,module,exports){
 module.exports = username
 
 function username (state) {
@@ -653,7 +662,7 @@ function validate (state, options) {
   })
 }
 
-},{"lie":101}],20:[function(require,module,exports){
+},{"lie":100}],20:[function(require,module,exports){
 module.exports = deserialise
 
 var merge = require('lodash/merge')
@@ -721,7 +730,7 @@ function deserialiseMany (options, response) {
   })
 }
 
-},{"lodash/filter":259,"lodash/merge":280}],21:[function(require,module,exports){
+},{"lodash/filter":258,"lodash/merge":279}],21:[function(require,module,exports){
 module.exports = fetchProperties
 
 var deserialise = require('./deserialise')
@@ -787,7 +796,7 @@ function getProperties (baseObject, path) {
   return get(baseObject, path)
 }
 
-},{"lodash/get":261,"lodash/set":284}],24:[function(require,module,exports){
+},{"lodash/get":260,"lodash/set":283}],24:[function(require,module,exports){
 module.exports = getState
 
 var Hook = require('before-after-hook')
@@ -850,7 +859,7 @@ function getState (options) {
   return state
 }
 
-},{"./generate-id":22,"async-get-set-store":77,"before-after-hook":79,"events":91}],25:[function(require,module,exports){
+},{"./generate-id":22,"async-get-set-store":77,"before-after-hook":79,"events":90}],25:[function(require,module,exports){
 module.exports = request
 
 var nets = require('nets')
@@ -887,7 +896,7 @@ function request (options) {
   })
 }
 
-},{"lie":101,"lodash/set":284,"nets":290}],26:[function(require,module,exports){
+},{"lie":100,"lodash/set":283,"nets":289}],26:[function(require,module,exports){
 module.exports = serialise
 
 function serialise (type, attributes, id) {
@@ -1097,7 +1106,7 @@ function mergeOptionsAndCreate (objectConstructor, defaultOptions, stateOptions)
   return objectConstructor(options)
 }
 
-},{"./events":28,"./init":31,"./plugin":32,"./request":33,"@hoodie/account-client":2,"@hoodie/connection-status/client":35,"@hoodie/log/client":47,"@hoodie/store-client":56,"lodash/defaultsDeep":257,"pouchdb-doc-api":293}],30:[function(require,module,exports){
+},{"./events":28,"./init":31,"./plugin":32,"./request":33,"@hoodie/account-client":2,"@hoodie/connection-status/client":35,"@hoodie/log/client":47,"@hoodie/store-client":56,"lodash/defaultsDeep":256,"pouchdb-doc-api":293}],30:[function(require,module,exports){
 module.exports = getState
 
 var EventEmitter = require('events').EventEmitter
@@ -1125,7 +1134,7 @@ function getState (options) {
   return state
 }
 
-},{"events":91,"lodash/defaultsDeep":257}],31:[function(require,module,exports){
+},{"events":90,"lodash/defaultsDeep":256}],31:[function(require,module,exports){
 module.exports = init
 
 function init (hoodie) {
@@ -1255,7 +1264,7 @@ function request (state, options) {
   return internals.request(requestOptions)
 }
 
-},{"./utils/request":34,"lie":101}],34:[function(require,module,exports){
+},{"./utils/request":34,"lie":100}],34:[function(require,module,exports){
 module.exports = request
 
 var nets = require('nets')
@@ -1284,7 +1293,7 @@ function request (options) {
   })
 }
 
-},{"lie":101,"nets":290}],35:[function(require,module,exports){
+},{"lie":100,"nets":289}],35:[function(require,module,exports){
 module.exports = Connection
 
 var EventEmitter = require('events').EventEmitter
@@ -1326,7 +1335,7 @@ function Connection (options) {
   return api
 }
 
-},{"../lib/check":36,"../lib/get-ok":37,"../lib/is-checking":38,"../lib/off":39,"../lib/on":40,"../lib/reset":41,"../lib/start-checking":42,"../lib/stop-checking":43,"../lib/utils/parse-options":45,"events":91}],36:[function(require,module,exports){
+},{"../lib/check":36,"../lib/get-ok":37,"../lib/is-checking":38,"../lib/off":39,"../lib/on":40,"../lib/reset":41,"../lib/start-checking":42,"../lib/stop-checking":43,"../lib/utils/parse-options":45,"events":90}],36:[function(require,module,exports){
 (function (process){
 module.exports = check
 
@@ -1699,7 +1708,7 @@ function request (options) {
   return promise
 }
 
-},{"nets":290}],47:[function(require,module,exports){
+},{"nets":289}],47:[function(require,module,exports){
 module.exports = Log
 
 Log.console = console
@@ -1997,7 +2006,7 @@ Store.defaults = function (defaultOpts) {
   return CustomStore
 }
 
-},{"./lib/is-persistent":57,"./lib/reset":58,"./lib/scoped/":63,"./lib/subscribe-to-sync-events":69,"./lib/sync-wrapper":70,"events":91,"lodash/merge":280,"pouchdb-hoodie-api":317,"pouchdb-hoodie-sync":335}],57:[function(require,module,exports){
+},{"./lib/is-persistent":57,"./lib/reset":58,"./lib/scoped/":63,"./lib/subscribe-to-sync-events":69,"./lib/sync-wrapper":70,"events":90,"lodash/merge":279,"pouchdb-hoodie-api":317,"pouchdb-hoodie-sync":335}],57:[function(require,module,exports){
 module.exports = isPersistent
 
 function isPersistent (state) {
@@ -2071,7 +2080,7 @@ function reset (dbName, CustomPouchDB, state, api, clear, emitter, remoteBaseUrl
   })
 }
 
-},{"./scoped/":63,"./subscribe-to-sync-events":69,"./sync-wrapper":70,"lodash/merge":280}],59:[function(require,module,exports){
+},{"./scoped/":63,"./subscribe-to-sync-events":69,"./sync-wrapper":70,"lodash/merge":279}],59:[function(require,module,exports){
 module.exports = add
 
 var addType = require('../utils/add-type')
@@ -2257,7 +2266,7 @@ function scoped (state, api, type) {
   return scopedApi
 }
 
-},{"../utils/handle-type-change":73,"./add":59,"./find":62,"./find-all":60,"./find-or-add":61,"./remove":65,"./remove-all":64,"./update":68,"./update-all":66,"./update-or-add":67,"events":91}],64:[function(require,module,exports){
+},{"../utils/handle-type-change":73,"./add":59,"./find":62,"./find-all":60,"./find-or-add":61,"./remove":65,"./remove-all":64,"./update":68,"./update-all":66,"./update-or-add":67,"events":90}],64:[function(require,module,exports){
 module.exports = removeAll
 
 var findAll = require('./find-all')
@@ -2435,7 +2444,7 @@ function restoreOriginalFindErrors (foundObjects, apiUpdates) {
   })
 }
 
-},{"../utils/check-scoped-type":72,"./find":62,"lodash/merge":280}],69:[function(require,module,exports){
+},{"../utils/check-scoped-type":72,"./find":62,"lodash/merge":279}],69:[function(require,module,exports){
 module.exports = subscribeToSyncEvents
 
 var toObject = require('./utils/to-object')
@@ -2552,7 +2561,7 @@ function objectMovedScope (wasScopeType, isScopeType) {
   return wasScopeType && !isScopeType
 }
 
-},{"lodash/cloneDeep":255}],74:[function(require,module,exports){
+},{"lodash/cloneDeep":254}],74:[function(require,module,exports){
 module.exports = toObject
 
 var merge = require('lodash/merge')
@@ -2567,7 +2576,7 @@ function toObject (object) {
   return object
 }
 
-},{"lodash/merge":280}],75:[function(require,module,exports){
+},{"lodash/merge":279}],75:[function(require,module,exports){
 module.exports = typeFilter
 
 function typeFilter (type, item) {
@@ -2615,7 +2624,7 @@ function LocalStorageStore (key) {
   }
 }
 
-},{"humble-localstorage":96}],78:[function(require,module,exports){
+},{"humble-localstorage":95}],78:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -3102,7 +3111,6 @@ process.chdir = function (dir) {
 process.umask = function() { return 0; };
 
 },{}],87:[function(require,module,exports){
-(function (global){
 /*!
  * The buffer module from node.js, for the browser.
  *
@@ -3115,80 +3123,57 @@ process.umask = function() { return 0; };
 
 var base64 = require('base64-js')
 var ieee754 = require('ieee754')
-var isArray = require('isarray')
 
 exports.Buffer = Buffer
 exports.SlowBuffer = SlowBuffer
 exports.INSPECT_MAX_BYTES = 50
 
+var K_MAX_LENGTH = 0x7fffffff
+exports.kMaxLength = K_MAX_LENGTH
+
 /**
  * If `Buffer.TYPED_ARRAY_SUPPORT`:
  *   === true    Use Uint8Array implementation (fastest)
- *   === false   Use Object implementation (most compatible, even IE6)
+ *   === false   Print warning and recommend using `buffer` v4.x which has an Object
+ *               implementation (most compatible, even IE6)
  *
  * Browsers that support typed arrays are IE 10+, Firefox 4+, Chrome 7+, Safari 5.1+,
  * Opera 11.6+, iOS 4.2+.
  *
- * Due to various browser bugs, sometimes the Object implementation will be used even
- * when the browser supports typed arrays.
- *
- * Note:
- *
- *   - Firefox 4-29 lacks support for adding new properties to `Uint8Array` instances,
- *     See: https://bugzilla.mozilla.org/show_bug.cgi?id=695438.
- *
- *   - Chrome 9-10 is missing the `TypedArray.prototype.subarray` function.
- *
- *   - IE10 has a broken `TypedArray.prototype.subarray` function which returns arrays of
- *     incorrect length in some situations.
-
- * We detect these buggy browsers and set `Buffer.TYPED_ARRAY_SUPPORT` to `false` so they
- * get the Object implementation, which is slower but behaves correctly.
+ * We report that the browser does not support typed arrays if the are not subclassable
+ * using __proto__. Firefox 4-29 lacks support for adding new properties to `Uint8Array`
+ * (See: https://bugzilla.mozilla.org/show_bug.cgi?id=695438). IE 10 lacks support
+ * for __proto__ and has a buggy typed array implementation.
  */
-Buffer.TYPED_ARRAY_SUPPORT = global.TYPED_ARRAY_SUPPORT !== undefined
-  ? global.TYPED_ARRAY_SUPPORT
-  : typedArraySupport()
+Buffer.TYPED_ARRAY_SUPPORT = typedArraySupport()
 
-/*
- * Export kMaxLength after typed array support is determined.
- */
-exports.kMaxLength = kMaxLength()
+if (!Buffer.TYPED_ARRAY_SUPPORT && typeof console !== 'undefined' &&
+    typeof console.error === 'function') {
+  console.error(
+    'This browser lacks typed array (Uint8Array) support which is required by ' +
+    '`buffer` v5.x. Use `buffer` v4.x if you require old browser support.'
+  )
+}
 
 function typedArraySupport () {
+  // Can typed array instances can be augmented?
   try {
     var arr = new Uint8Array(1)
     arr.__proto__ = {__proto__: Uint8Array.prototype, foo: function () { return 42 }}
-    return arr.foo() === 42 && // typed array instances can be augmented
-        typeof arr.subarray === 'function' && // chrome 9-10 lack `subarray`
-        arr.subarray(1, 1).byteLength === 0 // ie10 has broken `subarray`
+    return arr.foo() === 42
   } catch (e) {
     return false
   }
 }
 
-function kMaxLength () {
-  return Buffer.TYPED_ARRAY_SUPPORT
-    ? 0x7fffffff
-    : 0x3fffffff
-}
-
-function createBuffer (that, length) {
-  if (kMaxLength() < length) {
+function createBuffer (length) {
+  if (length > K_MAX_LENGTH) {
     throw new RangeError('Invalid typed array length')
   }
-  if (Buffer.TYPED_ARRAY_SUPPORT) {
-    // Return an augmented `Uint8Array` instance, for best performance
-    that = new Uint8Array(length)
-    that.__proto__ = Buffer.prototype
-  } else {
-    // Fallback: Return an object instance of the Buffer class
-    if (that === null) {
-      that = new Buffer(length)
-    }
-    that.length = length
-  }
-
-  return that
+  // Return an augmented `Uint8Array` instance
+  var buf = new Uint8Array(length)
+  buf.__proto__ = Buffer.prototype
+  return buf
 }
 
 /**
@@ -3202,10 +3187,6 @@ function createBuffer (that, length) {
  */
 
 function Buffer (arg, encodingOrOffset, length) {
-  if (!Buffer.TYPED_ARRAY_SUPPORT && !(this instanceof Buffer)) {
-    return new Buffer(arg, encodingOrOffset, length)
-  }
-
   // Common case.
   if (typeof arg === 'number') {
     if (typeof encodingOrOffset === 'string') {
@@ -3213,33 +3194,38 @@ function Buffer (arg, encodingOrOffset, length) {
         'If encoding is specified then the first argument must be a string'
       )
     }
-    return allocUnsafe(this, arg)
+    return allocUnsafe(arg)
   }
-  return from(this, arg, encodingOrOffset, length)
+  return from(arg, encodingOrOffset, length)
+}
+
+// Fix subarray() in ES2016. See: https://github.com/feross/buffer/pull/97
+if (typeof Symbol !== 'undefined' && Symbol.species &&
+    Buffer[Symbol.species] === Buffer) {
+  Object.defineProperty(Buffer, Symbol.species, {
+    value: null,
+    configurable: true,
+    enumerable: false,
+    writable: false
+  })
 }
 
 Buffer.poolSize = 8192 // not used by this implementation
 
-// TODO: Legacy, not needed anymore. Remove in next major version.
-Buffer._augment = function (arr) {
-  arr.__proto__ = Buffer.prototype
-  return arr
-}
-
-function from (that, value, encodingOrOffset, length) {
+function from (value, encodingOrOffset, length) {
   if (typeof value === 'number') {
     throw new TypeError('"value" argument must not be a number')
   }
 
-  if (typeof ArrayBuffer !== 'undefined' && value instanceof ArrayBuffer) {
-    return fromArrayBuffer(that, value, encodingOrOffset, length)
+  if (value instanceof ArrayBuffer) {
+    return fromArrayBuffer(value, encodingOrOffset, length)
   }
 
   if (typeof value === 'string') {
-    return fromString(that, value, encodingOrOffset)
+    return fromString(value, encodingOrOffset)
   }
 
-  return fromObject(that, value)
+  return fromObject(value)
 }
 
 /**
@@ -3251,21 +3237,13 @@ function from (that, value, encodingOrOffset, length) {
  * Buffer.from(arrayBuffer[, byteOffset[, length]])
  **/
 Buffer.from = function (value, encodingOrOffset, length) {
-  return from(null, value, encodingOrOffset, length)
+  return from(value, encodingOrOffset, length)
 }
 
-if (Buffer.TYPED_ARRAY_SUPPORT) {
-  Buffer.prototype.__proto__ = Uint8Array.prototype
-  Buffer.__proto__ = Uint8Array
-  if (typeof Symbol !== 'undefined' && Symbol.species &&
-      Buffer[Symbol.species] === Buffer) {
-    // Fix subarray() in ES2016. See: https://github.com/feross/buffer/pull/97
-    Object.defineProperty(Buffer, Symbol.species, {
-      value: null,
-      configurable: true
-    })
-  }
-}
+// Note: Change prototype *after* Buffer.from is defined to workaround Chrome bug:
+// https://github.com/feross/buffer/pull/148
+Buffer.prototype.__proto__ = Uint8Array.prototype
+Buffer.__proto__ = Uint8Array
 
 function assertSize (size) {
   if (typeof size !== 'number') {
@@ -3275,20 +3253,20 @@ function assertSize (size) {
   }
 }
 
-function alloc (that, size, fill, encoding) {
+function alloc (size, fill, encoding) {
   assertSize(size)
   if (size <= 0) {
-    return createBuffer(that, size)
+    return createBuffer(size)
   }
   if (fill !== undefined) {
     // Only pay attention to encoding if it's a string. This
     // prevents accidentally sending in a number that would
     // be interpretted as a start offset.
     return typeof encoding === 'string'
-      ? createBuffer(that, size).fill(fill, encoding)
-      : createBuffer(that, size).fill(fill)
+      ? createBuffer(size).fill(fill, encoding)
+      : createBuffer(size).fill(fill)
   }
-  return createBuffer(that, size)
+  return createBuffer(size)
 }
 
 /**
@@ -3296,34 +3274,28 @@ function alloc (that, size, fill, encoding) {
  * alloc(size[, fill[, encoding]])
  **/
 Buffer.alloc = function (size, fill, encoding) {
-  return alloc(null, size, fill, encoding)
+  return alloc(size, fill, encoding)
 }
 
-function allocUnsafe (that, size) {
+function allocUnsafe (size) {
   assertSize(size)
-  that = createBuffer(that, size < 0 ? 0 : checked(size) | 0)
-  if (!Buffer.TYPED_ARRAY_SUPPORT) {
-    for (var i = 0; i < size; ++i) {
-      that[i] = 0
-    }
-  }
-  return that
+  return createBuffer(size < 0 ? 0 : checked(size) | 0)
 }
 
 /**
  * Equivalent to Buffer(num), by default creates a non-zero-filled Buffer instance.
  * */
 Buffer.allocUnsafe = function (size) {
-  return allocUnsafe(null, size)
+  return allocUnsafe(size)
 }
 /**
  * Equivalent to SlowBuffer(num), by default creates a non-zero-filled Buffer instance.
  */
 Buffer.allocUnsafeSlow = function (size) {
-  return allocUnsafe(null, size)
+  return allocUnsafe(size)
 }
 
-function fromString (that, string, encoding) {
+function fromString (string, encoding) {
   if (typeof encoding !== 'string' || encoding === '') {
     encoding = 'utf8'
   }
@@ -3333,32 +3305,30 @@ function fromString (that, string, encoding) {
   }
 
   var length = byteLength(string, encoding) | 0
-  that = createBuffer(that, length)
+  var buf = createBuffer(length)
 
-  var actual = that.write(string, encoding)
+  var actual = buf.write(string, encoding)
 
   if (actual !== length) {
     // Writing a hex string, for example, that contains invalid characters will
     // cause everything after the first invalid character to be ignored. (e.g.
     // 'abxxcd' will be treated as 'ab')
-    that = that.slice(0, actual)
+    buf = buf.slice(0, actual)
   }
 
-  return that
+  return buf
 }
 
-function fromArrayLike (that, array) {
+function fromArrayLike (array) {
   var length = array.length < 0 ? 0 : checked(array.length) | 0
-  that = createBuffer(that, length)
+  var buf = createBuffer(length)
   for (var i = 0; i < length; i += 1) {
-    that[i] = array[i] & 255
+    buf[i] = array[i] & 255
   }
-  return that
+  return buf
 }
 
-function fromArrayBuffer (that, array, byteOffset, length) {
-  array.byteLength // this throws if `array` is not a valid ArrayBuffer
-
+function fromArrayBuffer (array, byteOffset, length) {
   if (byteOffset < 0 || array.byteLength < byteOffset) {
     throw new RangeError('\'offset\' is out of bounds')
   }
@@ -3367,49 +3337,43 @@ function fromArrayBuffer (that, array, byteOffset, length) {
     throw new RangeError('\'length\' is out of bounds')
   }
 
+  var buf
   if (byteOffset === undefined && length === undefined) {
-    array = new Uint8Array(array)
+    buf = new Uint8Array(array)
   } else if (length === undefined) {
-    array = new Uint8Array(array, byteOffset)
+    buf = new Uint8Array(array, byteOffset)
   } else {
-    array = new Uint8Array(array, byteOffset, length)
+    buf = new Uint8Array(array, byteOffset, length)
   }
 
-  if (Buffer.TYPED_ARRAY_SUPPORT) {
-    // Return an augmented `Uint8Array` instance, for best performance
-    that = array
-    that.__proto__ = Buffer.prototype
-  } else {
-    // Fallback: Return an object instance of the Buffer class
-    that = fromArrayLike(that, array)
-  }
-  return that
+  // Return an augmented `Uint8Array` instance
+  buf.__proto__ = Buffer.prototype
+  return buf
 }
 
-function fromObject (that, obj) {
+function fromObject (obj) {
   if (Buffer.isBuffer(obj)) {
     var len = checked(obj.length) | 0
-    that = createBuffer(that, len)
+    var buf = createBuffer(len)
 
-    if (that.length === 0) {
-      return that
+    if (buf.length === 0) {
+      return buf
     }
 
-    obj.copy(that, 0, 0, len)
-    return that
+    obj.copy(buf, 0, 0, len)
+    return buf
   }
 
   if (obj) {
-    if ((typeof ArrayBuffer !== 'undefined' &&
-        obj.buffer instanceof ArrayBuffer) || 'length' in obj) {
+    if (ArrayBuffer.isView(obj) || 'length' in obj) {
       if (typeof obj.length !== 'number' || isnan(obj.length)) {
-        return createBuffer(that, 0)
+        return createBuffer(0)
       }
-      return fromArrayLike(that, obj)
+      return fromArrayLike(obj)
     }
 
-    if (obj.type === 'Buffer' && isArray(obj.data)) {
-      return fromArrayLike(that, obj.data)
+    if (obj.type === 'Buffer' && Array.isArray(obj.data)) {
+      return fromArrayLike(obj.data)
     }
   }
 
@@ -3417,11 +3381,11 @@ function fromObject (that, obj) {
 }
 
 function checked (length) {
-  // Note: cannot use `length < kMaxLength()` here because that fails when
+  // Note: cannot use `length < K_MAX_LENGTH` here because that fails when
   // length is NaN (which is otherwise coerced to zero.)
-  if (length >= kMaxLength()) {
+  if (length >= K_MAX_LENGTH) {
     throw new RangeError('Attempt to allocate Buffer larger than maximum ' +
-                         'size: 0x' + kMaxLength().toString(16) + ' bytes')
+                         'size: 0x' + K_MAX_LENGTH.toString(16) + ' bytes')
   }
   return length | 0
 }
@@ -3434,7 +3398,7 @@ function SlowBuffer (length) {
 }
 
 Buffer.isBuffer = function isBuffer (b) {
-  return !!(b != null && b._isBuffer)
+  return b != null && b._isBuffer === true
 }
 
 Buffer.compare = function compare (a, b) {
@@ -3480,7 +3444,7 @@ Buffer.isEncoding = function isEncoding (encoding) {
 }
 
 Buffer.concat = function concat (list, length) {
-  if (!isArray(list)) {
+  if (!Array.isArray(list)) {
     throw new TypeError('"list" argument must be an Array of Buffers')
   }
 
@@ -3513,8 +3477,7 @@ function byteLength (string, encoding) {
   if (Buffer.isBuffer(string)) {
     return string.length
   }
-  if (typeof ArrayBuffer !== 'undefined' && typeof ArrayBuffer.isView === 'function' &&
-      (ArrayBuffer.isView(string) || string instanceof ArrayBuffer)) {
+  if (ArrayBuffer.isView(string) || string instanceof ArrayBuffer) {
     return string.byteLength
   }
   if (typeof string !== 'string') {
@@ -3624,8 +3587,12 @@ function slowToString (encoding, start, end) {
   }
 }
 
-// The property is used by `Buffer.isBuffer` and `is-buffer` (in Safari 5-7) to detect
-// Buffer instances.
+// This property is used by `Buffer.isBuffer` (and the `is-buffer` npm package)
+// to detect a Buffer instance. It's not possible to use `instanceof Buffer`
+// reliably in a browserify context because there could be multiple different
+// copies of the 'buffer' package in use. This method works even for Buffer
+// instances that were created from another copy of the `buffer` package.
+// See: https://github.com/feross/buffer/issues/154
 Buffer.prototype._isBuffer = true
 
 function swap (b, n, m) {
@@ -3672,7 +3639,7 @@ Buffer.prototype.swap64 = function swap64 () {
 }
 
 Buffer.prototype.toString = function toString () {
-  var length = this.length | 0
+  var length = this.length
   if (length === 0) return ''
   if (arguments.length === 0) return utf8Slice(this, 0, length)
   return slowToString.apply(this, arguments)
@@ -3805,8 +3772,7 @@ function bidirectionalIndexOf (buffer, val, byteOffset, encoding, dir) {
     return arrayIndexOf(buffer, val, byteOffset, encoding, dir)
   } else if (typeof val === 'number') {
     val = val & 0xFF // Search for a byte value [0-255]
-    if (Buffer.TYPED_ARRAY_SUPPORT &&
-        typeof Uint8Array.prototype.indexOf === 'function') {
+    if (typeof Uint8Array.prototype.indexOf === 'function') {
       if (dir) {
         return Uint8Array.prototype.indexOf.call(buffer, val, byteOffset)
       } else {
@@ -3947,15 +3913,14 @@ Buffer.prototype.write = function write (string, offset, length, encoding) {
     offset = 0
   // Buffer#write(string, offset[, length][, encoding])
   } else if (isFinite(offset)) {
-    offset = offset | 0
+    offset = offset >>> 0
     if (isFinite(length)) {
-      length = length | 0
+      length = length >>> 0
       if (encoding === undefined) encoding = 'utf8'
     } else {
       encoding = length
       length = undefined
     }
-  // legacy write(string, encoding, offset, length) - remove in v0.13
   } else {
     throw new Error(
       'Buffer.write(string, encoding, offset[, length]) is no longer supported'
@@ -4154,7 +4119,7 @@ function utf16leSlice (buf, start, end) {
   var bytes = buf.slice(start, end)
   var res = ''
   for (var i = 0; i < bytes.length; i += 2) {
-    res += String.fromCharCode(bytes[i] + bytes[i + 1] * 256)
+    res += String.fromCharCode(bytes[i] + (bytes[i + 1] * 256))
   }
   return res
 }
@@ -4180,18 +4145,9 @@ Buffer.prototype.slice = function slice (start, end) {
 
   if (end < start) end = start
 
-  var newBuf
-  if (Buffer.TYPED_ARRAY_SUPPORT) {
-    newBuf = this.subarray(start, end)
-    newBuf.__proto__ = Buffer.prototype
-  } else {
-    var sliceLen = end - start
-    newBuf = new Buffer(sliceLen, undefined)
-    for (var i = 0; i < sliceLen; ++i) {
-      newBuf[i] = this[i + start]
-    }
-  }
-
+  var newBuf = this.subarray(start, end)
+  // Return an augmented `Uint8Array` instance
+  newBuf.__proto__ = Buffer.prototype
   return newBuf
 }
 
@@ -4204,8 +4160,8 @@ function checkOffset (offset, ext, length) {
 }
 
 Buffer.prototype.readUIntLE = function readUIntLE (offset, byteLength, noAssert) {
-  offset = offset | 0
-  byteLength = byteLength | 0
+  offset = offset >>> 0
+  byteLength = byteLength >>> 0
   if (!noAssert) checkOffset(offset, byteLength, this.length)
 
   var val = this[offset]
@@ -4219,8 +4175,8 @@ Buffer.prototype.readUIntLE = function readUIntLE (offset, byteLength, noAssert)
 }
 
 Buffer.prototype.readUIntBE = function readUIntBE (offset, byteLength, noAssert) {
-  offset = offset | 0
-  byteLength = byteLength | 0
+  offset = offset >>> 0
+  byteLength = byteLength >>> 0
   if (!noAssert) {
     checkOffset(offset, byteLength, this.length)
   }
@@ -4235,21 +4191,25 @@ Buffer.prototype.readUIntBE = function readUIntBE (offset, byteLength, noAssert)
 }
 
 Buffer.prototype.readUInt8 = function readUInt8 (offset, noAssert) {
+  offset = offset >>> 0
   if (!noAssert) checkOffset(offset, 1, this.length)
   return this[offset]
 }
 
 Buffer.prototype.readUInt16LE = function readUInt16LE (offset, noAssert) {
+  offset = offset >>> 0
   if (!noAssert) checkOffset(offset, 2, this.length)
   return this[offset] | (this[offset + 1] << 8)
 }
 
 Buffer.prototype.readUInt16BE = function readUInt16BE (offset, noAssert) {
+  offset = offset >>> 0
   if (!noAssert) checkOffset(offset, 2, this.length)
   return (this[offset] << 8) | this[offset + 1]
 }
 
 Buffer.prototype.readUInt32LE = function readUInt32LE (offset, noAssert) {
+  offset = offset >>> 0
   if (!noAssert) checkOffset(offset, 4, this.length)
 
   return ((this[offset]) |
@@ -4259,6 +4219,7 @@ Buffer.prototype.readUInt32LE = function readUInt32LE (offset, noAssert) {
 }
 
 Buffer.prototype.readUInt32BE = function readUInt32BE (offset, noAssert) {
+  offset = offset >>> 0
   if (!noAssert) checkOffset(offset, 4, this.length)
 
   return (this[offset] * 0x1000000) +
@@ -4268,8 +4229,8 @@ Buffer.prototype.readUInt32BE = function readUInt32BE (offset, noAssert) {
 }
 
 Buffer.prototype.readIntLE = function readIntLE (offset, byteLength, noAssert) {
-  offset = offset | 0
-  byteLength = byteLength | 0
+  offset = offset >>> 0
+  byteLength = byteLength >>> 0
   if (!noAssert) checkOffset(offset, byteLength, this.length)
 
   var val = this[offset]
@@ -4286,8 +4247,8 @@ Buffer.prototype.readIntLE = function readIntLE (offset, byteLength, noAssert) {
 }
 
 Buffer.prototype.readIntBE = function readIntBE (offset, byteLength, noAssert) {
-  offset = offset | 0
-  byteLength = byteLength | 0
+  offset = offset >>> 0
+  byteLength = byteLength >>> 0
   if (!noAssert) checkOffset(offset, byteLength, this.length)
 
   var i = byteLength
@@ -4304,24 +4265,28 @@ Buffer.prototype.readIntBE = function readIntBE (offset, byteLength, noAssert) {
 }
 
 Buffer.prototype.readInt8 = function readInt8 (offset, noAssert) {
+  offset = offset >>> 0
   if (!noAssert) checkOffset(offset, 1, this.length)
   if (!(this[offset] & 0x80)) return (this[offset])
   return ((0xff - this[offset] + 1) * -1)
 }
 
 Buffer.prototype.readInt16LE = function readInt16LE (offset, noAssert) {
+  offset = offset >>> 0
   if (!noAssert) checkOffset(offset, 2, this.length)
   var val = this[offset] | (this[offset + 1] << 8)
   return (val & 0x8000) ? val | 0xFFFF0000 : val
 }
 
 Buffer.prototype.readInt16BE = function readInt16BE (offset, noAssert) {
+  offset = offset >>> 0
   if (!noAssert) checkOffset(offset, 2, this.length)
   var val = this[offset + 1] | (this[offset] << 8)
   return (val & 0x8000) ? val | 0xFFFF0000 : val
 }
 
 Buffer.prototype.readInt32LE = function readInt32LE (offset, noAssert) {
+  offset = offset >>> 0
   if (!noAssert) checkOffset(offset, 4, this.length)
 
   return (this[offset]) |
@@ -4331,6 +4296,7 @@ Buffer.prototype.readInt32LE = function readInt32LE (offset, noAssert) {
 }
 
 Buffer.prototype.readInt32BE = function readInt32BE (offset, noAssert) {
+  offset = offset >>> 0
   if (!noAssert) checkOffset(offset, 4, this.length)
 
   return (this[offset] << 24) |
@@ -4340,21 +4306,25 @@ Buffer.prototype.readInt32BE = function readInt32BE (offset, noAssert) {
 }
 
 Buffer.prototype.readFloatLE = function readFloatLE (offset, noAssert) {
+  offset = offset >>> 0
   if (!noAssert) checkOffset(offset, 4, this.length)
   return ieee754.read(this, offset, true, 23, 4)
 }
 
 Buffer.prototype.readFloatBE = function readFloatBE (offset, noAssert) {
+  offset = offset >>> 0
   if (!noAssert) checkOffset(offset, 4, this.length)
   return ieee754.read(this, offset, false, 23, 4)
 }
 
 Buffer.prototype.readDoubleLE = function readDoubleLE (offset, noAssert) {
+  offset = offset >>> 0
   if (!noAssert) checkOffset(offset, 8, this.length)
   return ieee754.read(this, offset, true, 52, 8)
 }
 
 Buffer.prototype.readDoubleBE = function readDoubleBE (offset, noAssert) {
+  offset = offset >>> 0
   if (!noAssert) checkOffset(offset, 8, this.length)
   return ieee754.read(this, offset, false, 52, 8)
 }
@@ -4367,8 +4337,8 @@ function checkInt (buf, value, offset, ext, max, min) {
 
 Buffer.prototype.writeUIntLE = function writeUIntLE (value, offset, byteLength, noAssert) {
   value = +value
-  offset = offset | 0
-  byteLength = byteLength | 0
+  offset = offset >>> 0
+  byteLength = byteLength >>> 0
   if (!noAssert) {
     var maxBytes = Math.pow(2, 8 * byteLength) - 1
     checkInt(this, value, offset, byteLength, maxBytes, 0)
@@ -4386,8 +4356,8 @@ Buffer.prototype.writeUIntLE = function writeUIntLE (value, offset, byteLength, 
 
 Buffer.prototype.writeUIntBE = function writeUIntBE (value, offset, byteLength, noAssert) {
   value = +value
-  offset = offset | 0
-  byteLength = byteLength | 0
+  offset = offset >>> 0
+  byteLength = byteLength >>> 0
   if (!noAssert) {
     var maxBytes = Math.pow(2, 8 * byteLength) - 1
     checkInt(this, value, offset, byteLength, maxBytes, 0)
@@ -4405,89 +4375,57 @@ Buffer.prototype.writeUIntBE = function writeUIntBE (value, offset, byteLength, 
 
 Buffer.prototype.writeUInt8 = function writeUInt8 (value, offset, noAssert) {
   value = +value
-  offset = offset | 0
+  offset = offset >>> 0
   if (!noAssert) checkInt(this, value, offset, 1, 0xff, 0)
-  if (!Buffer.TYPED_ARRAY_SUPPORT) value = Math.floor(value)
   this[offset] = (value & 0xff)
   return offset + 1
 }
 
-function objectWriteUInt16 (buf, value, offset, littleEndian) {
-  if (value < 0) value = 0xffff + value + 1
-  for (var i = 0, j = Math.min(buf.length - offset, 2); i < j; ++i) {
-    buf[offset + i] = (value & (0xff << (8 * (littleEndian ? i : 1 - i)))) >>>
-      (littleEndian ? i : 1 - i) * 8
-  }
-}
-
 Buffer.prototype.writeUInt16LE = function writeUInt16LE (value, offset, noAssert) {
   value = +value
-  offset = offset | 0
+  offset = offset >>> 0
   if (!noAssert) checkInt(this, value, offset, 2, 0xffff, 0)
-  if (Buffer.TYPED_ARRAY_SUPPORT) {
-    this[offset] = (value & 0xff)
-    this[offset + 1] = (value >>> 8)
-  } else {
-    objectWriteUInt16(this, value, offset, true)
-  }
+  this[offset] = (value & 0xff)
+  this[offset + 1] = (value >>> 8)
   return offset + 2
 }
 
 Buffer.prototype.writeUInt16BE = function writeUInt16BE (value, offset, noAssert) {
   value = +value
-  offset = offset | 0
+  offset = offset >>> 0
   if (!noAssert) checkInt(this, value, offset, 2, 0xffff, 0)
-  if (Buffer.TYPED_ARRAY_SUPPORT) {
-    this[offset] = (value >>> 8)
-    this[offset + 1] = (value & 0xff)
-  } else {
-    objectWriteUInt16(this, value, offset, false)
-  }
+  this[offset] = (value >>> 8)
+  this[offset + 1] = (value & 0xff)
   return offset + 2
-}
-
-function objectWriteUInt32 (buf, value, offset, littleEndian) {
-  if (value < 0) value = 0xffffffff + value + 1
-  for (var i = 0, j = Math.min(buf.length - offset, 4); i < j; ++i) {
-    buf[offset + i] = (value >>> (littleEndian ? i : 3 - i) * 8) & 0xff
-  }
 }
 
 Buffer.prototype.writeUInt32LE = function writeUInt32LE (value, offset, noAssert) {
   value = +value
-  offset = offset | 0
+  offset = offset >>> 0
   if (!noAssert) checkInt(this, value, offset, 4, 0xffffffff, 0)
-  if (Buffer.TYPED_ARRAY_SUPPORT) {
-    this[offset + 3] = (value >>> 24)
-    this[offset + 2] = (value >>> 16)
-    this[offset + 1] = (value >>> 8)
-    this[offset] = (value & 0xff)
-  } else {
-    objectWriteUInt32(this, value, offset, true)
-  }
+  this[offset + 3] = (value >>> 24)
+  this[offset + 2] = (value >>> 16)
+  this[offset + 1] = (value >>> 8)
+  this[offset] = (value & 0xff)
   return offset + 4
 }
 
 Buffer.prototype.writeUInt32BE = function writeUInt32BE (value, offset, noAssert) {
   value = +value
-  offset = offset | 0
+  offset = offset >>> 0
   if (!noAssert) checkInt(this, value, offset, 4, 0xffffffff, 0)
-  if (Buffer.TYPED_ARRAY_SUPPORT) {
-    this[offset] = (value >>> 24)
-    this[offset + 1] = (value >>> 16)
-    this[offset + 2] = (value >>> 8)
-    this[offset + 3] = (value & 0xff)
-  } else {
-    objectWriteUInt32(this, value, offset, false)
-  }
+  this[offset] = (value >>> 24)
+  this[offset + 1] = (value >>> 16)
+  this[offset + 2] = (value >>> 8)
+  this[offset + 3] = (value & 0xff)
   return offset + 4
 }
 
 Buffer.prototype.writeIntLE = function writeIntLE (value, offset, byteLength, noAssert) {
   value = +value
-  offset = offset | 0
+  offset = offset >>> 0
   if (!noAssert) {
-    var limit = Math.pow(2, 8 * byteLength - 1)
+    var limit = Math.pow(2, (8 * byteLength) - 1)
 
     checkInt(this, value, offset, byteLength, limit - 1, -limit)
   }
@@ -4508,9 +4446,9 @@ Buffer.prototype.writeIntLE = function writeIntLE (value, offset, byteLength, no
 
 Buffer.prototype.writeIntBE = function writeIntBE (value, offset, byteLength, noAssert) {
   value = +value
-  offset = offset | 0
+  offset = offset >>> 0
   if (!noAssert) {
-    var limit = Math.pow(2, 8 * byteLength - 1)
+    var limit = Math.pow(2, (8 * byteLength) - 1)
 
     checkInt(this, value, offset, byteLength, limit - 1, -limit)
   }
@@ -4531,9 +4469,8 @@ Buffer.prototype.writeIntBE = function writeIntBE (value, offset, byteLength, no
 
 Buffer.prototype.writeInt8 = function writeInt8 (value, offset, noAssert) {
   value = +value
-  offset = offset | 0
+  offset = offset >>> 0
   if (!noAssert) checkInt(this, value, offset, 1, 0x7f, -0x80)
-  if (!Buffer.TYPED_ARRAY_SUPPORT) value = Math.floor(value)
   if (value < 0) value = 0xff + value + 1
   this[offset] = (value & 0xff)
   return offset + 1
@@ -4541,58 +4478,42 @@ Buffer.prototype.writeInt8 = function writeInt8 (value, offset, noAssert) {
 
 Buffer.prototype.writeInt16LE = function writeInt16LE (value, offset, noAssert) {
   value = +value
-  offset = offset | 0
+  offset = offset >>> 0
   if (!noAssert) checkInt(this, value, offset, 2, 0x7fff, -0x8000)
-  if (Buffer.TYPED_ARRAY_SUPPORT) {
-    this[offset] = (value & 0xff)
-    this[offset + 1] = (value >>> 8)
-  } else {
-    objectWriteUInt16(this, value, offset, true)
-  }
+  this[offset] = (value & 0xff)
+  this[offset + 1] = (value >>> 8)
   return offset + 2
 }
 
 Buffer.prototype.writeInt16BE = function writeInt16BE (value, offset, noAssert) {
   value = +value
-  offset = offset | 0
+  offset = offset >>> 0
   if (!noAssert) checkInt(this, value, offset, 2, 0x7fff, -0x8000)
-  if (Buffer.TYPED_ARRAY_SUPPORT) {
-    this[offset] = (value >>> 8)
-    this[offset + 1] = (value & 0xff)
-  } else {
-    objectWriteUInt16(this, value, offset, false)
-  }
+  this[offset] = (value >>> 8)
+  this[offset + 1] = (value & 0xff)
   return offset + 2
 }
 
 Buffer.prototype.writeInt32LE = function writeInt32LE (value, offset, noAssert) {
   value = +value
-  offset = offset | 0
+  offset = offset >>> 0
   if (!noAssert) checkInt(this, value, offset, 4, 0x7fffffff, -0x80000000)
-  if (Buffer.TYPED_ARRAY_SUPPORT) {
-    this[offset] = (value & 0xff)
-    this[offset + 1] = (value >>> 8)
-    this[offset + 2] = (value >>> 16)
-    this[offset + 3] = (value >>> 24)
-  } else {
-    objectWriteUInt32(this, value, offset, true)
-  }
+  this[offset] = (value & 0xff)
+  this[offset + 1] = (value >>> 8)
+  this[offset + 2] = (value >>> 16)
+  this[offset + 3] = (value >>> 24)
   return offset + 4
 }
 
 Buffer.prototype.writeInt32BE = function writeInt32BE (value, offset, noAssert) {
   value = +value
-  offset = offset | 0
+  offset = offset >>> 0
   if (!noAssert) checkInt(this, value, offset, 4, 0x7fffffff, -0x80000000)
   if (value < 0) value = 0xffffffff + value + 1
-  if (Buffer.TYPED_ARRAY_SUPPORT) {
-    this[offset] = (value >>> 24)
-    this[offset + 1] = (value >>> 16)
-    this[offset + 2] = (value >>> 8)
-    this[offset + 3] = (value & 0xff)
-  } else {
-    objectWriteUInt32(this, value, offset, false)
-  }
+  this[offset] = (value >>> 24)
+  this[offset + 1] = (value >>> 16)
+  this[offset + 2] = (value >>> 8)
+  this[offset + 3] = (value & 0xff)
   return offset + 4
 }
 
@@ -4602,6 +4523,8 @@ function checkIEEE754 (buf, value, offset, ext, max, min) {
 }
 
 function writeFloat (buf, value, offset, littleEndian, noAssert) {
+  value = +value
+  offset = offset >>> 0
   if (!noAssert) {
     checkIEEE754(buf, value, offset, 4, 3.4028234663852886e+38, -3.4028234663852886e+38)
   }
@@ -4618,6 +4541,8 @@ Buffer.prototype.writeFloatBE = function writeFloatBE (value, offset, noAssert) 
 }
 
 function writeDouble (buf, value, offset, littleEndian, noAssert) {
+  value = +value
+  offset = offset >>> 0
   if (!noAssert) {
     checkIEEE754(buf, value, offset, 8, 1.7976931348623157E+308, -1.7976931348623157E+308)
   }
@@ -4666,7 +4591,7 @@ Buffer.prototype.copy = function copy (target, targetStart, start, end) {
     for (i = len - 1; i >= 0; --i) {
       target[i + targetStart] = this[i + start]
     }
-  } else if (len < 1000 || !Buffer.TYPED_ARRAY_SUPPORT) {
+  } else if (len < 1000) {
     // ascending copy from start
     for (i = 0; i < len; ++i) {
       target[i + targetStart] = this[i + start]
@@ -4735,7 +4660,7 @@ Buffer.prototype.fill = function fill (val, start, end, encoding) {
   } else {
     var bytes = Buffer.isBuffer(val)
       ? val
-      : utf8ToBytes(new Buffer(val, encoding).toString())
+      : new Buffer(val, encoding)
     var len = bytes.length
     for (i = 0; i < end - start; ++i) {
       this[i + start] = bytes[i % len]
@@ -4748,7 +4673,7 @@ Buffer.prototype.fill = function fill (val, start, end, encoding) {
 // HELPER FUNCTIONS
 // ================
 
-var INVALID_BASE64_RE = /[^+\/0-9A-Za-z-_]/g
+var INVALID_BASE64_RE = /[^+/0-9A-Za-z-_]/g
 
 function base64clean (str) {
   // Node strips out invalid characters like \n and \t from the string, base64-js does not
@@ -4893,15 +4818,7 @@ function isnan (val) {
   return val !== val // eslint-disable-line no-self-compare
 }
 
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"base64-js":78,"ieee754":97,"isarray":88}],88:[function(require,module,exports){
-var toString = {}.toString;
-
-module.exports = Array.isArray || function (arr) {
-  return toString.call(arr) == '[object Array]';
-};
-
-},{}],89:[function(require,module,exports){
+},{"base64-js":78,"ieee754":96}],88:[function(require,module,exports){
 (function (process){
 /**
  * This is the web browser implementation of `debug()`.
@@ -5087,7 +5004,7 @@ function localstorage() {
 }
 
 }).call(this,require('_process'))
-},{"./debug":90,"_process":86}],90:[function(require,module,exports){
+},{"./debug":89,"_process":86}],89:[function(require,module,exports){
 
 /**
  * This is the common logic for both the Node.js and web browser
@@ -5288,7 +5205,7 @@ function coerce(val) {
   return val;
 }
 
-},{"ms":289}],91:[function(require,module,exports){
+},{"ms":288}],90:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -5592,7 +5509,7 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],92:[function(require,module,exports){
+},{}],91:[function(require,module,exports){
 var isFunction = require('is-function')
 
 module.exports = forEach
@@ -5640,7 +5557,7 @@ function forEachObject(object, iterator, context) {
     }
 }
 
-},{"is-function":100}],93:[function(require,module,exports){
+},{"is-function":99}],92:[function(require,module,exports){
 (function (global){
 if (typeof window !== "undefined") {
     module.exports = window;
@@ -5653,7 +5570,7 @@ if (typeof window !== "undefined") {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],94:[function(require,module,exports){
+},{}],93:[function(require,module,exports){
 /**
  * # hasLocalStorage()
  *
@@ -5700,7 +5617,7 @@ if (typeof exports === 'object') {
   module.exports = hasLocalStorage;
 }
 
-},{}],95:[function(require,module,exports){
+},{}],94:[function(require,module,exports){
 (function (global){
 var exports = module.exports = {};
 var localStorageMemory = require('localstorage-memory');
@@ -5774,11 +5691,11 @@ exports.getObject = function (store, key) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"has-localstorage":94,"localstorage-memory":102}],96:[function(require,module,exports){
+},{"has-localstorage":93,"localstorage-memory":101}],95:[function(require,module,exports){
 var api = require('./api');
 module.exports = api.create();
 
-},{"./api":95}],97:[function(require,module,exports){
+},{"./api":94}],96:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = nBytes * 8 - mLen - 1
@@ -5864,7 +5781,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],98:[function(require,module,exports){
+},{}],97:[function(require,module,exports){
 (function (global){
 'use strict';
 var Mutation = global.MutationObserver || global.WebKitMutationObserver;
@@ -5937,7 +5854,7 @@ function immediate(task) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],99:[function(require,module,exports){
+},{}],98:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -5962,7 +5879,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],100:[function(require,module,exports){
+},{}],99:[function(require,module,exports){
 module.exports = isFunction
 
 var toString = Object.prototype.toString
@@ -5979,7 +5896,7 @@ function isFunction (fn) {
       fn === window.prompt))
 };
 
-},{}],101:[function(require,module,exports){
+},{}],100:[function(require,module,exports){
 'use strict';
 var immediate = require('immediate');
 
@@ -6098,7 +6015,7 @@ handlers.reject = function (self, error) {
 function getThen(obj) {
   // Make sure we only access the accessor once as required by the spec
   var then = obj && obj.then;
-  if (obj && typeof obj === 'object' && typeof then === 'function') {
+  if (obj && (typeof obj === 'object' || typeof obj === 'function') && typeof then === 'function') {
     return function appyThen() {
       then.apply(obj, arguments);
     };
@@ -6234,7 +6151,7 @@ function race(iterable) {
   }
 }
 
-},{"immediate":98}],102:[function(require,module,exports){
+},{"immediate":97}],101:[function(require,module,exports){
 (function(root) {
   var localStorageMemory = {};
   var cache = {};
@@ -6318,7 +6235,7 @@ function race(iterable) {
   }
 })(this);
 
-},{}],103:[function(require,module,exports){
+},{}],102:[function(require,module,exports){
 var getNative = require('./_getNative'),
     root = require('./_root');
 
@@ -6327,7 +6244,7 @@ var DataView = getNative(root, 'DataView');
 
 module.exports = DataView;
 
-},{"./_getNative":195,"./_root":240}],104:[function(require,module,exports){
+},{"./_getNative":194,"./_root":239}],103:[function(require,module,exports){
 var hashClear = require('./_hashClear'),
     hashDelete = require('./_hashDelete'),
     hashGet = require('./_hashGet'),
@@ -6361,7 +6278,7 @@ Hash.prototype.set = hashSet;
 
 module.exports = Hash;
 
-},{"./_hashClear":203,"./_hashDelete":204,"./_hashGet":205,"./_hashHas":206,"./_hashSet":207}],105:[function(require,module,exports){
+},{"./_hashClear":202,"./_hashDelete":203,"./_hashGet":204,"./_hashHas":205,"./_hashSet":206}],104:[function(require,module,exports){
 var listCacheClear = require('./_listCacheClear'),
     listCacheDelete = require('./_listCacheDelete'),
     listCacheGet = require('./_listCacheGet'),
@@ -6395,7 +6312,7 @@ ListCache.prototype.set = listCacheSet;
 
 module.exports = ListCache;
 
-},{"./_listCacheClear":219,"./_listCacheDelete":220,"./_listCacheGet":221,"./_listCacheHas":222,"./_listCacheSet":223}],106:[function(require,module,exports){
+},{"./_listCacheClear":218,"./_listCacheDelete":219,"./_listCacheGet":220,"./_listCacheHas":221,"./_listCacheSet":222}],105:[function(require,module,exports){
 var getNative = require('./_getNative'),
     root = require('./_root');
 
@@ -6404,7 +6321,7 @@ var Map = getNative(root, 'Map');
 
 module.exports = Map;
 
-},{"./_getNative":195,"./_root":240}],107:[function(require,module,exports){
+},{"./_getNative":194,"./_root":239}],106:[function(require,module,exports){
 var mapCacheClear = require('./_mapCacheClear'),
     mapCacheDelete = require('./_mapCacheDelete'),
     mapCacheGet = require('./_mapCacheGet'),
@@ -6438,7 +6355,7 @@ MapCache.prototype.set = mapCacheSet;
 
 module.exports = MapCache;
 
-},{"./_mapCacheClear":224,"./_mapCacheDelete":225,"./_mapCacheGet":226,"./_mapCacheHas":227,"./_mapCacheSet":228}],108:[function(require,module,exports){
+},{"./_mapCacheClear":223,"./_mapCacheDelete":224,"./_mapCacheGet":225,"./_mapCacheHas":226,"./_mapCacheSet":227}],107:[function(require,module,exports){
 var getNative = require('./_getNative'),
     root = require('./_root');
 
@@ -6447,7 +6364,7 @@ var Promise = getNative(root, 'Promise');
 
 module.exports = Promise;
 
-},{"./_getNative":195,"./_root":240}],109:[function(require,module,exports){
+},{"./_getNative":194,"./_root":239}],108:[function(require,module,exports){
 var getNative = require('./_getNative'),
     root = require('./_root');
 
@@ -6456,7 +6373,7 @@ var Set = getNative(root, 'Set');
 
 module.exports = Set;
 
-},{"./_getNative":195,"./_root":240}],110:[function(require,module,exports){
+},{"./_getNative":194,"./_root":239}],109:[function(require,module,exports){
 var MapCache = require('./_MapCache'),
     setCacheAdd = require('./_setCacheAdd'),
     setCacheHas = require('./_setCacheHas');
@@ -6485,7 +6402,7 @@ SetCache.prototype.has = setCacheHas;
 
 module.exports = SetCache;
 
-},{"./_MapCache":107,"./_setCacheAdd":241,"./_setCacheHas":242}],111:[function(require,module,exports){
+},{"./_MapCache":106,"./_setCacheAdd":240,"./_setCacheHas":241}],110:[function(require,module,exports){
 var ListCache = require('./_ListCache'),
     stackClear = require('./_stackClear'),
     stackDelete = require('./_stackDelete'),
@@ -6514,7 +6431,7 @@ Stack.prototype.set = stackSet;
 
 module.exports = Stack;
 
-},{"./_ListCache":105,"./_stackClear":246,"./_stackDelete":247,"./_stackGet":248,"./_stackHas":249,"./_stackSet":250}],112:[function(require,module,exports){
+},{"./_ListCache":104,"./_stackClear":245,"./_stackDelete":246,"./_stackGet":247,"./_stackHas":248,"./_stackSet":249}],111:[function(require,module,exports){
 var root = require('./_root');
 
 /** Built-in value references. */
@@ -6522,7 +6439,7 @@ var Symbol = root.Symbol;
 
 module.exports = Symbol;
 
-},{"./_root":240}],113:[function(require,module,exports){
+},{"./_root":239}],112:[function(require,module,exports){
 var root = require('./_root');
 
 /** Built-in value references. */
@@ -6530,7 +6447,7 @@ var Uint8Array = root.Uint8Array;
 
 module.exports = Uint8Array;
 
-},{"./_root":240}],114:[function(require,module,exports){
+},{"./_root":239}],113:[function(require,module,exports){
 var getNative = require('./_getNative'),
     root = require('./_root');
 
@@ -6539,7 +6456,7 @@ var WeakMap = getNative(root, 'WeakMap');
 
 module.exports = WeakMap;
 
-},{"./_getNative":195,"./_root":240}],115:[function(require,module,exports){
+},{"./_getNative":194,"./_root":239}],114:[function(require,module,exports){
 /**
  * Adds the key-value `pair` to `map`.
  *
@@ -6556,7 +6473,7 @@ function addMapEntry(map, pair) {
 
 module.exports = addMapEntry;
 
-},{}],116:[function(require,module,exports){
+},{}],115:[function(require,module,exports){
 /**
  * Adds `value` to `set`.
  *
@@ -6573,7 +6490,7 @@ function addSetEntry(set, value) {
 
 module.exports = addSetEntry;
 
-},{}],117:[function(require,module,exports){
+},{}],116:[function(require,module,exports){
 /**
  * A faster alternative to `Function#apply`, this function invokes `func`
  * with the `this` binding of `thisArg` and the arguments of `args`.
@@ -6596,7 +6513,7 @@ function apply(func, thisArg, args) {
 
 module.exports = apply;
 
-},{}],118:[function(require,module,exports){
+},{}],117:[function(require,module,exports){
 /**
  * A specialized version of `_.forEach` for arrays without support for
  * iteratee shorthands.
@@ -6620,7 +6537,7 @@ function arrayEach(array, iteratee) {
 
 module.exports = arrayEach;
 
-},{}],119:[function(require,module,exports){
+},{}],118:[function(require,module,exports){
 /**
  * A specialized version of `_.filter` for arrays without support for
  * iteratee shorthands.
@@ -6647,7 +6564,7 @@ function arrayFilter(array, predicate) {
 
 module.exports = arrayFilter;
 
-},{}],120:[function(require,module,exports){
+},{}],119:[function(require,module,exports){
 var baseTimes = require('./_baseTimes'),
     isArguments = require('./isArguments'),
     isArray = require('./isArray'),
@@ -6698,7 +6615,7 @@ function arrayLikeKeys(value, inherited) {
 
 module.exports = arrayLikeKeys;
 
-},{"./_baseTimes":161,"./_isIndex":212,"./isArguments":264,"./isArray":265,"./isBuffer":268,"./isTypedArray":275}],121:[function(require,module,exports){
+},{"./_baseTimes":160,"./_isIndex":211,"./isArguments":263,"./isArray":264,"./isBuffer":267,"./isTypedArray":274}],120:[function(require,module,exports){
 /**
  * A specialized version of `_.map` for arrays without support for iteratee
  * shorthands.
@@ -6721,7 +6638,7 @@ function arrayMap(array, iteratee) {
 
 module.exports = arrayMap;
 
-},{}],122:[function(require,module,exports){
+},{}],121:[function(require,module,exports){
 /**
  * Appends the elements of `values` to `array`.
  *
@@ -6743,7 +6660,7 @@ function arrayPush(array, values) {
 
 module.exports = arrayPush;
 
-},{}],123:[function(require,module,exports){
+},{}],122:[function(require,module,exports){
 /**
  * A specialized version of `_.reduce` for arrays without support for
  * iteratee shorthands.
@@ -6771,7 +6688,7 @@ function arrayReduce(array, iteratee, accumulator, initAccum) {
 
 module.exports = arrayReduce;
 
-},{}],124:[function(require,module,exports){
+},{}],123:[function(require,module,exports){
 /**
  * A specialized version of `_.some` for arrays without support for iteratee
  * shorthands.
@@ -6796,7 +6713,7 @@ function arraySome(array, predicate) {
 
 module.exports = arraySome;
 
-},{}],125:[function(require,module,exports){
+},{}],124:[function(require,module,exports){
 var baseAssignValue = require('./_baseAssignValue'),
     eq = require('./eq');
 
@@ -6818,7 +6735,7 @@ function assignMergeValue(object, key, value) {
 
 module.exports = assignMergeValue;
 
-},{"./_baseAssignValue":130,"./eq":258}],126:[function(require,module,exports){
+},{"./_baseAssignValue":129,"./eq":257}],125:[function(require,module,exports){
 var baseAssignValue = require('./_baseAssignValue'),
     eq = require('./eq');
 
@@ -6848,7 +6765,7 @@ function assignValue(object, key, value) {
 
 module.exports = assignValue;
 
-},{"./_baseAssignValue":130,"./eq":258}],127:[function(require,module,exports){
+},{"./_baseAssignValue":129,"./eq":257}],126:[function(require,module,exports){
 var eq = require('./eq');
 
 /**
@@ -6871,7 +6788,7 @@ function assocIndexOf(array, key) {
 
 module.exports = assocIndexOf;
 
-},{"./eq":258}],128:[function(require,module,exports){
+},{"./eq":257}],127:[function(require,module,exports){
 var copyObject = require('./_copyObject'),
     keys = require('./keys');
 
@@ -6890,7 +6807,7 @@ function baseAssign(object, source) {
 
 module.exports = baseAssign;
 
-},{"./_copyObject":176,"./keys":276}],129:[function(require,module,exports){
+},{"./_copyObject":175,"./keys":275}],128:[function(require,module,exports){
 var copyObject = require('./_copyObject'),
     keysIn = require('./keysIn');
 
@@ -6909,7 +6826,7 @@ function baseAssignIn(object, source) {
 
 module.exports = baseAssignIn;
 
-},{"./_copyObject":176,"./keysIn":277}],130:[function(require,module,exports){
+},{"./_copyObject":175,"./keysIn":276}],129:[function(require,module,exports){
 var defineProperty = require('./_defineProperty');
 
 /**
@@ -6936,7 +6853,7 @@ function baseAssignValue(object, key, value) {
 
 module.exports = baseAssignValue;
 
-},{"./_defineProperty":185}],131:[function(require,module,exports){
+},{"./_defineProperty":184}],130:[function(require,module,exports){
 var Stack = require('./_Stack'),
     arrayEach = require('./_arrayEach'),
     assignValue = require('./_assignValue'),
@@ -7091,7 +7008,7 @@ function baseClone(value, bitmask, customizer, key, object, stack) {
 
 module.exports = baseClone;
 
-},{"./_Stack":111,"./_arrayEach":118,"./_assignValue":126,"./_baseAssign":128,"./_baseAssignIn":129,"./_cloneBuffer":168,"./_copyArray":175,"./_copySymbols":177,"./_copySymbolsIn":178,"./_getAllKeys":191,"./_getAllKeysIn":192,"./_getTag":200,"./_initCloneArray":208,"./_initCloneByTag":209,"./_initCloneObject":210,"./isArray":265,"./isBuffer":268,"./isObject":271,"./keys":276}],132:[function(require,module,exports){
+},{"./_Stack":110,"./_arrayEach":117,"./_assignValue":125,"./_baseAssign":127,"./_baseAssignIn":128,"./_cloneBuffer":167,"./_copyArray":174,"./_copySymbols":176,"./_copySymbolsIn":177,"./_getAllKeys":190,"./_getAllKeysIn":191,"./_getTag":199,"./_initCloneArray":207,"./_initCloneByTag":208,"./_initCloneObject":209,"./isArray":264,"./isBuffer":267,"./isObject":270,"./keys":275}],131:[function(require,module,exports){
 var isObject = require('./isObject');
 
 /** Built-in value references. */
@@ -7123,7 +7040,7 @@ var baseCreate = (function() {
 
 module.exports = baseCreate;
 
-},{"./isObject":271}],133:[function(require,module,exports){
+},{"./isObject":270}],132:[function(require,module,exports){
 var baseForOwn = require('./_baseForOwn'),
     createBaseEach = require('./_createBaseEach');
 
@@ -7139,7 +7056,7 @@ var baseEach = createBaseEach(baseForOwn);
 
 module.exports = baseEach;
 
-},{"./_baseForOwn":137,"./_createBaseEach":181}],134:[function(require,module,exports){
+},{"./_baseForOwn":136,"./_createBaseEach":180}],133:[function(require,module,exports){
 var baseEach = require('./_baseEach');
 
 /**
@@ -7162,7 +7079,7 @@ function baseFilter(collection, predicate) {
 
 module.exports = baseFilter;
 
-},{"./_baseEach":133}],135:[function(require,module,exports){
+},{"./_baseEach":132}],134:[function(require,module,exports){
 var arrayPush = require('./_arrayPush'),
     isFlattenable = require('./_isFlattenable');
 
@@ -7202,7 +7119,7 @@ function baseFlatten(array, depth, predicate, isStrict, result) {
 
 module.exports = baseFlatten;
 
-},{"./_arrayPush":122,"./_isFlattenable":211}],136:[function(require,module,exports){
+},{"./_arrayPush":121,"./_isFlattenable":210}],135:[function(require,module,exports){
 var createBaseFor = require('./_createBaseFor');
 
 /**
@@ -7220,7 +7137,7 @@ var baseFor = createBaseFor();
 
 module.exports = baseFor;
 
-},{"./_createBaseFor":182}],137:[function(require,module,exports){
+},{"./_createBaseFor":181}],136:[function(require,module,exports){
 var baseFor = require('./_baseFor'),
     keys = require('./keys');
 
@@ -7238,7 +7155,7 @@ function baseForOwn(object, iteratee) {
 
 module.exports = baseForOwn;
 
-},{"./_baseFor":136,"./keys":276}],138:[function(require,module,exports){
+},{"./_baseFor":135,"./keys":275}],137:[function(require,module,exports){
 var castPath = require('./_castPath'),
     toKey = require('./_toKey');
 
@@ -7264,7 +7181,7 @@ function baseGet(object, path) {
 
 module.exports = baseGet;
 
-},{"./_castPath":166,"./_toKey":252}],139:[function(require,module,exports){
+},{"./_castPath":165,"./_toKey":251}],138:[function(require,module,exports){
 var arrayPush = require('./_arrayPush'),
     isArray = require('./isArray');
 
@@ -7286,7 +7203,7 @@ function baseGetAllKeys(object, keysFunc, symbolsFunc) {
 
 module.exports = baseGetAllKeys;
 
-},{"./_arrayPush":122,"./isArray":265}],140:[function(require,module,exports){
+},{"./_arrayPush":121,"./isArray":264}],139:[function(require,module,exports){
 var Symbol = require('./_Symbol'),
     getRawTag = require('./_getRawTag'),
     objectToString = require('./_objectToString');
@@ -7316,7 +7233,7 @@ function baseGetTag(value) {
 
 module.exports = baseGetTag;
 
-},{"./_Symbol":112,"./_getRawTag":197,"./_objectToString":236}],141:[function(require,module,exports){
+},{"./_Symbol":111,"./_getRawTag":196,"./_objectToString":235}],140:[function(require,module,exports){
 /**
  * The base implementation of `_.hasIn` without support for deep paths.
  *
@@ -7331,7 +7248,7 @@ function baseHasIn(object, key) {
 
 module.exports = baseHasIn;
 
-},{}],142:[function(require,module,exports){
+},{}],141:[function(require,module,exports){
 var baseGetTag = require('./_baseGetTag'),
     isObjectLike = require('./isObjectLike');
 
@@ -7351,7 +7268,7 @@ function baseIsArguments(value) {
 
 module.exports = baseIsArguments;
 
-},{"./_baseGetTag":140,"./isObjectLike":272}],143:[function(require,module,exports){
+},{"./_baseGetTag":139,"./isObjectLike":271}],142:[function(require,module,exports){
 var baseIsEqualDeep = require('./_baseIsEqualDeep'),
     isObjectLike = require('./isObjectLike');
 
@@ -7381,7 +7298,7 @@ function baseIsEqual(value, other, bitmask, customizer, stack) {
 
 module.exports = baseIsEqual;
 
-},{"./_baseIsEqualDeep":144,"./isObjectLike":272}],144:[function(require,module,exports){
+},{"./_baseIsEqualDeep":143,"./isObjectLike":271}],143:[function(require,module,exports){
 var Stack = require('./_Stack'),
     equalArrays = require('./_equalArrays'),
     equalByTag = require('./_equalByTag'),
@@ -7466,7 +7383,7 @@ function baseIsEqualDeep(object, other, bitmask, customizer, equalFunc, stack) {
 
 module.exports = baseIsEqualDeep;
 
-},{"./_Stack":111,"./_equalArrays":186,"./_equalByTag":187,"./_equalObjects":188,"./_getTag":200,"./isArray":265,"./isBuffer":268,"./isTypedArray":275}],145:[function(require,module,exports){
+},{"./_Stack":110,"./_equalArrays":185,"./_equalByTag":186,"./_equalObjects":187,"./_getTag":199,"./isArray":264,"./isBuffer":267,"./isTypedArray":274}],144:[function(require,module,exports){
 var Stack = require('./_Stack'),
     baseIsEqual = require('./_baseIsEqual');
 
@@ -7530,7 +7447,7 @@ function baseIsMatch(object, source, matchData, customizer) {
 
 module.exports = baseIsMatch;
 
-},{"./_Stack":111,"./_baseIsEqual":143}],146:[function(require,module,exports){
+},{"./_Stack":110,"./_baseIsEqual":142}],145:[function(require,module,exports){
 var isFunction = require('./isFunction'),
     isMasked = require('./_isMasked'),
     isObject = require('./isObject'),
@@ -7579,7 +7496,7 @@ function baseIsNative(value) {
 
 module.exports = baseIsNative;
 
-},{"./_isMasked":216,"./_toSource":253,"./isFunction":269,"./isObject":271}],147:[function(require,module,exports){
+},{"./_isMasked":215,"./_toSource":252,"./isFunction":268,"./isObject":270}],146:[function(require,module,exports){
 var baseGetTag = require('./_baseGetTag'),
     isLength = require('./isLength'),
     isObjectLike = require('./isObjectLike');
@@ -7641,7 +7558,7 @@ function baseIsTypedArray(value) {
 
 module.exports = baseIsTypedArray;
 
-},{"./_baseGetTag":140,"./isLength":270,"./isObjectLike":272}],148:[function(require,module,exports){
+},{"./_baseGetTag":139,"./isLength":269,"./isObjectLike":271}],147:[function(require,module,exports){
 var baseMatches = require('./_baseMatches'),
     baseMatchesProperty = require('./_baseMatchesProperty'),
     identity = require('./identity'),
@@ -7674,7 +7591,7 @@ function baseIteratee(value) {
 
 module.exports = baseIteratee;
 
-},{"./_baseMatches":151,"./_baseMatchesProperty":152,"./identity":263,"./isArray":265,"./property":283}],149:[function(require,module,exports){
+},{"./_baseMatches":150,"./_baseMatchesProperty":151,"./identity":262,"./isArray":264,"./property":282}],148:[function(require,module,exports){
 var isPrototype = require('./_isPrototype'),
     nativeKeys = require('./_nativeKeys');
 
@@ -7706,7 +7623,7 @@ function baseKeys(object) {
 
 module.exports = baseKeys;
 
-},{"./_isPrototype":217,"./_nativeKeys":233}],150:[function(require,module,exports){
+},{"./_isPrototype":216,"./_nativeKeys":232}],149:[function(require,module,exports){
 var isObject = require('./isObject'),
     isPrototype = require('./_isPrototype'),
     nativeKeysIn = require('./_nativeKeysIn');
@@ -7741,7 +7658,7 @@ function baseKeysIn(object) {
 
 module.exports = baseKeysIn;
 
-},{"./_isPrototype":217,"./_nativeKeysIn":234,"./isObject":271}],151:[function(require,module,exports){
+},{"./_isPrototype":216,"./_nativeKeysIn":233,"./isObject":270}],150:[function(require,module,exports){
 var baseIsMatch = require('./_baseIsMatch'),
     getMatchData = require('./_getMatchData'),
     matchesStrictComparable = require('./_matchesStrictComparable');
@@ -7765,7 +7682,7 @@ function baseMatches(source) {
 
 module.exports = baseMatches;
 
-},{"./_baseIsMatch":145,"./_getMatchData":194,"./_matchesStrictComparable":230}],152:[function(require,module,exports){
+},{"./_baseIsMatch":144,"./_getMatchData":193,"./_matchesStrictComparable":229}],151:[function(require,module,exports){
 var baseIsEqual = require('./_baseIsEqual'),
     get = require('./get'),
     hasIn = require('./hasIn'),
@@ -7800,7 +7717,7 @@ function baseMatchesProperty(path, srcValue) {
 
 module.exports = baseMatchesProperty;
 
-},{"./_baseIsEqual":143,"./_isKey":214,"./_isStrictComparable":218,"./_matchesStrictComparable":230,"./_toKey":252,"./get":261,"./hasIn":262}],153:[function(require,module,exports){
+},{"./_baseIsEqual":142,"./_isKey":213,"./_isStrictComparable":217,"./_matchesStrictComparable":229,"./_toKey":251,"./get":260,"./hasIn":261}],152:[function(require,module,exports){
 var Stack = require('./_Stack'),
     assignMergeValue = require('./_assignMergeValue'),
     baseFor = require('./_baseFor'),
@@ -7843,7 +7760,7 @@ function baseMerge(object, source, srcIndex, customizer, stack) {
 
 module.exports = baseMerge;
 
-},{"./_Stack":111,"./_assignMergeValue":125,"./_baseFor":136,"./_baseMergeDeep":154,"./isObject":271,"./keysIn":277}],154:[function(require,module,exports){
+},{"./_Stack":110,"./_assignMergeValue":124,"./_baseFor":135,"./_baseMergeDeep":153,"./isObject":270,"./keysIn":276}],153:[function(require,module,exports){
 var assignMergeValue = require('./_assignMergeValue'),
     cloneBuffer = require('./_cloneBuffer'),
     cloneTypedArray = require('./_cloneTypedArray'),
@@ -7938,7 +7855,7 @@ function baseMergeDeep(object, source, key, srcIndex, mergeFunc, customizer, sta
 
 module.exports = baseMergeDeep;
 
-},{"./_assignMergeValue":125,"./_cloneBuffer":168,"./_cloneTypedArray":174,"./_copyArray":175,"./_initCloneObject":210,"./isArguments":264,"./isArray":265,"./isArrayLikeObject":267,"./isBuffer":268,"./isFunction":269,"./isObject":271,"./isPlainObject":273,"./isTypedArray":275,"./toPlainObject":287}],155:[function(require,module,exports){
+},{"./_assignMergeValue":124,"./_cloneBuffer":167,"./_cloneTypedArray":173,"./_copyArray":174,"./_initCloneObject":209,"./isArguments":263,"./isArray":264,"./isArrayLikeObject":266,"./isBuffer":267,"./isFunction":268,"./isObject":270,"./isPlainObject":272,"./isTypedArray":274,"./toPlainObject":286}],154:[function(require,module,exports){
 /**
  * The base implementation of `_.property` without support for deep paths.
  *
@@ -7954,7 +7871,7 @@ function baseProperty(key) {
 
 module.exports = baseProperty;
 
-},{}],156:[function(require,module,exports){
+},{}],155:[function(require,module,exports){
 var baseGet = require('./_baseGet');
 
 /**
@@ -7972,7 +7889,7 @@ function basePropertyDeep(path) {
 
 module.exports = basePropertyDeep;
 
-},{"./_baseGet":138}],157:[function(require,module,exports){
+},{"./_baseGet":137}],156:[function(require,module,exports){
 var identity = require('./identity'),
     overRest = require('./_overRest'),
     setToString = require('./_setToString');
@@ -7991,7 +7908,7 @@ function baseRest(func, start) {
 
 module.exports = baseRest;
 
-},{"./_overRest":238,"./_setToString":244,"./identity":263}],158:[function(require,module,exports){
+},{"./_overRest":237,"./_setToString":243,"./identity":262}],157:[function(require,module,exports){
 var assignValue = require('./_assignValue'),
     castPath = require('./_castPath'),
     isIndex = require('./_isIndex'),
@@ -8040,7 +7957,7 @@ function baseSet(object, path, value, customizer) {
 
 module.exports = baseSet;
 
-},{"./_assignValue":126,"./_castPath":166,"./_isIndex":212,"./_toKey":252,"./isObject":271}],159:[function(require,module,exports){
+},{"./_assignValue":125,"./_castPath":165,"./_isIndex":211,"./_toKey":251,"./isObject":270}],158:[function(require,module,exports){
 var constant = require('./constant'),
     defineProperty = require('./_defineProperty'),
     identity = require('./identity');
@@ -8064,7 +7981,7 @@ var baseSetToString = !defineProperty ? identity : function(func, string) {
 
 module.exports = baseSetToString;
 
-},{"./_defineProperty":185,"./constant":256,"./identity":263}],160:[function(require,module,exports){
+},{"./_defineProperty":184,"./constant":255,"./identity":262}],159:[function(require,module,exports){
 /**
  * The base implementation of `_.slice` without an iteratee call guard.
  *
@@ -8097,7 +8014,7 @@ function baseSlice(array, start, end) {
 
 module.exports = baseSlice;
 
-},{}],161:[function(require,module,exports){
+},{}],160:[function(require,module,exports){
 /**
  * The base implementation of `_.times` without support for iteratee shorthands
  * or max array length checks.
@@ -8119,7 +8036,7 @@ function baseTimes(n, iteratee) {
 
 module.exports = baseTimes;
 
-},{}],162:[function(require,module,exports){
+},{}],161:[function(require,module,exports){
 var Symbol = require('./_Symbol'),
     arrayMap = require('./_arrayMap'),
     isArray = require('./isArray'),
@@ -8158,7 +8075,7 @@ function baseToString(value) {
 
 module.exports = baseToString;
 
-},{"./_Symbol":112,"./_arrayMap":121,"./isArray":265,"./isSymbol":274}],163:[function(require,module,exports){
+},{"./_Symbol":111,"./_arrayMap":120,"./isArray":264,"./isSymbol":273}],162:[function(require,module,exports){
 /**
  * The base implementation of `_.unary` without support for storing metadata.
  *
@@ -8174,7 +8091,7 @@ function baseUnary(func) {
 
 module.exports = baseUnary;
 
-},{}],164:[function(require,module,exports){
+},{}],163:[function(require,module,exports){
 var castPath = require('./_castPath'),
     last = require('./last'),
     parent = require('./_parent'),
@@ -8196,7 +8113,7 @@ function baseUnset(object, path) {
 
 module.exports = baseUnset;
 
-},{"./_castPath":166,"./_parent":239,"./_toKey":252,"./last":278}],165:[function(require,module,exports){
+},{"./_castPath":165,"./_parent":238,"./_toKey":251,"./last":277}],164:[function(require,module,exports){
 /**
  * Checks if a `cache` value for `key` exists.
  *
@@ -8211,7 +8128,7 @@ function cacheHas(cache, key) {
 
 module.exports = cacheHas;
 
-},{}],166:[function(require,module,exports){
+},{}],165:[function(require,module,exports){
 var isArray = require('./isArray'),
     isKey = require('./_isKey'),
     stringToPath = require('./_stringToPath'),
@@ -8234,7 +8151,7 @@ function castPath(value, object) {
 
 module.exports = castPath;
 
-},{"./_isKey":214,"./_stringToPath":251,"./isArray":265,"./toString":288}],167:[function(require,module,exports){
+},{"./_isKey":213,"./_stringToPath":250,"./isArray":264,"./toString":287}],166:[function(require,module,exports){
 var Uint8Array = require('./_Uint8Array');
 
 /**
@@ -8252,7 +8169,7 @@ function cloneArrayBuffer(arrayBuffer) {
 
 module.exports = cloneArrayBuffer;
 
-},{"./_Uint8Array":113}],168:[function(require,module,exports){
+},{"./_Uint8Array":112}],167:[function(require,module,exports){
 var root = require('./_root');
 
 /** Detect free variable `exports`. */
@@ -8289,7 +8206,7 @@ function cloneBuffer(buffer, isDeep) {
 
 module.exports = cloneBuffer;
 
-},{"./_root":240}],169:[function(require,module,exports){
+},{"./_root":239}],168:[function(require,module,exports){
 var cloneArrayBuffer = require('./_cloneArrayBuffer');
 
 /**
@@ -8307,7 +8224,7 @@ function cloneDataView(dataView, isDeep) {
 
 module.exports = cloneDataView;
 
-},{"./_cloneArrayBuffer":167}],170:[function(require,module,exports){
+},{"./_cloneArrayBuffer":166}],169:[function(require,module,exports){
 var addMapEntry = require('./_addMapEntry'),
     arrayReduce = require('./_arrayReduce'),
     mapToArray = require('./_mapToArray');
@@ -8331,7 +8248,7 @@ function cloneMap(map, isDeep, cloneFunc) {
 
 module.exports = cloneMap;
 
-},{"./_addMapEntry":115,"./_arrayReduce":123,"./_mapToArray":229}],171:[function(require,module,exports){
+},{"./_addMapEntry":114,"./_arrayReduce":122,"./_mapToArray":228}],170:[function(require,module,exports){
 /** Used to match `RegExp` flags from their coerced string values. */
 var reFlags = /\w*$/;
 
@@ -8350,7 +8267,7 @@ function cloneRegExp(regexp) {
 
 module.exports = cloneRegExp;
 
-},{}],172:[function(require,module,exports){
+},{}],171:[function(require,module,exports){
 var addSetEntry = require('./_addSetEntry'),
     arrayReduce = require('./_arrayReduce'),
     setToArray = require('./_setToArray');
@@ -8374,7 +8291,7 @@ function cloneSet(set, isDeep, cloneFunc) {
 
 module.exports = cloneSet;
 
-},{"./_addSetEntry":116,"./_arrayReduce":123,"./_setToArray":243}],173:[function(require,module,exports){
+},{"./_addSetEntry":115,"./_arrayReduce":122,"./_setToArray":242}],172:[function(require,module,exports){
 var Symbol = require('./_Symbol');
 
 /** Used to convert symbols to primitives and strings. */
@@ -8394,7 +8311,7 @@ function cloneSymbol(symbol) {
 
 module.exports = cloneSymbol;
 
-},{"./_Symbol":112}],174:[function(require,module,exports){
+},{"./_Symbol":111}],173:[function(require,module,exports){
 var cloneArrayBuffer = require('./_cloneArrayBuffer');
 
 /**
@@ -8412,7 +8329,7 @@ function cloneTypedArray(typedArray, isDeep) {
 
 module.exports = cloneTypedArray;
 
-},{"./_cloneArrayBuffer":167}],175:[function(require,module,exports){
+},{"./_cloneArrayBuffer":166}],174:[function(require,module,exports){
 /**
  * Copies the values of `source` to `array`.
  *
@@ -8434,7 +8351,7 @@ function copyArray(source, array) {
 
 module.exports = copyArray;
 
-},{}],176:[function(require,module,exports){
+},{}],175:[function(require,module,exports){
 var assignValue = require('./_assignValue'),
     baseAssignValue = require('./_baseAssignValue');
 
@@ -8476,7 +8393,7 @@ function copyObject(source, props, object, customizer) {
 
 module.exports = copyObject;
 
-},{"./_assignValue":126,"./_baseAssignValue":130}],177:[function(require,module,exports){
+},{"./_assignValue":125,"./_baseAssignValue":129}],176:[function(require,module,exports){
 var copyObject = require('./_copyObject'),
     getSymbols = require('./_getSymbols');
 
@@ -8494,7 +8411,7 @@ function copySymbols(source, object) {
 
 module.exports = copySymbols;
 
-},{"./_copyObject":176,"./_getSymbols":198}],178:[function(require,module,exports){
+},{"./_copyObject":175,"./_getSymbols":197}],177:[function(require,module,exports){
 var copyObject = require('./_copyObject'),
     getSymbolsIn = require('./_getSymbolsIn');
 
@@ -8512,7 +8429,7 @@ function copySymbolsIn(source, object) {
 
 module.exports = copySymbolsIn;
 
-},{"./_copyObject":176,"./_getSymbolsIn":199}],179:[function(require,module,exports){
+},{"./_copyObject":175,"./_getSymbolsIn":198}],178:[function(require,module,exports){
 var root = require('./_root');
 
 /** Used to detect overreaching core-js shims. */
@@ -8520,7 +8437,7 @@ var coreJsData = root['__core-js_shared__'];
 
 module.exports = coreJsData;
 
-},{"./_root":240}],180:[function(require,module,exports){
+},{"./_root":239}],179:[function(require,module,exports){
 var baseRest = require('./_baseRest'),
     isIterateeCall = require('./_isIterateeCall');
 
@@ -8559,7 +8476,7 @@ function createAssigner(assigner) {
 
 module.exports = createAssigner;
 
-},{"./_baseRest":157,"./_isIterateeCall":213}],181:[function(require,module,exports){
+},{"./_baseRest":156,"./_isIterateeCall":212}],180:[function(require,module,exports){
 var isArrayLike = require('./isArrayLike');
 
 /**
@@ -8593,7 +8510,7 @@ function createBaseEach(eachFunc, fromRight) {
 
 module.exports = createBaseEach;
 
-},{"./isArrayLike":266}],182:[function(require,module,exports){
+},{"./isArrayLike":265}],181:[function(require,module,exports){
 /**
  * Creates a base function for methods like `_.forIn` and `_.forOwn`.
  *
@@ -8620,7 +8537,7 @@ function createBaseFor(fromRight) {
 
 module.exports = createBaseFor;
 
-},{}],183:[function(require,module,exports){
+},{}],182:[function(require,module,exports){
 var baseMerge = require('./_baseMerge'),
     isObject = require('./isObject');
 
@@ -8650,7 +8567,7 @@ function customDefaultsMerge(objValue, srcValue, key, object, source, stack) {
 
 module.exports = customDefaultsMerge;
 
-},{"./_baseMerge":153,"./isObject":271}],184:[function(require,module,exports){
+},{"./_baseMerge":152,"./isObject":270}],183:[function(require,module,exports){
 var isPlainObject = require('./isPlainObject');
 
 /**
@@ -8668,7 +8585,7 @@ function customOmitClone(value) {
 
 module.exports = customOmitClone;
 
-},{"./isPlainObject":273}],185:[function(require,module,exports){
+},{"./isPlainObject":272}],184:[function(require,module,exports){
 var getNative = require('./_getNative');
 
 var defineProperty = (function() {
@@ -8681,7 +8598,7 @@ var defineProperty = (function() {
 
 module.exports = defineProperty;
 
-},{"./_getNative":195}],186:[function(require,module,exports){
+},{"./_getNative":194}],185:[function(require,module,exports){
 var SetCache = require('./_SetCache'),
     arraySome = require('./_arraySome'),
     cacheHas = require('./_cacheHas');
@@ -8766,7 +8683,7 @@ function equalArrays(array, other, bitmask, customizer, equalFunc, stack) {
 
 module.exports = equalArrays;
 
-},{"./_SetCache":110,"./_arraySome":124,"./_cacheHas":165}],187:[function(require,module,exports){
+},{"./_SetCache":109,"./_arraySome":123,"./_cacheHas":164}],186:[function(require,module,exports){
 var Symbol = require('./_Symbol'),
     Uint8Array = require('./_Uint8Array'),
     eq = require('./eq'),
@@ -8880,7 +8797,7 @@ function equalByTag(object, other, tag, bitmask, customizer, equalFunc, stack) {
 
 module.exports = equalByTag;
 
-},{"./_Symbol":112,"./_Uint8Array":113,"./_equalArrays":186,"./_mapToArray":229,"./_setToArray":243,"./eq":258}],188:[function(require,module,exports){
+},{"./_Symbol":111,"./_Uint8Array":112,"./_equalArrays":185,"./_mapToArray":228,"./_setToArray":242,"./eq":257}],187:[function(require,module,exports){
 var getAllKeys = require('./_getAllKeys');
 
 /** Used to compose bitmasks for value comparisons. */
@@ -8971,7 +8888,7 @@ function equalObjects(object, other, bitmask, customizer, equalFunc, stack) {
 
 module.exports = equalObjects;
 
-},{"./_getAllKeys":191}],189:[function(require,module,exports){
+},{"./_getAllKeys":190}],188:[function(require,module,exports){
 var flatten = require('./flatten'),
     overRest = require('./_overRest'),
     setToString = require('./_setToString');
@@ -8989,7 +8906,7 @@ function flatRest(func) {
 
 module.exports = flatRest;
 
-},{"./_overRest":238,"./_setToString":244,"./flatten":260}],190:[function(require,module,exports){
+},{"./_overRest":237,"./_setToString":243,"./flatten":259}],189:[function(require,module,exports){
 (function (global){
 /** Detect free variable `global` from Node.js. */
 var freeGlobal = typeof global == 'object' && global && global.Object === Object && global;
@@ -8997,7 +8914,7 @@ var freeGlobal = typeof global == 'object' && global && global.Object === Object
 module.exports = freeGlobal;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],191:[function(require,module,exports){
+},{}],190:[function(require,module,exports){
 var baseGetAllKeys = require('./_baseGetAllKeys'),
     getSymbols = require('./_getSymbols'),
     keys = require('./keys');
@@ -9015,7 +8932,7 @@ function getAllKeys(object) {
 
 module.exports = getAllKeys;
 
-},{"./_baseGetAllKeys":139,"./_getSymbols":198,"./keys":276}],192:[function(require,module,exports){
+},{"./_baseGetAllKeys":138,"./_getSymbols":197,"./keys":275}],191:[function(require,module,exports){
 var baseGetAllKeys = require('./_baseGetAllKeys'),
     getSymbolsIn = require('./_getSymbolsIn'),
     keysIn = require('./keysIn');
@@ -9034,7 +8951,7 @@ function getAllKeysIn(object) {
 
 module.exports = getAllKeysIn;
 
-},{"./_baseGetAllKeys":139,"./_getSymbolsIn":199,"./keysIn":277}],193:[function(require,module,exports){
+},{"./_baseGetAllKeys":138,"./_getSymbolsIn":198,"./keysIn":276}],192:[function(require,module,exports){
 var isKeyable = require('./_isKeyable');
 
 /**
@@ -9054,7 +8971,7 @@ function getMapData(map, key) {
 
 module.exports = getMapData;
 
-},{"./_isKeyable":215}],194:[function(require,module,exports){
+},{"./_isKeyable":214}],193:[function(require,module,exports){
 var isStrictComparable = require('./_isStrictComparable'),
     keys = require('./keys');
 
@@ -9080,7 +8997,7 @@ function getMatchData(object) {
 
 module.exports = getMatchData;
 
-},{"./_isStrictComparable":218,"./keys":276}],195:[function(require,module,exports){
+},{"./_isStrictComparable":217,"./keys":275}],194:[function(require,module,exports){
 var baseIsNative = require('./_baseIsNative'),
     getValue = require('./_getValue');
 
@@ -9099,7 +9016,7 @@ function getNative(object, key) {
 
 module.exports = getNative;
 
-},{"./_baseIsNative":146,"./_getValue":201}],196:[function(require,module,exports){
+},{"./_baseIsNative":145,"./_getValue":200}],195:[function(require,module,exports){
 var overArg = require('./_overArg');
 
 /** Built-in value references. */
@@ -9107,7 +9024,7 @@ var getPrototype = overArg(Object.getPrototypeOf, Object);
 
 module.exports = getPrototype;
 
-},{"./_overArg":237}],197:[function(require,module,exports){
+},{"./_overArg":236}],196:[function(require,module,exports){
 var Symbol = require('./_Symbol');
 
 /** Used for built-in method references. */
@@ -9155,7 +9072,7 @@ function getRawTag(value) {
 
 module.exports = getRawTag;
 
-},{"./_Symbol":112}],198:[function(require,module,exports){
+},{"./_Symbol":111}],197:[function(require,module,exports){
 var arrayFilter = require('./_arrayFilter'),
     stubArray = require('./stubArray');
 
@@ -9187,7 +9104,7 @@ var getSymbols = !nativeGetSymbols ? stubArray : function(object) {
 
 module.exports = getSymbols;
 
-},{"./_arrayFilter":119,"./stubArray":285}],199:[function(require,module,exports){
+},{"./_arrayFilter":118,"./stubArray":284}],198:[function(require,module,exports){
 var arrayPush = require('./_arrayPush'),
     getPrototype = require('./_getPrototype'),
     getSymbols = require('./_getSymbols'),
@@ -9214,7 +9131,7 @@ var getSymbolsIn = !nativeGetSymbols ? stubArray : function(object) {
 
 module.exports = getSymbolsIn;
 
-},{"./_arrayPush":122,"./_getPrototype":196,"./_getSymbols":198,"./stubArray":285}],200:[function(require,module,exports){
+},{"./_arrayPush":121,"./_getPrototype":195,"./_getSymbols":197,"./stubArray":284}],199:[function(require,module,exports){
 var DataView = require('./_DataView'),
     Map = require('./_Map'),
     Promise = require('./_Promise'),
@@ -9274,7 +9191,7 @@ if ((DataView && getTag(new DataView(new ArrayBuffer(1))) != dataViewTag) ||
 
 module.exports = getTag;
 
-},{"./_DataView":103,"./_Map":106,"./_Promise":108,"./_Set":109,"./_WeakMap":114,"./_baseGetTag":140,"./_toSource":253}],201:[function(require,module,exports){
+},{"./_DataView":102,"./_Map":105,"./_Promise":107,"./_Set":108,"./_WeakMap":113,"./_baseGetTag":139,"./_toSource":252}],200:[function(require,module,exports){
 /**
  * Gets the value at `key` of `object`.
  *
@@ -9289,7 +9206,7 @@ function getValue(object, key) {
 
 module.exports = getValue;
 
-},{}],202:[function(require,module,exports){
+},{}],201:[function(require,module,exports){
 var castPath = require('./_castPath'),
     isArguments = require('./isArguments'),
     isArray = require('./isArray'),
@@ -9330,7 +9247,7 @@ function hasPath(object, path, hasFunc) {
 
 module.exports = hasPath;
 
-},{"./_castPath":166,"./_isIndex":212,"./_toKey":252,"./isArguments":264,"./isArray":265,"./isLength":270}],203:[function(require,module,exports){
+},{"./_castPath":165,"./_isIndex":211,"./_toKey":251,"./isArguments":263,"./isArray":264,"./isLength":269}],202:[function(require,module,exports){
 var nativeCreate = require('./_nativeCreate');
 
 /**
@@ -9347,7 +9264,7 @@ function hashClear() {
 
 module.exports = hashClear;
 
-},{"./_nativeCreate":232}],204:[function(require,module,exports){
+},{"./_nativeCreate":231}],203:[function(require,module,exports){
 /**
  * Removes `key` and its value from the hash.
  *
@@ -9366,7 +9283,7 @@ function hashDelete(key) {
 
 module.exports = hashDelete;
 
-},{}],205:[function(require,module,exports){
+},{}],204:[function(require,module,exports){
 var nativeCreate = require('./_nativeCreate');
 
 /** Used to stand-in for `undefined` hash values. */
@@ -9398,7 +9315,7 @@ function hashGet(key) {
 
 module.exports = hashGet;
 
-},{"./_nativeCreate":232}],206:[function(require,module,exports){
+},{"./_nativeCreate":231}],205:[function(require,module,exports){
 var nativeCreate = require('./_nativeCreate');
 
 /** Used for built-in method references. */
@@ -9423,7 +9340,7 @@ function hashHas(key) {
 
 module.exports = hashHas;
 
-},{"./_nativeCreate":232}],207:[function(require,module,exports){
+},{"./_nativeCreate":231}],206:[function(require,module,exports){
 var nativeCreate = require('./_nativeCreate');
 
 /** Used to stand-in for `undefined` hash values. */
@@ -9448,7 +9365,7 @@ function hashSet(key, value) {
 
 module.exports = hashSet;
 
-},{"./_nativeCreate":232}],208:[function(require,module,exports){
+},{"./_nativeCreate":231}],207:[function(require,module,exports){
 /** Used for built-in method references. */
 var objectProto = Object.prototype;
 
@@ -9476,7 +9393,7 @@ function initCloneArray(array) {
 
 module.exports = initCloneArray;
 
-},{}],209:[function(require,module,exports){
+},{}],208:[function(require,module,exports){
 var cloneArrayBuffer = require('./_cloneArrayBuffer'),
     cloneDataView = require('./_cloneDataView'),
     cloneMap = require('./_cloneMap'),
@@ -9558,7 +9475,7 @@ function initCloneByTag(object, tag, cloneFunc, isDeep) {
 
 module.exports = initCloneByTag;
 
-},{"./_cloneArrayBuffer":167,"./_cloneDataView":169,"./_cloneMap":170,"./_cloneRegExp":171,"./_cloneSet":172,"./_cloneSymbol":173,"./_cloneTypedArray":174}],210:[function(require,module,exports){
+},{"./_cloneArrayBuffer":166,"./_cloneDataView":168,"./_cloneMap":169,"./_cloneRegExp":170,"./_cloneSet":171,"./_cloneSymbol":172,"./_cloneTypedArray":173}],209:[function(require,module,exports){
 var baseCreate = require('./_baseCreate'),
     getPrototype = require('./_getPrototype'),
     isPrototype = require('./_isPrototype');
@@ -9578,7 +9495,7 @@ function initCloneObject(object) {
 
 module.exports = initCloneObject;
 
-},{"./_baseCreate":132,"./_getPrototype":196,"./_isPrototype":217}],211:[function(require,module,exports){
+},{"./_baseCreate":131,"./_getPrototype":195,"./_isPrototype":216}],210:[function(require,module,exports){
 var Symbol = require('./_Symbol'),
     isArguments = require('./isArguments'),
     isArray = require('./isArray');
@@ -9600,7 +9517,7 @@ function isFlattenable(value) {
 
 module.exports = isFlattenable;
 
-},{"./_Symbol":112,"./isArguments":264,"./isArray":265}],212:[function(require,module,exports){
+},{"./_Symbol":111,"./isArguments":263,"./isArray":264}],211:[function(require,module,exports){
 /** Used as references for various `Number` constants. */
 var MAX_SAFE_INTEGER = 9007199254740991;
 
@@ -9624,7 +9541,7 @@ function isIndex(value, length) {
 
 module.exports = isIndex;
 
-},{}],213:[function(require,module,exports){
+},{}],212:[function(require,module,exports){
 var eq = require('./eq'),
     isArrayLike = require('./isArrayLike'),
     isIndex = require('./_isIndex'),
@@ -9656,7 +9573,7 @@ function isIterateeCall(value, index, object) {
 
 module.exports = isIterateeCall;
 
-},{"./_isIndex":212,"./eq":258,"./isArrayLike":266,"./isObject":271}],214:[function(require,module,exports){
+},{"./_isIndex":211,"./eq":257,"./isArrayLike":265,"./isObject":270}],213:[function(require,module,exports){
 var isArray = require('./isArray'),
     isSymbol = require('./isSymbol');
 
@@ -9687,7 +9604,7 @@ function isKey(value, object) {
 
 module.exports = isKey;
 
-},{"./isArray":265,"./isSymbol":274}],215:[function(require,module,exports){
+},{"./isArray":264,"./isSymbol":273}],214:[function(require,module,exports){
 /**
  * Checks if `value` is suitable for use as unique object key.
  *
@@ -9704,7 +9621,7 @@ function isKeyable(value) {
 
 module.exports = isKeyable;
 
-},{}],216:[function(require,module,exports){
+},{}],215:[function(require,module,exports){
 var coreJsData = require('./_coreJsData');
 
 /** Used to detect methods masquerading as native. */
@@ -9726,7 +9643,7 @@ function isMasked(func) {
 
 module.exports = isMasked;
 
-},{"./_coreJsData":179}],217:[function(require,module,exports){
+},{"./_coreJsData":178}],216:[function(require,module,exports){
 /** Used for built-in method references. */
 var objectProto = Object.prototype;
 
@@ -9746,7 +9663,7 @@ function isPrototype(value) {
 
 module.exports = isPrototype;
 
-},{}],218:[function(require,module,exports){
+},{}],217:[function(require,module,exports){
 var isObject = require('./isObject');
 
 /**
@@ -9763,7 +9680,7 @@ function isStrictComparable(value) {
 
 module.exports = isStrictComparable;
 
-},{"./isObject":271}],219:[function(require,module,exports){
+},{"./isObject":270}],218:[function(require,module,exports){
 /**
  * Removes all key-value entries from the list cache.
  *
@@ -9778,7 +9695,7 @@ function listCacheClear() {
 
 module.exports = listCacheClear;
 
-},{}],220:[function(require,module,exports){
+},{}],219:[function(require,module,exports){
 var assocIndexOf = require('./_assocIndexOf');
 
 /** Used for built-in method references. */
@@ -9815,7 +9732,7 @@ function listCacheDelete(key) {
 
 module.exports = listCacheDelete;
 
-},{"./_assocIndexOf":127}],221:[function(require,module,exports){
+},{"./_assocIndexOf":126}],220:[function(require,module,exports){
 var assocIndexOf = require('./_assocIndexOf');
 
 /**
@@ -9836,7 +9753,7 @@ function listCacheGet(key) {
 
 module.exports = listCacheGet;
 
-},{"./_assocIndexOf":127}],222:[function(require,module,exports){
+},{"./_assocIndexOf":126}],221:[function(require,module,exports){
 var assocIndexOf = require('./_assocIndexOf');
 
 /**
@@ -9854,7 +9771,7 @@ function listCacheHas(key) {
 
 module.exports = listCacheHas;
 
-},{"./_assocIndexOf":127}],223:[function(require,module,exports){
+},{"./_assocIndexOf":126}],222:[function(require,module,exports){
 var assocIndexOf = require('./_assocIndexOf');
 
 /**
@@ -9882,7 +9799,7 @@ function listCacheSet(key, value) {
 
 module.exports = listCacheSet;
 
-},{"./_assocIndexOf":127}],224:[function(require,module,exports){
+},{"./_assocIndexOf":126}],223:[function(require,module,exports){
 var Hash = require('./_Hash'),
     ListCache = require('./_ListCache'),
     Map = require('./_Map');
@@ -9905,7 +9822,7 @@ function mapCacheClear() {
 
 module.exports = mapCacheClear;
 
-},{"./_Hash":104,"./_ListCache":105,"./_Map":106}],225:[function(require,module,exports){
+},{"./_Hash":103,"./_ListCache":104,"./_Map":105}],224:[function(require,module,exports){
 var getMapData = require('./_getMapData');
 
 /**
@@ -9925,7 +9842,7 @@ function mapCacheDelete(key) {
 
 module.exports = mapCacheDelete;
 
-},{"./_getMapData":193}],226:[function(require,module,exports){
+},{"./_getMapData":192}],225:[function(require,module,exports){
 var getMapData = require('./_getMapData');
 
 /**
@@ -9943,7 +9860,7 @@ function mapCacheGet(key) {
 
 module.exports = mapCacheGet;
 
-},{"./_getMapData":193}],227:[function(require,module,exports){
+},{"./_getMapData":192}],226:[function(require,module,exports){
 var getMapData = require('./_getMapData');
 
 /**
@@ -9961,7 +9878,7 @@ function mapCacheHas(key) {
 
 module.exports = mapCacheHas;
 
-},{"./_getMapData":193}],228:[function(require,module,exports){
+},{"./_getMapData":192}],227:[function(require,module,exports){
 var getMapData = require('./_getMapData');
 
 /**
@@ -9985,7 +9902,7 @@ function mapCacheSet(key, value) {
 
 module.exports = mapCacheSet;
 
-},{"./_getMapData":193}],229:[function(require,module,exports){
+},{"./_getMapData":192}],228:[function(require,module,exports){
 /**
  * Converts `map` to its key-value pairs.
  *
@@ -10005,7 +9922,7 @@ function mapToArray(map) {
 
 module.exports = mapToArray;
 
-},{}],230:[function(require,module,exports){
+},{}],229:[function(require,module,exports){
 /**
  * A specialized version of `matchesProperty` for source values suitable
  * for strict equality comparisons, i.e. `===`.
@@ -10027,7 +9944,7 @@ function matchesStrictComparable(key, srcValue) {
 
 module.exports = matchesStrictComparable;
 
-},{}],231:[function(require,module,exports){
+},{}],230:[function(require,module,exports){
 var memoize = require('./memoize');
 
 /** Used as the maximum memoize cache size. */
@@ -10055,7 +9972,7 @@ function memoizeCapped(func) {
 
 module.exports = memoizeCapped;
 
-},{"./memoize":279}],232:[function(require,module,exports){
+},{"./memoize":278}],231:[function(require,module,exports){
 var getNative = require('./_getNative');
 
 /* Built-in method references that are verified to be native. */
@@ -10063,7 +9980,7 @@ var nativeCreate = getNative(Object, 'create');
 
 module.exports = nativeCreate;
 
-},{"./_getNative":195}],233:[function(require,module,exports){
+},{"./_getNative":194}],232:[function(require,module,exports){
 var overArg = require('./_overArg');
 
 /* Built-in method references for those with the same name as other `lodash` methods. */
@@ -10071,7 +9988,7 @@ var nativeKeys = overArg(Object.keys, Object);
 
 module.exports = nativeKeys;
 
-},{"./_overArg":237}],234:[function(require,module,exports){
+},{"./_overArg":236}],233:[function(require,module,exports){
 /**
  * This function is like
  * [`Object.keys`](http://ecma-international.org/ecma-262/7.0/#sec-object.keys)
@@ -10093,7 +10010,7 @@ function nativeKeysIn(object) {
 
 module.exports = nativeKeysIn;
 
-},{}],235:[function(require,module,exports){
+},{}],234:[function(require,module,exports){
 var freeGlobal = require('./_freeGlobal');
 
 /** Detect free variable `exports`. */
@@ -10117,7 +10034,7 @@ var nodeUtil = (function() {
 
 module.exports = nodeUtil;
 
-},{"./_freeGlobal":190}],236:[function(require,module,exports){
+},{"./_freeGlobal":189}],235:[function(require,module,exports){
 /** Used for built-in method references. */
 var objectProto = Object.prototype;
 
@@ -10141,7 +10058,7 @@ function objectToString(value) {
 
 module.exports = objectToString;
 
-},{}],237:[function(require,module,exports){
+},{}],236:[function(require,module,exports){
 /**
  * Creates a unary function that invokes `func` with its argument transformed.
  *
@@ -10158,7 +10075,7 @@ function overArg(func, transform) {
 
 module.exports = overArg;
 
-},{}],238:[function(require,module,exports){
+},{}],237:[function(require,module,exports){
 var apply = require('./_apply');
 
 /* Built-in method references for those with the same name as other `lodash` methods. */
@@ -10196,7 +10113,7 @@ function overRest(func, start, transform) {
 
 module.exports = overRest;
 
-},{"./_apply":117}],239:[function(require,module,exports){
+},{"./_apply":116}],238:[function(require,module,exports){
 var baseGet = require('./_baseGet'),
     baseSlice = require('./_baseSlice');
 
@@ -10214,7 +10131,7 @@ function parent(object, path) {
 
 module.exports = parent;
 
-},{"./_baseGet":138,"./_baseSlice":160}],240:[function(require,module,exports){
+},{"./_baseGet":137,"./_baseSlice":159}],239:[function(require,module,exports){
 var freeGlobal = require('./_freeGlobal');
 
 /** Detect free variable `self`. */
@@ -10225,7 +10142,7 @@ var root = freeGlobal || freeSelf || Function('return this')();
 
 module.exports = root;
 
-},{"./_freeGlobal":190}],241:[function(require,module,exports){
+},{"./_freeGlobal":189}],240:[function(require,module,exports){
 /** Used to stand-in for `undefined` hash values. */
 var HASH_UNDEFINED = '__lodash_hash_undefined__';
 
@@ -10246,7 +10163,7 @@ function setCacheAdd(value) {
 
 module.exports = setCacheAdd;
 
-},{}],242:[function(require,module,exports){
+},{}],241:[function(require,module,exports){
 /**
  * Checks if `value` is in the array cache.
  *
@@ -10262,7 +10179,7 @@ function setCacheHas(value) {
 
 module.exports = setCacheHas;
 
-},{}],243:[function(require,module,exports){
+},{}],242:[function(require,module,exports){
 /**
  * Converts `set` to an array of its values.
  *
@@ -10282,7 +10199,7 @@ function setToArray(set) {
 
 module.exports = setToArray;
 
-},{}],244:[function(require,module,exports){
+},{}],243:[function(require,module,exports){
 var baseSetToString = require('./_baseSetToString'),
     shortOut = require('./_shortOut');
 
@@ -10298,7 +10215,7 @@ var setToString = shortOut(baseSetToString);
 
 module.exports = setToString;
 
-},{"./_baseSetToString":159,"./_shortOut":245}],245:[function(require,module,exports){
+},{"./_baseSetToString":158,"./_shortOut":244}],244:[function(require,module,exports){
 /** Used to detect hot functions by number of calls within a span of milliseconds. */
 var HOT_COUNT = 800,
     HOT_SPAN = 16;
@@ -10337,7 +10254,7 @@ function shortOut(func) {
 
 module.exports = shortOut;
 
-},{}],246:[function(require,module,exports){
+},{}],245:[function(require,module,exports){
 var ListCache = require('./_ListCache');
 
 /**
@@ -10354,7 +10271,7 @@ function stackClear() {
 
 module.exports = stackClear;
 
-},{"./_ListCache":105}],247:[function(require,module,exports){
+},{"./_ListCache":104}],246:[function(require,module,exports){
 /**
  * Removes `key` and its value from the stack.
  *
@@ -10374,7 +10291,7 @@ function stackDelete(key) {
 
 module.exports = stackDelete;
 
-},{}],248:[function(require,module,exports){
+},{}],247:[function(require,module,exports){
 /**
  * Gets the stack value for `key`.
  *
@@ -10390,7 +10307,7 @@ function stackGet(key) {
 
 module.exports = stackGet;
 
-},{}],249:[function(require,module,exports){
+},{}],248:[function(require,module,exports){
 /**
  * Checks if a stack value for `key` exists.
  *
@@ -10406,7 +10323,7 @@ function stackHas(key) {
 
 module.exports = stackHas;
 
-},{}],250:[function(require,module,exports){
+},{}],249:[function(require,module,exports){
 var ListCache = require('./_ListCache'),
     Map = require('./_Map'),
     MapCache = require('./_MapCache');
@@ -10442,7 +10359,7 @@ function stackSet(key, value) {
 
 module.exports = stackSet;
 
-},{"./_ListCache":105,"./_Map":106,"./_MapCache":107}],251:[function(require,module,exports){
+},{"./_ListCache":104,"./_Map":105,"./_MapCache":106}],250:[function(require,module,exports){
 var memoizeCapped = require('./_memoizeCapped');
 
 /** Used to match property names within property paths. */
@@ -10472,7 +10389,7 @@ var stringToPath = memoizeCapped(function(string) {
 
 module.exports = stringToPath;
 
-},{"./_memoizeCapped":231}],252:[function(require,module,exports){
+},{"./_memoizeCapped":230}],251:[function(require,module,exports){
 var isSymbol = require('./isSymbol');
 
 /** Used as references for various `Number` constants. */
@@ -10495,7 +10412,7 @@ function toKey(value) {
 
 module.exports = toKey;
 
-},{"./isSymbol":274}],253:[function(require,module,exports){
+},{"./isSymbol":273}],252:[function(require,module,exports){
 /** Used for built-in method references. */
 var funcProto = Function.prototype;
 
@@ -10523,7 +10440,7 @@ function toSource(func) {
 
 module.exports = toSource;
 
-},{}],254:[function(require,module,exports){
+},{}],253:[function(require,module,exports){
 var baseClone = require('./_baseClone');
 
 /** Used to compose bitmasks for cloning. */
@@ -10561,7 +10478,7 @@ function clone(value) {
 
 module.exports = clone;
 
-},{"./_baseClone":131}],255:[function(require,module,exports){
+},{"./_baseClone":130}],254:[function(require,module,exports){
 var baseClone = require('./_baseClone');
 
 /** Used to compose bitmasks for cloning. */
@@ -10592,7 +10509,7 @@ function cloneDeep(value) {
 
 module.exports = cloneDeep;
 
-},{"./_baseClone":131}],256:[function(require,module,exports){
+},{"./_baseClone":130}],255:[function(require,module,exports){
 /**
  * Creates a function that returns `value`.
  *
@@ -10620,7 +10537,7 @@ function constant(value) {
 
 module.exports = constant;
 
-},{}],257:[function(require,module,exports){
+},{}],256:[function(require,module,exports){
 var apply = require('./_apply'),
     baseRest = require('./_baseRest'),
     customDefaultsMerge = require('./_customDefaultsMerge'),
@@ -10652,7 +10569,7 @@ var defaultsDeep = baseRest(function(args) {
 
 module.exports = defaultsDeep;
 
-},{"./_apply":117,"./_baseRest":157,"./_customDefaultsMerge":183,"./mergeWith":281}],258:[function(require,module,exports){
+},{"./_apply":116,"./_baseRest":156,"./_customDefaultsMerge":182,"./mergeWith":280}],257:[function(require,module,exports){
 /**
  * Performs a
  * [`SameValueZero`](http://ecma-international.org/ecma-262/7.0/#sec-samevaluezero)
@@ -10691,7 +10608,7 @@ function eq(value, other) {
 
 module.exports = eq;
 
-},{}],259:[function(require,module,exports){
+},{}],258:[function(require,module,exports){
 var arrayFilter = require('./_arrayFilter'),
     baseFilter = require('./_baseFilter'),
     baseIteratee = require('./_baseIteratee'),
@@ -10741,7 +10658,7 @@ function filter(collection, predicate) {
 
 module.exports = filter;
 
-},{"./_arrayFilter":119,"./_baseFilter":134,"./_baseIteratee":148,"./isArray":265}],260:[function(require,module,exports){
+},{"./_arrayFilter":118,"./_baseFilter":133,"./_baseIteratee":147,"./isArray":264}],259:[function(require,module,exports){
 var baseFlatten = require('./_baseFlatten');
 
 /**
@@ -10765,7 +10682,7 @@ function flatten(array) {
 
 module.exports = flatten;
 
-},{"./_baseFlatten":135}],261:[function(require,module,exports){
+},{"./_baseFlatten":134}],260:[function(require,module,exports){
 var baseGet = require('./_baseGet');
 
 /**
@@ -10800,7 +10717,7 @@ function get(object, path, defaultValue) {
 
 module.exports = get;
 
-},{"./_baseGet":138}],262:[function(require,module,exports){
+},{"./_baseGet":137}],261:[function(require,module,exports){
 var baseHasIn = require('./_baseHasIn'),
     hasPath = require('./_hasPath');
 
@@ -10836,7 +10753,7 @@ function hasIn(object, path) {
 
 module.exports = hasIn;
 
-},{"./_baseHasIn":141,"./_hasPath":202}],263:[function(require,module,exports){
+},{"./_baseHasIn":140,"./_hasPath":201}],262:[function(require,module,exports){
 /**
  * This method returns the first argument it receives.
  *
@@ -10859,7 +10776,7 @@ function identity(value) {
 
 module.exports = identity;
 
-},{}],264:[function(require,module,exports){
+},{}],263:[function(require,module,exports){
 var baseIsArguments = require('./_baseIsArguments'),
     isObjectLike = require('./isObjectLike');
 
@@ -10897,7 +10814,7 @@ var isArguments = baseIsArguments(function() { return arguments; }()) ? baseIsAr
 
 module.exports = isArguments;
 
-},{"./_baseIsArguments":142,"./isObjectLike":272}],265:[function(require,module,exports){
+},{"./_baseIsArguments":141,"./isObjectLike":271}],264:[function(require,module,exports){
 /**
  * Checks if `value` is classified as an `Array` object.
  *
@@ -10925,7 +10842,7 @@ var isArray = Array.isArray;
 
 module.exports = isArray;
 
-},{}],266:[function(require,module,exports){
+},{}],265:[function(require,module,exports){
 var isFunction = require('./isFunction'),
     isLength = require('./isLength');
 
@@ -10960,7 +10877,7 @@ function isArrayLike(value) {
 
 module.exports = isArrayLike;
 
-},{"./isFunction":269,"./isLength":270}],267:[function(require,module,exports){
+},{"./isFunction":268,"./isLength":269}],266:[function(require,module,exports){
 var isArrayLike = require('./isArrayLike'),
     isObjectLike = require('./isObjectLike');
 
@@ -10995,7 +10912,7 @@ function isArrayLikeObject(value) {
 
 module.exports = isArrayLikeObject;
 
-},{"./isArrayLike":266,"./isObjectLike":272}],268:[function(require,module,exports){
+},{"./isArrayLike":265,"./isObjectLike":271}],267:[function(require,module,exports){
 var root = require('./_root'),
     stubFalse = require('./stubFalse');
 
@@ -11035,7 +10952,7 @@ var isBuffer = nativeIsBuffer || stubFalse;
 
 module.exports = isBuffer;
 
-},{"./_root":240,"./stubFalse":286}],269:[function(require,module,exports){
+},{"./_root":239,"./stubFalse":285}],268:[function(require,module,exports){
 var baseGetTag = require('./_baseGetTag'),
     isObject = require('./isObject');
 
@@ -11074,7 +10991,7 @@ function isFunction(value) {
 
 module.exports = isFunction;
 
-},{"./_baseGetTag":140,"./isObject":271}],270:[function(require,module,exports){
+},{"./_baseGetTag":139,"./isObject":270}],269:[function(require,module,exports){
 /** Used as references for various `Number` constants. */
 var MAX_SAFE_INTEGER = 9007199254740991;
 
@@ -11111,7 +11028,7 @@ function isLength(value) {
 
 module.exports = isLength;
 
-},{}],271:[function(require,module,exports){
+},{}],270:[function(require,module,exports){
 /**
  * Checks if `value` is the
  * [language type](http://www.ecma-international.org/ecma-262/7.0/#sec-ecmascript-language-types)
@@ -11144,7 +11061,7 @@ function isObject(value) {
 
 module.exports = isObject;
 
-},{}],272:[function(require,module,exports){
+},{}],271:[function(require,module,exports){
 /**
  * Checks if `value` is object-like. A value is object-like if it's not `null`
  * and has a `typeof` result of "object".
@@ -11175,7 +11092,7 @@ function isObjectLike(value) {
 
 module.exports = isObjectLike;
 
-},{}],273:[function(require,module,exports){
+},{}],272:[function(require,module,exports){
 var baseGetTag = require('./_baseGetTag'),
     getPrototype = require('./_getPrototype'),
     isObjectLike = require('./isObjectLike');
@@ -11239,7 +11156,7 @@ function isPlainObject(value) {
 
 module.exports = isPlainObject;
 
-},{"./_baseGetTag":140,"./_getPrototype":196,"./isObjectLike":272}],274:[function(require,module,exports){
+},{"./_baseGetTag":139,"./_getPrototype":195,"./isObjectLike":271}],273:[function(require,module,exports){
 var baseGetTag = require('./_baseGetTag'),
     isObjectLike = require('./isObjectLike');
 
@@ -11270,7 +11187,7 @@ function isSymbol(value) {
 
 module.exports = isSymbol;
 
-},{"./_baseGetTag":140,"./isObjectLike":272}],275:[function(require,module,exports){
+},{"./_baseGetTag":139,"./isObjectLike":271}],274:[function(require,module,exports){
 var baseIsTypedArray = require('./_baseIsTypedArray'),
     baseUnary = require('./_baseUnary'),
     nodeUtil = require('./_nodeUtil');
@@ -11299,7 +11216,7 @@ var isTypedArray = nodeIsTypedArray ? baseUnary(nodeIsTypedArray) : baseIsTypedA
 
 module.exports = isTypedArray;
 
-},{"./_baseIsTypedArray":147,"./_baseUnary":163,"./_nodeUtil":235}],276:[function(require,module,exports){
+},{"./_baseIsTypedArray":146,"./_baseUnary":162,"./_nodeUtil":234}],275:[function(require,module,exports){
 var arrayLikeKeys = require('./_arrayLikeKeys'),
     baseKeys = require('./_baseKeys'),
     isArrayLike = require('./isArrayLike');
@@ -11338,7 +11255,7 @@ function keys(object) {
 
 module.exports = keys;
 
-},{"./_arrayLikeKeys":120,"./_baseKeys":149,"./isArrayLike":266}],277:[function(require,module,exports){
+},{"./_arrayLikeKeys":119,"./_baseKeys":148,"./isArrayLike":265}],276:[function(require,module,exports){
 var arrayLikeKeys = require('./_arrayLikeKeys'),
     baseKeysIn = require('./_baseKeysIn'),
     isArrayLike = require('./isArrayLike');
@@ -11372,7 +11289,7 @@ function keysIn(object) {
 
 module.exports = keysIn;
 
-},{"./_arrayLikeKeys":120,"./_baseKeysIn":150,"./isArrayLike":266}],278:[function(require,module,exports){
+},{"./_arrayLikeKeys":119,"./_baseKeysIn":149,"./isArrayLike":265}],277:[function(require,module,exports){
 /**
  * Gets the last element of `array`.
  *
@@ -11394,7 +11311,7 @@ function last(array) {
 
 module.exports = last;
 
-},{}],279:[function(require,module,exports){
+},{}],278:[function(require,module,exports){
 var MapCache = require('./_MapCache');
 
 /** Error message constants. */
@@ -11469,7 +11386,7 @@ memoize.Cache = MapCache;
 
 module.exports = memoize;
 
-},{"./_MapCache":107}],280:[function(require,module,exports){
+},{"./_MapCache":106}],279:[function(require,module,exports){
 var baseMerge = require('./_baseMerge'),
     createAssigner = require('./_createAssigner');
 
@@ -11510,7 +11427,7 @@ var merge = createAssigner(function(object, source, srcIndex) {
 
 module.exports = merge;
 
-},{"./_baseMerge":153,"./_createAssigner":180}],281:[function(require,module,exports){
+},{"./_baseMerge":152,"./_createAssigner":179}],280:[function(require,module,exports){
 var baseMerge = require('./_baseMerge'),
     createAssigner = require('./_createAssigner');
 
@@ -11551,7 +11468,7 @@ var mergeWith = createAssigner(function(object, source, srcIndex, customizer) {
 
 module.exports = mergeWith;
 
-},{"./_baseMerge":153,"./_createAssigner":180}],282:[function(require,module,exports){
+},{"./_baseMerge":152,"./_createAssigner":179}],281:[function(require,module,exports){
 var arrayMap = require('./_arrayMap'),
     baseClone = require('./_baseClone'),
     baseUnset = require('./_baseUnset'),
@@ -11610,7 +11527,7 @@ var omit = flatRest(function(object, paths) {
 
 module.exports = omit;
 
-},{"./_arrayMap":121,"./_baseClone":131,"./_baseUnset":164,"./_castPath":166,"./_copyObject":176,"./_customOmitClone":184,"./_flatRest":189,"./_getAllKeysIn":192}],283:[function(require,module,exports){
+},{"./_arrayMap":120,"./_baseClone":130,"./_baseUnset":163,"./_castPath":165,"./_copyObject":175,"./_customOmitClone":183,"./_flatRest":188,"./_getAllKeysIn":191}],282:[function(require,module,exports){
 var baseProperty = require('./_baseProperty'),
     basePropertyDeep = require('./_basePropertyDeep'),
     isKey = require('./_isKey'),
@@ -11644,7 +11561,7 @@ function property(path) {
 
 module.exports = property;
 
-},{"./_baseProperty":155,"./_basePropertyDeep":156,"./_isKey":214,"./_toKey":252}],284:[function(require,module,exports){
+},{"./_baseProperty":154,"./_basePropertyDeep":155,"./_isKey":213,"./_toKey":251}],283:[function(require,module,exports){
 var baseSet = require('./_baseSet');
 
 /**
@@ -11681,7 +11598,7 @@ function set(object, path, value) {
 
 module.exports = set;
 
-},{"./_baseSet":158}],285:[function(require,module,exports){
+},{"./_baseSet":157}],284:[function(require,module,exports){
 /**
  * This method returns a new empty array.
  *
@@ -11706,7 +11623,7 @@ function stubArray() {
 
 module.exports = stubArray;
 
-},{}],286:[function(require,module,exports){
+},{}],285:[function(require,module,exports){
 /**
  * This method returns `false`.
  *
@@ -11726,7 +11643,7 @@ function stubFalse() {
 
 module.exports = stubFalse;
 
-},{}],287:[function(require,module,exports){
+},{}],286:[function(require,module,exports){
 var copyObject = require('./_copyObject'),
     keysIn = require('./keysIn');
 
@@ -11760,7 +11677,7 @@ function toPlainObject(value) {
 
 module.exports = toPlainObject;
 
-},{"./_copyObject":176,"./keysIn":277}],288:[function(require,module,exports){
+},{"./_copyObject":175,"./keysIn":276}],287:[function(require,module,exports){
 var baseToString = require('./_baseToString');
 
 /**
@@ -11790,7 +11707,7 @@ function toString(value) {
 
 module.exports = toString;
 
-},{"./_baseToString":162}],289:[function(require,module,exports){
+},{"./_baseToString":161}],288:[function(require,module,exports){
 /**
  * Helpers.
  */
@@ -11941,7 +11858,7 @@ function plural(ms, n, name) {
   return Math.ceil(ms / n) + ' ' + name + 's'
 }
 
-},{}],290:[function(require,module,exports){
+},{}],289:[function(require,module,exports){
 (function (process,Buffer){
 var req = require('request')
 
@@ -11969,7 +11886,7 @@ function Nets (opts, cb) {
 }
 
 }).call(this,require('_process'),require("buffer").Buffer)
-},{"_process":86,"buffer":87,"request":351}],291:[function(require,module,exports){
+},{"_process":86,"buffer":87,"request":351}],290:[function(require,module,exports){
 var trim = require('trim')
   , forEach = require('for-each')
   , isArray = function(arg) {
@@ -12001,7 +11918,7 @@ module.exports = function (headers) {
 
   return result
 }
-},{"for-each":92,"trim":349}],292:[function(require,module,exports){
+},{"for-each":91,"trim":349}],291:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -12215,18 +12132,6 @@ function adapterFun(name, callback) {
   }));
 }
 
-// like underscore/lodash _.pick()
-function pick(obj, arr) {
-  var res = {};
-  for (var i = 0, len = arr.length; i < len; i++) {
-    var prop = arr[i];
-    if (prop in obj) {
-      res[prop] = obj[prop];
-    }
-  }
-  return res;
-}
-
 function mangle(key) {
   return '$' + key;
 }
@@ -12323,6 +12228,18 @@ var ExportedMap;
     ExportedSet = Set$1;
     ExportedMap = Map$1;
   }
+}
+
+// like underscore/lodash _.pick()
+function pick(obj, arr) {
+  var res = {};
+  for (var i = 0, len = arr.length; i < len; i++) {
+    var prop = arr[i];
+    if (prop in obj) {
+      res[prop] = obj[prop];
+    }
+  }
+  return res;
 }
 
 // Most browsers throttle concurrent requests at 6, so it's silly
@@ -12649,7 +12566,7 @@ var assign;
   }
 }
 
-var assign$1 = assign;
+var $inject_Object_assign = assign;
 
 inherits(PouchError, Error);
 
@@ -13343,7 +13260,7 @@ function doMerge(tree, path, dontExpand) {
 function stem(tree, depth) {
   // First we break out the tree into a complete list of root to leaf paths
   var paths = rootToLeaf(tree);
-  var maybeStem = {};
+  var stemmedRevs;
 
   var result;
   for (var i = 0, len = paths.length; i < len; i++) {
@@ -13351,34 +13268,49 @@ function stem(tree, depth) {
     // `depth` to stem to, and generate a new set of flat trees
     var path = paths[i];
     var stemmed = path.ids;
-    var numStemmed = Math.max(0, stemmed.length - depth);
-    var stemmedNode = {
-      pos: path.pos + numStemmed,
-      ids: pathToTree(stemmed, numStemmed)
-    };
+    var node;
+    if (stemmed.length > depth) {
+      // only do the stemming work if we actually need to stem
+      if (!stemmedRevs) {
+        stemmedRevs = {}; // avoid allocating this object unnecessarily
+      }
+      var numStemmed = stemmed.length - depth;
+      node = {
+        pos: path.pos + numStemmed,
+        ids: pathToTree(stemmed, numStemmed)
+      };
 
-    for (var s = 0; s < numStemmed; s++) {
-      var rev = (path.pos + s) + '-' + stemmed[s].id;
-      maybeStem[rev] = true;
+      for (var s = 0; s < numStemmed; s++) {
+        var rev = (path.pos + s) + '-' + stemmed[s].id;
+        stemmedRevs[rev] = true;
+      }
+    } else { // no need to actually stem
+      node = {
+        pos: path.pos,
+        ids: pathToTree(stemmed, 0)
+      };
     }
 
     // Then we remerge all those flat trees together, ensuring that we dont
     // connect trees that would go beyond the depth limit
     if (result) {
-      result = doMerge(result, stemmedNode, true).tree;
+      result = doMerge(result, node, true).tree;
     } else {
-      result = [stemmedNode];
+      result = [node];
     }
   }
 
-  traverseRevTree(result, function (isLeaf, pos, revHash) {
-    // some revisions may have been removed in a branch but not in another
-    delete maybeStem[pos + '-' + revHash];
-  });
+  // this is memory-heavy per Chrome profiler, avoid unless we actually stemmed
+  if (stemmedRevs) {
+    traverseRevTree(result, function (isLeaf, pos, revHash) {
+      // some revisions may have been removed in a branch but not in another
+      delete stemmedRevs[pos + '-' + revHash];
+    });
+  }
 
   return {
     tree: result,
-    revs: Object.keys(maybeStem)
+    revs: stemmedRevs ? Object.keys(stemmedRevs) : []
   };
 }
 
@@ -13820,7 +13752,7 @@ function allDocsKeysQuery(api, opts, callback) {
     offset: opts.skip
   };
   return PouchPromise$1.all(keys.map(function (key) {
-    var subOpts = assign$1({key: key, deleted: 'ok'}, opts);
+    var subOpts = $inject_Object_assign({key: key, deleted: 'ok'}, opts);
     ['limit', 'skip', 'keys'].forEach(function (optKey) {
       delete subOpts[optKey];
     });
@@ -13871,7 +13803,7 @@ function doNextCompaction(self) {
 
 function attachmentNameError(name) {
   if (name.charAt(0) === '_') {
-    return name + 'is not a valid attachment name, attachment ' +
+    return name + ' is not a valid attachment name, attachment ' +
       'names cannot start with \'_\'';
   }
   return false;
@@ -14854,6 +14786,9 @@ PouchDB$3.plugin = function (obj) {
       PouchDB$3.prototype[id] = obj[id];
     });
   }
+  if (this.__defaults) {
+    PouchDB$3.__defaults = $inject_Object_assign({}, this.__defaults);
+  }
   return PouchDB$3;
 };
 
@@ -14871,7 +14806,7 @@ PouchDB$3.defaults = function (defaultOpts) {
       delete opts.name;
     }
 
-    opts = assign$1({}, PouchAlt.__defaults, opts);
+    opts = $inject_Object_assign({}, PouchAlt.__defaults, opts);
     PouchDB$3.call(this, name, opts);
   }
 
@@ -14886,13 +14821,13 @@ PouchDB$3.defaults = function (defaultOpts) {
 
   // make default options transitive
   // https://github.com/pouchdb/pouchdb/issues/5922
-  PouchAlt.__defaults = assign$1({}, this.__defaults, defaultOpts);
+  PouchAlt.__defaults = $inject_Object_assign({}, this.__defaults, defaultOpts);
 
   return PouchAlt;
 };
 
 // managed automatically by set-version.js
-var version = "6.1.1";
+var version = "6.1.2";
 
 PouchDB$3.version = version;
 
@@ -15367,7 +15302,8 @@ function updateDoc(revLimit, prev, docInfo, results,
 
   var merged = merge(prev.rev_tree, docInfo.metadata.rev_tree[0], revLimit);
 
-  var inConflict = newEdits && (((previouslyDeleted && deleted) ||
+  var inConflict = newEdits && ((
+    (previouslyDeleted && deleted && merged.conflicts !== 'new_leaf') ||
     (!previouslyDeleted && merged.conflicts !== 'new_leaf') ||
     (previouslyDeleted && !deleted && merged.conflicts === 'new_branch')));
 
@@ -15677,7 +15613,7 @@ function postProcessAttachments(results, asBlob) {
         var type = attObj.content_type;
         return new PouchPromise$1(function (resolve) {
           readBlobData(body, type, asBlob, function (data) {
-            row.doc._attachments[att] = assign$1(
+            row.doc._attachments[att] = $inject_Object_assign(
               pick(attObj, ['digest', 'content_type']),
               {data: data}
             );
@@ -18064,7 +18000,7 @@ function fetchAttachmentsIfNecessary$1(doc, opts, api, txn, cb) {
     var attObj = doc._attachments[att];
     var attOpts = {binary: opts.binary, ctx: txn};
     api._getAttachment(doc._id, att, attObj, attOpts, function (_, data) {
-      doc._attachments[att] = assign$1(
+      doc._attachments[att] = $inject_Object_assign(
         pick(attObj, ['digest', 'content_type']),
         { data: data }
       );
@@ -18121,7 +18057,7 @@ function WebSqlPouch$1(opts, callback) {
 
   // extend the options here, because sqlite plugin has a ton of options
   // and they are constantly changing, so it's more prudent to allow anything
-  var websqlOpts = assign$1({}, opts, {
+  var websqlOpts = $inject_Object_assign({}, opts, {
     version: POUCH_VERSION,
     description: opts.name,
     size: size
@@ -18595,7 +18531,7 @@ function WebSqlPouch$1(opts, callback) {
     var tx = opts.ctx;
     if (!tx) {
       return db.readTransaction(function (txn) {
-        api._get(id, assign$1({ctx: txn}, opts), callback);
+        api._get(id, $inject_Object_assign({ctx: txn}, opts), callback);
       });
     }
 
@@ -19125,7 +19061,7 @@ function openDB(name, version, description, size) {
 }
 
 function WebSQLPouch(opts, callback) {
-  var _opts = assign$1({
+  var _opts = $inject_Object_assign({
     websql: openDB
   }, opts);
 
@@ -19414,7 +19350,7 @@ function ajaxCore$1(options, callback) {
     cache: false
   };
 
-  options = assign$1(defaultOptions, options);
+  options = $inject_Object_assign(defaultOptions, options);
 
   function onSuccess(obj, resp, cb) {
     if (!options.binary && options.json && typeof obj === 'string') {
@@ -19520,6 +19456,7 @@ function ajax(opts, callback) {
 
 // dead simple promise pool, inspired by https://github.com/timdp/es6-promise-pool
 // but much smaller in code size. limits the number of concurrent promises that are executed
+
 
 function pool(promiseFactories, limit) {
   return new PouchPromise$1(function (resolve, reject) {
@@ -19711,7 +19648,10 @@ function HttpPouch(opts, callback) {
 
   function ajax$$1(userOpts, options, callback) {
     var reqAjax = userOpts.ajax || {};
-    var reqOpts = assign$1(clone(ajaxOpts), reqAjax, options);
+    var reqOpts = $inject_Object_assign(clone(ajaxOpts), reqAjax, options);
+    var defaultHeaders = clone(ajaxOpts.headers || {});
+    reqOpts.headers = $inject_Object_assign(defaultHeaders, reqAjax.headers,
+      options.headers || {});
     log$1(reqOpts.method + ' ' + reqOpts.url);
     return api._ajax(reqOpts, callback);
   }
@@ -20541,6 +20481,166 @@ var HttpPouch$1 = function (PouchDB) {
   PouchDB.adapter('https', HttpPouch, false);
 };
 
+function QueryParseError(message) {
+  this.status = 400;
+  this.name = 'query_parse_error';
+  this.message = message;
+  this.error = true;
+  try {
+    Error.captureStackTrace(this, QueryParseError);
+  } catch (e) {}
+}
+
+inherits(QueryParseError, Error);
+
+function NotFoundError(message) {
+  this.status = 404;
+  this.name = 'not_found';
+  this.message = message;
+  this.error = true;
+  try {
+    Error.captureStackTrace(this, NotFoundError);
+  } catch (e) {}
+}
+
+inherits(NotFoundError, Error);
+
+function BuiltInError(message) {
+  this.status = 500;
+  this.name = 'invalid_value';
+  this.message = message;
+  this.error = true;
+  try {
+    Error.captureStackTrace(this, BuiltInError);
+  } catch (e) {}
+}
+
+inherits(BuiltInError, Error);
+
+function promisedCallback(promise, callback) {
+  if (callback) {
+    promise.then(function (res) {
+      nextTick(function () {
+        callback(null, res);
+      });
+    }, function (reason) {
+      nextTick(function () {
+        callback(reason);
+      });
+    });
+  }
+  return promise;
+}
+
+function callbackify(fun) {
+  return getArguments(function (args) {
+    var cb = args.pop();
+    var promise = fun.apply(this, args);
+    if (typeof cb === 'function') {
+      promisedCallback(promise, cb);
+    }
+    return promise;
+  });
+}
+
+// Promise finally util similar to Q.finally
+function fin(promise, finalPromiseFactory) {
+  return promise.then(function (res) {
+    return finalPromiseFactory().then(function () {
+      return res;
+    });
+  }, function (reason) {
+    return finalPromiseFactory().then(function () {
+      throw reason;
+    });
+  });
+}
+
+function sequentialize(queue, promiseFactory) {
+  return function () {
+    var args = arguments;
+    var that = this;
+    return queue.add(function () {
+      return promiseFactory.apply(that, args);
+    });
+  };
+}
+
+// uniq an array of strings, order not guaranteed
+// similar to underscore/lodash _.uniq
+function uniq(arr) {
+  var theSet = new ExportedSet(arr);
+  var result = new Array(theSet.size);
+  var index = -1;
+  theSet.forEach(function (value) {
+    result[++index] = value;
+  });
+  return result;
+}
+
+function mapToKeysArray(map) {
+  var result = new Array(map.size);
+  var index = -1;
+  map.forEach(function (value, key) {
+    result[++index] = key;
+  });
+  return result;
+}
+
+function createBuiltInError(name) {
+  var message = 'builtin ' + name +
+    ' function requires map values to be numbers' +
+    ' or number arrays';
+  return new BuiltInError(message);
+}
+
+function sum(values) {
+  var result = 0;
+  for (var i = 0, len = values.length; i < len; i++) {
+    var num = values[i];
+    if (typeof num !== 'number') {
+      if (Array.isArray(num)) {
+        // lists of numbers are also allowed, sum them separately
+        result = typeof result === 'number' ? [result] : result;
+        for (var j = 0, jLen = num.length; j < jLen; j++) {
+          var jNum = num[j];
+          if (typeof jNum !== 'number') {
+            throw createBuiltInError('_sum');
+          } else if (typeof result[j] === 'undefined') {
+            result.push(jNum);
+          } else {
+            result[j] += jNum;
+          }
+        }
+      } else { // not array/number
+        throw createBuiltInError('_sum');
+      }
+    } else if (typeof result === 'number') {
+      result += num;
+    } else { // add number to array
+      result[0] += num;
+    }
+  }
+  return result;
+}
+
+var log$2 = guardedConsole.bind(null, 'log');
+var isArray = Array.isArray;
+var toJSON = JSON.parse;
+
+function evalFunctionWithEval(func, emit) {
+  return scopedEval(
+    "return (" + func.replace(/;\s*$/, "") + ");",
+    {
+      emit: emit,
+      sum: sum,
+      log: log$2,
+      isArray: isArray,
+      toJSON: toJSON
+    }
+  );
+}
+
 function pad(str, padWith, upToLength) {
   var padding = '';
   var targetLength = upToLength - str.length;
@@ -20919,6 +21019,7 @@ function numToIndexableString(num) {
  * callbacks will eventually fire (once).
  */
 
+
 function TaskQueue$2() {
   this.promise = new PouchPromise$1(function (fulfill) {fulfill(); });
 }
@@ -20934,13 +21035,7 @@ TaskQueue$2.prototype.finish = function () {
   return this.promise;
 };
 
-function createView(opts) {
-  var sourceDB = opts.db;
-  var viewName = opts.viewName;
-  var mapFun = opts.map;
-  var reduceFun = opts.reduce;
-  var temporary = opts.temporary;
-
+function createView(sourceDB, viewName, mapFun, reduceFun, temporary, localDocName) {
   // the "undefined" part is for backwards compatibility
   var viewSignature = mapFun.toString() + (reduceFun && reduceFun.toString()) +
     'undefined';
@@ -20975,7 +21070,7 @@ function createView(opts) {
       depDbs[depDbName] = true;
       return doc;
     }
-    return upsert(sourceDB, '_local/mrviews', diffFunction).then(function () {
+    return upsert(sourceDB, '_local/' + localDocName, diffFunction).then(function () {
       return sourceDB.registerDependentDatabase(depDbName).then(function (res) {
         var db = res.db;
         db.auto_compaction = true;
@@ -21011,166 +21106,6 @@ function createView(opts) {
   return promiseForView;
 }
 
-function QueryParseError(message) {
-  this.status = 400;
-  this.name = 'query_parse_error';
-  this.message = message;
-  this.error = true;
-  try {
-    Error.captureStackTrace(this, QueryParseError);
-  } catch (e) {}
-}
-
-inherits(QueryParseError, Error);
-
-function NotFoundError(message) {
-  this.status = 404;
-  this.name = 'not_found';
-  this.message = message;
-  this.error = true;
-  try {
-    Error.captureStackTrace(this, NotFoundError);
-  } catch (e) {}
-}
-
-inherits(NotFoundError, Error);
-
-function BuiltInError(message) {
-  this.status = 500;
-  this.name = 'invalid_value';
-  this.message = message;
-  this.error = true;
-  try {
-    Error.captureStackTrace(this, BuiltInError);
-  } catch (e) {}
-}
-
-inherits(BuiltInError, Error);
-
-function createBuiltInError(name) {
-  var message = 'builtin ' + name +
-    ' function requires map values to be numbers' +
-    ' or number arrays';
-  return new BuiltInError(message);
-}
-
-function sum(values) {
-  var result = 0;
-  for (var i = 0, len = values.length; i < len; i++) {
-    var num = values[i];
-    if (typeof num !== 'number') {
-      if (Array.isArray(num)) {
-        // lists of numbers are also allowed, sum them separately
-        result = typeof result === 'number' ? [result] : result;
-        for (var j = 0, jLen = num.length; j < jLen; j++) {
-          var jNum = num[j];
-          if (typeof jNum !== 'number') {
-            throw createBuiltInError('_sum');
-          } else if (typeof result[j] === 'undefined') {
-            result.push(jNum);
-          } else {
-            result[j] += jNum;
-          }
-        }
-      } else { // not array/number
-        throw createBuiltInError('_sum');
-      }
-    } else if (typeof result === 'number') {
-      result += num;
-    } else { // add number to array
-      result[0] += num;
-    }
-  }
-  return result;
-}
-
-var log$2 = guardedConsole.bind(null, 'log');
-var isArray = Array.isArray;
-var toJSON = JSON.parse;
-
-function evalFunctionWithEval(func, emit) {
-  return scopedEval(
-    "return (" + func.replace(/;\s*$/, "") + ");",
-    {
-      emit: emit,
-      sum: sum,
-      log: log$2,
-      isArray: isArray,
-      toJSON: toJSON
-    }
-  );
-}
-
-function promisedCallback(promise, callback) {
-  if (callback) {
-    promise.then(function (res) {
-      nextTick(function () {
-        callback(null, res);
-      });
-    }, function (reason) {
-      nextTick(function () {
-        callback(reason);
-      });
-    });
-  }
-  return promise;
-}
-
-function callbackify(fun) {
-  return getArguments(function (args) {
-    var cb = args.pop();
-    var promise = fun.apply(this, args);
-    if (typeof cb === 'function') {
-      promisedCallback(promise, cb);
-    }
-    return promise;
-  });
-}
-
-// Promise finally util similar to Q.finally
-function fin(promise, finalPromiseFactory) {
-  return promise.then(function (res) {
-    return finalPromiseFactory().then(function () {
-      return res;
-    });
-  }, function (reason) {
-    return finalPromiseFactory().then(function () {
-      throw reason;
-    });
-  });
-}
-
-function sequentialize(queue, promiseFactory) {
-  return function () {
-    var args = arguments;
-    var that = this;
-    return queue.add(function () {
-      return promiseFactory.apply(that, args);
-    });
-  };
-}
-
-// uniq an array of strings, order not guaranteed
-// similar to underscore/lodash _.uniq
-function uniq(arr) {
-  var theSet = new ExportedSet(arr);
-  var result = new Array(theSet.size);
-  var index = -1;
-  theSet.forEach(function (value) {
-    result[++index] = value;
-  });
-  return result;
-}
-
-function mapToKeysArray(map) {
-  var result = new Array(map.size);
-  var index = -1;
-  map.forEach(function (value, key) {
-    result[++index] = key;
-  });
-  return result;
-}
-
 var persistentQueues = {};
 var tempViewQueue = new TaskQueue$2();
 var CHANGES_BATCH_SIZE$1 = 50;
@@ -21199,71 +21134,859 @@ function emitError(db, e) {
     guardedConsole('error', e);
   }
 }
-function tryMap(db, fun, doc) {
-  // emit an event if there was an error thrown by a map function.
-  // putting try/catches in a single function also avoids deoptimizations.
-  try {
-    fun(doc);
-  } catch (e) {
-    emitError(db, e);
-  }
-}
 
-function tryReduce(db, fun, keys, values, rereduce) {
-  // same as above, but returning the result or an error. there are two separate
-  // functions to avoid extra memory allocations since the tryCode() case is used
-  // for custom map functions (common) vs this function, which is only used for
-  // custom reduce functions (rare)
-  try {
-    return {output : fun(keys, values, rereduce)};
-  } catch (e) {
-    emitError(db, e);
-    return {error: e};
-  }
-}
+/**
+ * Returns an "abstract" mapreduce object of the form:
+ *
+ *   {
+ *     query: queryFun,
+ *     viewCleanup: viewCleanupFun
+ *   }
+ *
+ * Arguments are:
+ *
+ * localDoc: string
+ *   This is for the local doc that gets saved in order to track the
+ *   "dependent" DBs and clean them up for viewCleanup. It should be
+ *   unique, so that indexer plugins don't collide with each other.
+ * mapper: function (mapFunDef, emit)
+ *   Returns a map function based on the mapFunDef, which in the case of
+ *   normal map/reduce is just the de-stringified function, but may be
+ *   something else, such as an object in the case of pouchdb-find.
+ * reducer: function (reduceFunDef)
+ *   Ditto, but for reducing. Modules don't have to support reducing
+ *   (e.g. pouchdb-find).
+ * ddocValidator: function (ddoc, viewName)
+ *   Throws an error if the ddoc or viewName is not valid.
+ *   This could be a way to communicate to the user that the configuration for the
+ *   indexer is invalid.
+ */
+function createAbstractMapReduce(localDocName, mapper, reducer, ddocValidator) {
 
-function sortByKeyThenValue(x, y) {
-  var keyCompare = collate(x.key, y.key);
-  return keyCompare !== 0 ? keyCompare : collate(x.value, y.value);
-}
-
-function sliceResults(results, limit, skip) {
-  skip = skip || 0;
-  if (typeof limit === 'number') {
-    return results.slice(skip, limit + skip);
-  } else if (skip > 0) {
-    return results.slice(skip);
-  }
-  return results;
-}
-
-function rowToDocId(row) {
-  var val = row.value;
-  // Users can explicitly specify a joined doc _id, or it
-  // defaults to the doc _id that emitted the key/value.
-  var docId = (val && typeof val === 'object' && val._id) || row.id;
-  return docId;
-}
-
-function readAttachmentsAsBlobOrBuffer$1(res) {
-  res.rows.forEach(function (row) {
-    var atts = row.doc && row.doc._attachments;
-    if (!atts) {
-      return;
+  function tryMap(db, fun, doc) {
+    // emit an event if there was an error thrown by a map function.
+    // putting try/catches in a single function also avoids deoptimizations.
+    try {
+      fun(doc);
+    } catch (e) {
+      emitError(db, e);
     }
-    Object.keys(atts).forEach(function (filename) {
-      var att = atts[filename];
-      atts[filename].data = b64ToBluffer(att.data, att.content_type);
+  }
+
+  function tryReduce(db, fun, keys, values, rereduce) {
+    // same as above, but returning the result or an error. there are two separate
+    // functions to avoid extra memory allocations since the tryCode() case is used
+    // for custom map functions (common) vs this function, which is only used for
+    // custom reduce functions (rare)
+    try {
+      return {output : fun(keys, values, rereduce)};
+    } catch (e) {
+      emitError(db, e);
+      return {error: e};
+    }
+  }
+
+  function sortByKeyThenValue(x, y) {
+    var keyCompare = collate(x.key, y.key);
+    return keyCompare !== 0 ? keyCompare : collate(x.value, y.value);
+  }
+
+  function sliceResults(results, limit, skip) {
+    skip = skip || 0;
+    if (typeof limit === 'number') {
+      return results.slice(skip, limit + skip);
+    } else if (skip > 0) {
+      return results.slice(skip);
+    }
+    return results;
+  }
+
+  function rowToDocId(row) {
+    var val = row.value;
+    // Users can explicitly specify a joined doc _id, or it
+    // defaults to the doc _id that emitted the key/value.
+    var docId = (val && typeof val === 'object' && val._id) || row.id;
+    return docId;
+  }
+
+  function readAttachmentsAsBlobOrBuffer(res) {
+    res.rows.forEach(function (row) {
+      var atts = row.doc && row.doc._attachments;
+      if (!atts) {
+        return;
+      }
+      Object.keys(atts).forEach(function (filename) {
+        var att = atts[filename];
+        atts[filename].data = b64ToBluffer(att.data, att.content_type);
+      });
     });
-  });
-}
+  }
 
-function postprocessAttachments(opts) {
-  return function (res) {
-    if (opts.include_docs && opts.attachments && opts.binary) {
-      readAttachmentsAsBlobOrBuffer$1(res);
+  function postprocessAttachments(opts) {
+    return function (res) {
+      if (opts.include_docs && opts.attachments && opts.binary) {
+        readAttachmentsAsBlobOrBuffer(res);
+      }
+      return res;
+    };
+  }
+
+  function addHttpParam(paramName, opts, params, asJson) {
+    // add an http param from opts to params, optionally json-encoded
+    var val = opts[paramName];
+    if (typeof val !== 'undefined') {
+      if (asJson) {
+        val = encodeURIComponent(JSON.stringify(val));
+      }
+      params.push(paramName + '=' + val);
     }
-    return res;
+  }
+
+  function coerceInteger(integerCandidate) {
+    if (typeof integerCandidate !== 'undefined') {
+      var asNumber = Number(integerCandidate);
+      // prevents e.g. '1foo' or '1.1' being coerced to 1
+      if (!isNaN(asNumber) && asNumber === parseInt(integerCandidate, 10)) {
+        return asNumber;
+      } else {
+        return integerCandidate;
+      }
+    }
+  }
+
+  function coerceOptions(opts) {
+    opts.group_level = coerceInteger(opts.group_level);
+    opts.limit = coerceInteger(opts.limit);
+    opts.skip = coerceInteger(opts.skip);
+    return opts;
+  }
+
+  function checkPositiveInteger(number) {
+    if (number) {
+      if (typeof number !== 'number') {
+        return  new QueryParseError('Invalid value for integer: "' +
+          number + '"');
+      }
+      if (number < 0) {
+        return new QueryParseError('Invalid value for positive integer: ' +
+          '"' + number + '"');
+      }
+    }
+  }
+
+  function checkQueryParseError(options, fun) {
+    var startkeyName = options.descending ? 'endkey' : 'startkey';
+    var endkeyName = options.descending ? 'startkey' : 'endkey';
+
+    if (typeof options[startkeyName] !== 'undefined' &&
+      typeof options[endkeyName] !== 'undefined' &&
+      collate(options[startkeyName], options[endkeyName]) > 0) {
+      throw new QueryParseError('No rows can match your key range, ' +
+        'reverse your start_key and end_key or set {descending : true}');
+    } else if (fun.reduce && options.reduce !== false) {
+      if (options.include_docs) {
+        throw new QueryParseError('{include_docs:true} is invalid for reduce');
+      } else if (options.keys && options.keys.length > 1 &&
+        !options.group && !options.group_level) {
+        throw new QueryParseError('Multi-key fetches for reduce views must use ' +
+          '{group: true}');
+      }
+    }
+    ['group_level', 'limit', 'skip'].forEach(function (optionName) {
+      var error = checkPositiveInteger(options[optionName]);
+      if (error) {
+        throw error;
+      }
+    });
+  }
+
+  function httpQuery(db, fun, opts) {
+    // List of parameters to add to the PUT request
+    var params = [];
+    var body;
+    var method = 'GET';
+
+    // If opts.reduce exists and is defined, then add it to the list
+    // of parameters.
+    // If reduce=false then the results are that of only the map function
+    // not the final result of map and reduce.
+    addHttpParam('reduce', opts, params);
+    addHttpParam('include_docs', opts, params);
+    addHttpParam('attachments', opts, params);
+    addHttpParam('limit', opts, params);
+    addHttpParam('descending', opts, params);
+    addHttpParam('group', opts, params);
+    addHttpParam('group_level', opts, params);
+    addHttpParam('skip', opts, params);
+    addHttpParam('stale', opts, params);
+    addHttpParam('conflicts', opts, params);
+    addHttpParam('startkey', opts, params, true);
+    addHttpParam('start_key', opts, params, true);
+    addHttpParam('endkey', opts, params, true);
+    addHttpParam('end_key', opts, params, true);
+    addHttpParam('inclusive_end', opts, params);
+    addHttpParam('key', opts, params, true);
+
+    // Format the list of parameters into a valid URI query string
+    params = params.join('&');
+    params = params === '' ? '' : '?' + params;
+
+    // If keys are supplied, issue a POST to circumvent GET query string limits
+    // see http://wiki.apache.org/couchdb/HTTP_view_API#Querying_Options
+    if (typeof opts.keys !== 'undefined') {
+      var MAX_URL_LENGTH = 2000;
+      // according to http://stackoverflow.com/a/417184/680742,
+      // the de facto URL length limit is 2000 characters
+
+      var keysAsString =
+        'keys=' + encodeURIComponent(JSON.stringify(opts.keys));
+      if (keysAsString.length + params.length + 1 <= MAX_URL_LENGTH) {
+        // If the keys are short enough, do a GET. we do this to work around
+        // Safari not understanding 304s on POSTs (see pouchdb/pouchdb#1239)
+        params += (params[0] === '?' ? '&' : '?') + keysAsString;
+      } else {
+        method = 'POST';
+        if (typeof fun === 'string') {
+          body = {keys: opts.keys};
+        } else { // fun is {map : mapfun}, so append to this
+          fun.keys = opts.keys;
+        }
+      }
+    }
+
+    // We are referencing a query defined in the design doc
+    if (typeof fun === 'string') {
+      var parts = parseViewName(fun);
+      return db.request({
+        method: method,
+        url: '_design/' + parts[0] + '/_view/' + parts[1] + params,
+        body: body
+      }).then(postprocessAttachments(opts));
+    }
+
+    // We are using a temporary view, terrible for performance, good for testing
+    body = body || {};
+    Object.keys(fun).forEach(function (key) {
+      if (Array.isArray(fun[key])) {
+        body[key] = fun[key];
+      } else {
+        body[key] = fun[key].toString();
+      }
+    });
+    return db.request({
+      method: 'POST',
+      url: '_temp_view' + params,
+      body: body
+    }).then(postprocessAttachments(opts));
+  }
+
+  // custom adapters can define their own api._query
+  // and override the default behavior
+  /* istanbul ignore next */
+  function customQuery(db, fun, opts) {
+    return new PouchPromise$1(function (resolve, reject) {
+      db._query(fun, opts, function (err, res) {
+        if (err) {
+          return reject(err);
+        }
+        resolve(res);
+      });
+    });
+  }
+
+  // custom adapters can define their own api._viewCleanup
+  // and override the default behavior
+  /* istanbul ignore next */
+  function customViewCleanup(db) {
+    return new PouchPromise$1(function (resolve, reject) {
+      db._viewCleanup(function (err, res) {
+        if (err) {
+          return reject(err);
+        }
+        resolve(res);
+      });
+    });
+  }
+
+  function defaultsTo(value) {
+    return function (reason) {
+      /* istanbul ignore else */
+      if (reason.status === 404) {
+        return value;
+      } else {
+        throw reason;
+      }
+    };
+  }
+
+  // returns a promise for a list of docs to update, based on the input docId.
+  // the order doesn't matter, because post-3.2.0, bulkDocs
+  // is an atomic operation in all three adapters.
+  function getDocsToPersist(docId, view, docIdsToChangesAndEmits) {
+    var metaDocId = '_local/doc_' + docId;
+    var defaultMetaDoc = {_id: metaDocId, keys: []};
+    var docData = docIdsToChangesAndEmits.get(docId);
+    var indexableKeysToKeyValues = docData[0];
+    var changes = docData[1];
+
+    function getMetaDoc() {
+      if (isGenOne(changes)) {
+        // generation 1, so we can safely assume initial state
+        // for performance reasons (avoids unnecessary GETs)
+        return PouchPromise$1.resolve(defaultMetaDoc);
+      }
+      return view.db.get(metaDocId).catch(defaultsTo(defaultMetaDoc));
+    }
+
+    function getKeyValueDocs(metaDoc) {
+      if (!metaDoc.keys.length) {
+        // no keys, no need for a lookup
+        return PouchPromise$1.resolve({rows: []});
+      }
+      return view.db.allDocs({
+        keys: metaDoc.keys,
+        include_docs: true
+      });
+    }
+
+    function processKeyValueDocs(metaDoc, kvDocsRes) {
+      var kvDocs = [];
+      var oldKeys = new ExportedSet();
+
+      for (var i = 0, len = kvDocsRes.rows.length; i < len; i++) {
+        var row = kvDocsRes.rows[i];
+        var doc = row.doc;
+        if (!doc) { // deleted
+          continue;
+        }
+        kvDocs.push(doc);
+        oldKeys.add(doc._id);
+        doc._deleted = !indexableKeysToKeyValues.has(doc._id);
+        if (!doc._deleted) {
+          var keyValue = indexableKeysToKeyValues.get(doc._id);
+          if ('value' in keyValue) {
+            doc.value = keyValue.value;
+          }
+        }
+      }
+      var newKeys = mapToKeysArray(indexableKeysToKeyValues);
+      newKeys.forEach(function (key) {
+        if (!oldKeys.has(key)) {
+          // new doc
+          var kvDoc = {
+            _id: key
+          };
+          var keyValue = indexableKeysToKeyValues.get(key);
+          if ('value' in keyValue) {
+            kvDoc.value = keyValue.value;
+          }
+          kvDocs.push(kvDoc);
+        }
+      });
+      metaDoc.keys = uniq(newKeys.concat(metaDoc.keys));
+      kvDocs.push(metaDoc);
+
+      return kvDocs;
+    }
+
+    return getMetaDoc().then(function (metaDoc) {
+      return getKeyValueDocs(metaDoc).then(function (kvDocsRes) {
+        return processKeyValueDocs(metaDoc, kvDocsRes);
+      });
+    });
+  }
+
+  // updates all emitted key/value docs and metaDocs in the mrview database
+  // for the given batch of documents from the source database
+  function saveKeyValues(view, docIdsToChangesAndEmits, seq) {
+    var seqDocId = '_local/lastSeq';
+    return view.db.get(seqDocId)
+      .catch(defaultsTo({_id: seqDocId, seq: 0}))
+      .then(function (lastSeqDoc) {
+        var docIds = mapToKeysArray(docIdsToChangesAndEmits);
+        return PouchPromise$1.all(docIds.map(function (docId) {
+          return getDocsToPersist(docId, view, docIdsToChangesAndEmits);
+        })).then(function (listOfDocsToPersist) {
+          var docsToPersist = flatten(listOfDocsToPersist);
+          lastSeqDoc.seq = seq;
+          docsToPersist.push(lastSeqDoc);
+          // write all docs in a single operation, update the seq once
+          return view.db.bulkDocs({docs : docsToPersist});
+        });
+      });
+  }
+
+  function getQueue(view) {
+    var viewName = typeof view === 'string' ? view : view.name;
+    var queue = persistentQueues[viewName];
+    if (!queue) {
+      queue = persistentQueues[viewName] = new TaskQueue$2();
+    }
+    return queue;
+  }
+
+  function updateView(view) {
+    return sequentialize(getQueue(view), function () {
+      return updateViewInQueue(view);
+    })();
+  }
+
+  function updateViewInQueue(view) {
+    // bind the emit function once
+    var mapResults;
+    var doc;
+
+    function emit(key, value) {
+      var output = {id: doc._id, key: normalizeKey(key)};
+      // Don't explicitly store the value unless it's defined and non-null.
+      // This saves on storage space, because often people don't use it.
+      if (typeof value !== 'undefined' && value !== null) {
+        output.value = normalizeKey(value);
+      }
+      mapResults.push(output);
+    }
+
+    var mapFun = mapper(view.mapFun, emit);
+
+    var currentSeq = view.seq || 0;
+
+    function processChange(docIdsToChangesAndEmits, seq) {
+      return function () {
+        return saveKeyValues(view, docIdsToChangesAndEmits, seq);
+      };
+    }
+
+    var queue = new TaskQueue$2();
+
+    function processNextBatch() {
+      return view.sourceDB.changes({
+        conflicts: true,
+        include_docs: true,
+        style: 'all_docs',
+        since: currentSeq,
+        limit: CHANGES_BATCH_SIZE$1
+      }).then(processBatch);
+    }
+
+    function processBatch(response) {
+      var results = response.results;
+      if (!results.length) {
+        return;
+      }
+      var docIdsToChangesAndEmits = createDocIdsToChangesAndEmits(results);
+      queue.add(processChange(docIdsToChangesAndEmits, currentSeq));
+      if (results.length < CHANGES_BATCH_SIZE$1) {
+        return;
+      }
+      return processNextBatch();
+    }
+
+    function createDocIdsToChangesAndEmits(results) {
+      var docIdsToChangesAndEmits = new ExportedMap();
+      for (var i = 0, len = results.length; i < len; i++) {
+        var change = results[i];
+        if (change.doc._id[0] !== '_') {
+          mapResults = [];
+          doc = change.doc;
+
+          if (!doc._deleted) {
+            tryMap(view.sourceDB, mapFun, doc);
+          }
+          mapResults.sort(sortByKeyThenValue);
+
+          var indexableKeysToKeyValues = createIndexableKeysToKeyValues(mapResults);
+          docIdsToChangesAndEmits.set(change.doc._id, [
+            indexableKeysToKeyValues,
+            change.changes
+          ]);
+        }
+        currentSeq = change.seq;
+      }
+      return docIdsToChangesAndEmits;
+    }
+
+    function createIndexableKeysToKeyValues(mapResults) {
+      var indexableKeysToKeyValues = new ExportedMap();
+      var lastKey;
+      for (var i = 0, len = mapResults.length; i < len; i++) {
+        var emittedKeyValue = mapResults[i];
+        var complexKey = [emittedKeyValue.key, emittedKeyValue.id];
+        if (i > 0 && collate(emittedKeyValue.key, lastKey) === 0) {
+          complexKey.push(i); // dup key+id, so make it unique
+        }
+        indexableKeysToKeyValues.set(toIndexableString(complexKey), emittedKeyValue);
+        lastKey = emittedKeyValue.key;
+      }
+      return indexableKeysToKeyValues;
+    }
+
+    return processNextBatch().then(function () {
+      return queue.finish();
+    }).then(function () {
+      view.seq = currentSeq;
+    });
+  }
+
+  function reduceView(view, results, options) {
+    if (options.group_level === 0) {
+      delete options.group_level;
+    }
+
+    var shouldGroup = options.group || options.group_level;
+
+    var reduceFun = reducer(view.reduceFun);
+
+    var groups = [];
+    var lvl = isNaN(options.group_level) ? Number.POSITIVE_INFINITY :
+      options.group_level;
+    results.forEach(function (e) {
+      var last = groups[groups.length - 1];
+      var groupKey = shouldGroup ? e.key : null;
+
+      // only set group_level for array keys
+      if (shouldGroup && Array.isArray(groupKey)) {
+        groupKey = groupKey.slice(0, lvl);
+      }
+
+      if (last && collate(last.groupKey, groupKey) === 0) {
+        last.keys.push([e.key, e.id]);
+        last.values.push(e.value);
+        return;
+      }
+      groups.push({
+        keys: [[e.key, e.id]],
+        values: [e.value],
+        groupKey: groupKey
+      });
+    });
+    results = [];
+    for (var i = 0, len = groups.length; i < len; i++) {
+      var e = groups[i];
+      var reduceTry = tryReduce(view.sourceDB, reduceFun, e.keys, e.values, false);
+      if (reduceTry.error && reduceTry.error instanceof BuiltInError) {
+        // CouchDB returns an error if a built-in errors out
+        throw reduceTry.error;
+      }
+      results.push({
+        // CouchDB just sets the value to null if a non-built-in errors out
+        value: reduceTry.error ? null : reduceTry.output,
+        key: e.groupKey
+      });
+    }
+    // no total_rows/offset when reducing
+    return {rows: sliceResults(results, options.limit, options.skip)};
+  }
+
+  function queryView(view, opts) {
+    return sequentialize(getQueue(view), function () {
+      return queryViewInQueue(view, opts);
+    })();
+  }
+
+  function queryViewInQueue(view, opts) {
+    var totalRows;
+    var shouldReduce = view.reduceFun && opts.reduce !== false;
+    var skip = opts.skip || 0;
+    if (typeof opts.keys !== 'undefined' && !opts.keys.length) {
+      // equivalent query
+      opts.limit = 0;
+      delete opts.keys;
+    }
+
+    function fetchFromView(viewOpts) {
+      viewOpts.include_docs = true;
+      return view.db.allDocs(viewOpts).then(function (res) {
+        totalRows = res.total_rows;
+        return res.rows.map(function (result) {
+
+          // implicit migration - in older versions of PouchDB,
+          // we explicitly stored the doc as {id: ..., key: ..., value: ...}
+          // this is tested in a migration test
+          /* istanbul ignore next */
+          if ('value' in result.doc && typeof result.doc.value === 'object' &&
+            result.doc.value !== null) {
+            var keys = Object.keys(result.doc.value).sort();
+            // this detection method is not perfect, but it's unlikely the user
+            // emitted a value which was an object with these 3 exact keys
+            var expectedKeys = ['id', 'key', 'value'];
+            if (!(keys < expectedKeys || keys > expectedKeys)) {
+              return result.doc.value;
+            }
+          }
+
+          var parsedKeyAndDocId = parseIndexableString(result.doc._id);
+          return {
+            key: parsedKeyAndDocId[0],
+            id: parsedKeyAndDocId[1],
+            value: ('value' in result.doc ? result.doc.value : null)
+          };
+        });
+      });
+    }
+
+    function onMapResultsReady(rows) {
+      var finalResults;
+      if (shouldReduce) {
+        finalResults = reduceView(view, rows, opts);
+      } else {
+        finalResults = {
+          total_rows: totalRows,
+          offset: skip,
+          rows: rows
+        };
+      }
+      if (opts.include_docs) {
+        var docIds = uniq(rows.map(rowToDocId));
+
+        return view.sourceDB.allDocs({
+          keys: docIds,
+          include_docs: true,
+          conflicts: opts.conflicts,
+          attachments: opts.attachments,
+          binary: opts.binary
+        }).then(function (allDocsRes) {
+          var docIdsToDocs = new ExportedMap();
+          allDocsRes.rows.forEach(function (row) {
+            docIdsToDocs.set(row.id, row.doc);
+          });
+          rows.forEach(function (row) {
+            var docId = rowToDocId(row);
+            var doc = docIdsToDocs.get(docId);
+            if (doc) {
+              row.doc = doc;
+            }
+          });
+          return finalResults;
+        });
+      } else {
+        return finalResults;
+      }
+    }
+
+    if (typeof opts.keys !== 'undefined') {
+      var keys = opts.keys;
+      var fetchPromises = keys.map(function (key) {
+        var viewOpts = {
+          startkey : toIndexableString([key]),
+          endkey   : toIndexableString([key, {}])
+        };
+        return fetchFromView(viewOpts);
+      });
+      return PouchPromise$1.all(fetchPromises).then(flatten).then(onMapResultsReady);
+    } else { // normal query, no 'keys'
+      var viewOpts = {
+        descending : opts.descending
+      };
+      if (opts.start_key) {
+        opts.startkey = opts.start_key;
+      }
+      if (opts.end_key) {
+        opts.endkey = opts.end_key;
+      }
+      if (typeof opts.startkey !== 'undefined') {
+        viewOpts.startkey = opts.descending ?
+          toIndexableString([opts.startkey, {}]) :
+          toIndexableString([opts.startkey]);
+      }
+      if (typeof opts.endkey !== 'undefined') {
+        var inclusiveEnd = opts.inclusive_end !== false;
+        if (opts.descending) {
+          inclusiveEnd = !inclusiveEnd;
+        }
+
+        viewOpts.endkey = toIndexableString(
+          inclusiveEnd ? [opts.endkey, {}] : [opts.endkey]);
+      }
+      if (typeof opts.key !== 'undefined') {
+        var keyStart = toIndexableString([opts.key]);
+        var keyEnd = toIndexableString([opts.key, {}]);
+        if (viewOpts.descending) {
+          viewOpts.endkey = keyStart;
+          viewOpts.startkey = keyEnd;
+        } else {
+          viewOpts.startkey = keyStart;
+          viewOpts.endkey = keyEnd;
+        }
+      }
+      if (!shouldReduce) {
+        if (typeof opts.limit === 'number') {
+          viewOpts.limit = opts.limit;
+        }
+        viewOpts.skip = skip;
+      }
+      return fetchFromView(viewOpts).then(onMapResultsReady);
+    }
+  }
+
+  function httpViewCleanup(db) {
+    return db.request({
+      method: 'POST',
+      url: '_view_cleanup'
+    });
+  }
+
+  function localViewCleanup(db) {
+    return db.get('_local/' + localDocName).then(function (metaDoc) {
+      var docsToViews = new ExportedMap();
+      Object.keys(metaDoc.views).forEach(function (fullViewName) {
+        var parts = parseViewName(fullViewName);
+        var designDocName = '_design/' + parts[0];
+        var viewName = parts[1];
+        var views = docsToViews.get(designDocName);
+        if (!views) {
+          views = new ExportedSet();
+          docsToViews.set(designDocName, views);
+        }
+        views.add(viewName);
+      });
+      var opts = {
+        keys : mapToKeysArray(docsToViews),
+        include_docs : true
+      };
+      return db.allDocs(opts).then(function (res) {
+        var viewsToStatus = {};
+        res.rows.forEach(function (row) {
+          var ddocName = row.key.substring(8); // cuts off '_design/'
+          docsToViews.get(row.key).forEach(function (viewName) {
+            var fullViewName = ddocName + '/' + viewName;
+            /* istanbul ignore if */
+            if (!metaDoc.views[fullViewName]) {
+              // new format, without slashes, to support PouchDB 2.2.0
+              // migration test in pouchdb's browser.migration.js verifies this
+              fullViewName = viewName;
+            }
+            var viewDBNames = Object.keys(metaDoc.views[fullViewName]);
+            // design doc deleted, or view function nonexistent
+            var statusIsGood = row.doc && row.doc.views &&
+              row.doc.views[viewName];
+            viewDBNames.forEach(function (viewDBName) {
+              viewsToStatus[viewDBName] =
+                viewsToStatus[viewDBName] || statusIsGood;
+            });
+          });
+        });
+        var dbsToDelete = Object.keys(viewsToStatus).filter(
+          function (viewDBName) { return !viewsToStatus[viewDBName]; });
+        var destroyPromises = dbsToDelete.map(function (viewDBName) {
+          return sequentialize(getQueue(viewDBName), function () {
+            return new db.constructor(viewDBName, db.__opts).destroy();
+          })();
+        });
+        return PouchPromise$1.all(destroyPromises).then(function () {
+          return {ok: true};
+        });
+      });
+    }, defaultsTo({ok: true}));
+  }
+
+  function queryPromised(db, fun, opts) {
+    if (db.type() === 'http') {
+      return httpQuery(db, fun, opts);
+    }
+
+    /* istanbul ignore next */
+    if (typeof db._query === 'function') {
+      return customQuery(db, fun, opts);
+    }
+
+    if (typeof fun !== 'string') {
+      // temp_view
+      checkQueryParseError(opts, fun);
+
+      tempViewQueue.add(function () {
+        var createViewPromise = createView(
+          /* sourceDB */ db,
+          /* viewName */ 'temp_view/temp_view',
+          /* mapFun */ fun.map,
+          /* reduceFun */ fun.reduce,
+          /* temporary */ true,
+          /* localDocName */ localDocName);
+        return createViewPromise.then(function (view) {
+          return fin(updateView(view).then(function () {
+            return queryView(view, opts);
+          }), function () {
+            return view.db.destroy();
+          });
+        });
+      });
+      return tempViewQueue.finish();
+    } else {
+      // persistent view
+      var fullViewName = fun;
+      var parts = parseViewName(fullViewName);
+      var designDocName = parts[0];
+      var viewName = parts[1];
+      return db.get('_design/' + designDocName).then(function (doc) {
+        var fun = doc.views && doc.views[viewName];
+
+        if (!fun) {
+          // basic validator; it's assumed that every subclass would want this
+          throw new NotFoundError('ddoc ' + doc._id + ' has no view named ' +
+            viewName);
+        }
+
+        ddocValidator(doc, viewName);
+        checkQueryParseError(opts, fun);
+
+        var createViewPromise = createView(
+          /* sourceDB */ db,
+          /* viewName */ fullViewName,
+          /* mapFun */ fun.map,
+          /* reduceFun */ fun.reduce,
+          /* temporary */ false,
+          /* localDocName */ localDocName);
+        return createViewPromise.then(function (view) {
+          if (opts.stale === 'ok' || opts.stale === 'update_after') {
+            if (opts.stale === 'update_after') {
+              nextTick(function () {
+                updateView(view);
+              });
+            }
+            return queryView(view, opts);
+          } else { // stale not ok
+            return updateView(view).then(function () {
+              return queryView(view, opts);
+            });
+          }
+        });
+      });
+    }
+  }
+
+  function abstractQuery(fun, opts, callback) {
+    var db = this;
+    if (typeof opts === 'function') {
+      callback = opts;
+      opts = {};
+    }
+    opts = opts ? coerceOptions(opts) : {};
+
+    if (typeof fun === 'function') {
+      fun = {map : fun};
+    }
+
+    var promise = PouchPromise$1.resolve().then(function () {
+      return queryPromised(db, fun, opts);
+    });
+    promisedCallback(promise, callback);
+    return promise;
+  }
+
+  var abstractViewCleanup = callbackify(function () {
+    var db = this;
+    if (db.type() === 'http') {
+      return httpViewCleanup(db);
+    }
+    /* istanbul ignore next */
+    if (typeof db._viewCleanup === 'function') {
+      return customViewCleanup(db);
+    }
+    return localViewCleanup(db);
+  });
+
+  return {
+    query: abstractQuery,
+    viewCleanup: abstractViewCleanup
   };
 }
 
@@ -21297,770 +22020,44 @@ var builtInReduce = {
   }
 };
 
-function addHttpParam(paramName, opts, params, asJson) {
-  // add an http param from opts to params, optionally json-encoded
-  var val = opts[paramName];
-  if (typeof val !== 'undefined') {
-    if (asJson) {
-      val = encodeURIComponent(JSON.stringify(val));
-    }
-    params.push(paramName + '=' + val);
-  }
-}
-
-function coerceInteger(integerCandidate) {
-  if (typeof integerCandidate !== 'undefined') {
-    var asNumber = Number(integerCandidate);
-    // prevents e.g. '1foo' or '1.1' being coerced to 1
-    if (!isNaN(asNumber) && asNumber === parseInt(integerCandidate, 10)) {
-      return asNumber;
-    } else {
-      return integerCandidate;
-    }
-  }
-}
-
-function coerceOptions(opts) {
-  opts.group_level = coerceInteger(opts.group_level);
-  opts.limit = coerceInteger(opts.limit);
-  opts.skip = coerceInteger(opts.skip);
-  return opts;
-}
-
-function checkPositiveInteger(number) {
-  if (number) {
-    if (typeof number !== 'number') {
-      return  new QueryParseError('Invalid value for integer: "' +
-      number + '"');
-    }
-    if (number < 0) {
-      return new QueryParseError('Invalid value for positive integer: ' +
-        '"' + number + '"');
-    }
-  }
-}
-
-function checkQueryParseError(options, fun) {
-  var startkeyName = options.descending ? 'endkey' : 'startkey';
-  var endkeyName = options.descending ? 'startkey' : 'endkey';
-
-  if (typeof options[startkeyName] !== 'undefined' &&
-    typeof options[endkeyName] !== 'undefined' &&
-    collate(options[startkeyName], options[endkeyName]) > 0) {
-    throw new QueryParseError('No rows can match your key range, ' +
-    'reverse your start_key and end_key or set {descending : true}');
-  } else if (fun.reduce && options.reduce !== false) {
-    if (options.include_docs) {
-      throw new QueryParseError('{include_docs:true} is invalid for reduce');
-    } else if (options.keys && options.keys.length > 1 &&
-        !options.group && !options.group_level) {
-      throw new QueryParseError('Multi-key fetches for reduce views must use ' +
-      '{group: true}');
-    }
-  }
-  ['group_level', 'limit', 'skip'].forEach(function (optionName) {
-    var error = checkPositiveInteger(options[optionName]);
-    if (error) {
-      throw error;
-    }
-  });
-}
-
-function httpQuery(db, fun, opts) {
-  // List of parameters to add to the PUT request
-  var params = [];
-  var body;
-  var method = 'GET';
-
-  // If opts.reduce exists and is defined, then add it to the list
-  // of parameters.
-  // If reduce=false then the results are that of only the map function
-  // not the final result of map and reduce.
-  addHttpParam('reduce', opts, params);
-  addHttpParam('include_docs', opts, params);
-  addHttpParam('attachments', opts, params);
-  addHttpParam('limit', opts, params);
-  addHttpParam('descending', opts, params);
-  addHttpParam('group', opts, params);
-  addHttpParam('group_level', opts, params);
-  addHttpParam('skip', opts, params);
-  addHttpParam('stale', opts, params);
-  addHttpParam('conflicts', opts, params);
-  addHttpParam('startkey', opts, params, true);
-  addHttpParam('start_key', opts, params, true);
-  addHttpParam('endkey', opts, params, true);
-  addHttpParam('end_key', opts, params, true);
-  addHttpParam('inclusive_end', opts, params);
-  addHttpParam('key', opts, params, true);
-
-  // Format the list of parameters into a valid URI query string
-  params = params.join('&');
-  params = params === '' ? '' : '?' + params;
-
-  // If keys are supplied, issue a POST to circumvent GET query string limits
-  // see http://wiki.apache.org/couchdb/HTTP_view_API#Querying_Options
-  if (typeof opts.keys !== 'undefined') {
-    var MAX_URL_LENGTH = 2000;
-    // according to http://stackoverflow.com/a/417184/680742,
-    // the de facto URL length limit is 2000 characters
-
-    var keysAsString =
-      'keys=' + encodeURIComponent(JSON.stringify(opts.keys));
-    if (keysAsString.length + params.length + 1 <= MAX_URL_LENGTH) {
-      // If the keys are short enough, do a GET. we do this to work around
-      // Safari not understanding 304s on POSTs (see pouchdb/pouchdb#1239)
-      params += (params[0] === '?' ? '&' : '?') + keysAsString;
-    } else {
-      method = 'POST';
-      if (typeof fun === 'string') {
-        body = {keys: opts.keys};
-      } else { // fun is {map : mapfun}, so append to this
-        fun.keys = opts.keys;
-      }
-    }
-  }
-
-  // We are referencing a query defined in the design doc
-  if (typeof fun === 'string') {
-    var parts = parseViewName(fun);
-    return db.request({
-      method: method,
-      url: '_design/' + parts[0] + '/_view/' + parts[1] + params,
-      body: body
-    }).then(postprocessAttachments(opts));
-  }
-
-  // We are using a temporary view, terrible for performance, good for testing
-  body = body || {};
-  Object.keys(fun).forEach(function (key) {
-    if (Array.isArray(fun[key])) {
-      body[key] = fun[key];
-    } else {
-      body[key] = fun[key].toString();
-    }
-  });
-  return db.request({
-    method: 'POST',
-    url: '_temp_view' + params,
-    body: body
-  }).then(postprocessAttachments(opts));
-}
-
-// custom adapters can define their own api._query
-// and override the default behavior
-/* istanbul ignore next */
-function customQuery(db, fun, opts) {
-  return new PouchPromise$1(function (resolve, reject) {
-    db._query(fun, opts, function (err, res) {
-      if (err) {
-        return reject(err);
-      }
-      resolve(res);
-    });
-  });
-}
-
-// custom adapters can define their own api._viewCleanup
-// and override the default behavior
-/* istanbul ignore next */
-function customViewCleanup(db) {
-  return new PouchPromise$1(function (resolve, reject) {
-    db._viewCleanup(function (err, res) {
-      if (err) {
-        return reject(err);
-      }
-      resolve(res);
-    });
-  });
-}
-
-function defaultsTo(value) {
-  return function (reason) {
-    /* istanbul ignore else */
-    if (reason.status === 404) {
-      return value;
-    } else {
-      throw reason;
-    }
-  };
-}
-
-// returns a promise for a list of docs to update, based on the input docId.
-// the order doesn't matter, because post-3.2.0, bulkDocs
-// is an atomic operation in all three adapters.
-function getDocsToPersist(docId, view, docIdsToChangesAndEmits) {
-  var metaDocId = '_local/doc_' + docId;
-  var defaultMetaDoc = {_id: metaDocId, keys: []};
-  var docData = docIdsToChangesAndEmits.get(docId);
-  var indexableKeysToKeyValues = docData[0];
-  var changes = docData[1];
-
-  function getMetaDoc() {
-    if (isGenOne(changes)) {
-      // generation 1, so we can safely assume initial state
-      // for performance reasons (avoids unnecessary GETs)
-      return PouchPromise$1.resolve(defaultMetaDoc);
-    }
-    return view.db.get(metaDocId).catch(defaultsTo(defaultMetaDoc));
-  }
-
-  function getKeyValueDocs(metaDoc) {
-    if (!metaDoc.keys.length) {
-      // no keys, no need for a lookup
-      return PouchPromise$1.resolve({rows: []});
-    }
-    return view.db.allDocs({
-      keys: metaDoc.keys,
-      include_docs: true
-    });
-  }
-
-  function processKeyValueDocs(metaDoc, kvDocsRes) {
-    var kvDocs = [];
-    var oldKeys = new ExportedSet();
-
-    for (var i = 0, len = kvDocsRes.rows.length; i < len; i++) {
-      var row = kvDocsRes.rows[i];
-      var doc = row.doc;
-      if (!doc) { // deleted
-        continue;
-      }
-      kvDocs.push(doc);
-      oldKeys.add(doc._id);
-      doc._deleted = !indexableKeysToKeyValues.has(doc._id);
-      if (!doc._deleted) {
-        var keyValue = indexableKeysToKeyValues.get(doc._id);
-        if ('value' in keyValue) {
-          doc.value = keyValue.value;
-        }
-      }
-    }
-    var newKeys = mapToKeysArray(indexableKeysToKeyValues);
-    newKeys.forEach(function (key) {
-      if (!oldKeys.has(key)) {
-        // new doc
-        var kvDoc = {
-          _id: key
-        };
-        var keyValue = indexableKeysToKeyValues.get(key);
-        if ('value' in keyValue) {
-          kvDoc.value = keyValue.value;
-        }
-        kvDocs.push(kvDoc);
-      }
-    });
-    metaDoc.keys = uniq(newKeys.concat(metaDoc.keys));
-    kvDocs.push(metaDoc);
-
-    return kvDocs;
-  }
-
-  return getMetaDoc().then(function (metaDoc) {
-    return getKeyValueDocs(metaDoc).then(function (kvDocsRes) {
-      return processKeyValueDocs(metaDoc, kvDocsRes);
-    });
-  });
-}
-
-// updates all emitted key/value docs and metaDocs in the mrview database
-// for the given batch of documents from the source database
-function saveKeyValues(view, docIdsToChangesAndEmits, seq) {
-  var seqDocId = '_local/lastSeq';
-  return view.db.get(seqDocId)
-  .catch(defaultsTo({_id: seqDocId, seq: 0}))
-  .then(function (lastSeqDoc) {
-    var docIds = mapToKeysArray(docIdsToChangesAndEmits);
-    return PouchPromise$1.all(docIds.map(function (docId) {
-      return getDocsToPersist(docId, view, docIdsToChangesAndEmits);
-    })).then(function (listOfDocsToPersist) {
-      var docsToPersist = flatten(listOfDocsToPersist);
-      lastSeqDoc.seq = seq;
-      docsToPersist.push(lastSeqDoc);
-      // write all docs in a single operation, update the seq once
-      return view.db.bulkDocs({docs : docsToPersist});
-    });
-  });
-}
-
-function getQueue(view) {
-  var viewName = typeof view === 'string' ? view : view.name;
-  var queue = persistentQueues[viewName];
-  if (!queue) {
-    queue = persistentQueues[viewName] = new TaskQueue$2();
-  }
-  return queue;
-}
-
-function updateView(view) {
-  return sequentialize(getQueue(view), function () {
-    return updateViewInQueue(view);
-  })();
-}
-
-function updateViewInQueue(view) {
-  // bind the emit function once
-  var mapResults;
-  var doc;
-
-  function emit(key, value) {
-    var output = {id: doc._id, key: normalizeKey(key)};
-    // Don't explicitly store the value unless it's defined and non-null.
-    // This saves on storage space, because often people don't use it.
-    if (typeof value !== 'undefined' && value !== null) {
-      output.value = normalizeKey(value);
-    }
-    mapResults.push(output);
-  }
-
-  var mapFun;
+function mapper(mapFun, emit) {
   // for temp_views one can use emit(doc, emit), see #38
-  if (typeof view.mapFun === "function" && view.mapFun.length === 2) {
-    var origMap = view.mapFun;
-    mapFun = function (doc) {
+  if (typeof mapFun === "function" && mapFun.length === 2) {
+    var origMap = mapFun;
+    return function (doc) {
       return origMap(doc, emit);
     };
   } else {
-    mapFun = evalFunctionWithEval(view.mapFun.toString(), emit);
+    return evalFunctionWithEval(mapFun.toString(), emit);
   }
-
-  var currentSeq = view.seq || 0;
-
-  function processChange(docIdsToChangesAndEmits, seq) {
-    return function () {
-      return saveKeyValues(view, docIdsToChangesAndEmits, seq);
-    };
-  }
-
-  var queue = new TaskQueue$2();
-
-  function processNextBatch() {
-    return view.sourceDB.changes({
-      conflicts: true,
-      include_docs: true,
-      style: 'all_docs',
-      since: currentSeq,
-      limit: CHANGES_BATCH_SIZE$1
-    }).then(processBatch);
-  }
-
-  function processBatch(response) {
-    var results = response.results;
-    if (!results.length) {
-      return;
-    }
-    var docIdsToChangesAndEmits = createDocIdsToChangesAndEmits(results);
-    queue.add(processChange(docIdsToChangesAndEmits, currentSeq));
-    if (results.length < CHANGES_BATCH_SIZE$1) {
-      return;
-    }
-    return processNextBatch();
-  }
-
-  function createDocIdsToChangesAndEmits(results) {
-    var docIdsToChangesAndEmits = new ExportedMap();
-    for (var i = 0, len = results.length; i < len; i++) {
-      var change = results[i];
-      if (change.doc._id[0] !== '_') {
-        mapResults = [];
-        doc = change.doc;
-
-        if (!doc._deleted) {
-          tryMap(view.sourceDB, mapFun, doc);
-        }
-        mapResults.sort(sortByKeyThenValue);
-
-        var indexableKeysToKeyValues = createIndexableKeysToKeyValues(mapResults);
-        docIdsToChangesAndEmits.set(change.doc._id, [
-          indexableKeysToKeyValues,
-          change.changes
-        ]);
-      }
-      currentSeq = change.seq;
-    }
-    return docIdsToChangesAndEmits;
-  }
-
-  function createIndexableKeysToKeyValues(mapResults) {
-    var indexableKeysToKeyValues = new ExportedMap();
-    var lastKey;
-    for (var i = 0, len = mapResults.length; i < len; i++) {
-      var emittedKeyValue = mapResults[i];
-      var complexKey = [emittedKeyValue.key, emittedKeyValue.id];
-      if (i > 0 && collate(emittedKeyValue.key, lastKey) === 0) {
-        complexKey.push(i); // dup key+id, so make it unique
-      }
-      indexableKeysToKeyValues.set(toIndexableString(complexKey), emittedKeyValue);
-      lastKey = emittedKeyValue.key;
-    }
-    return indexableKeysToKeyValues;
-  }
-
-  return processNextBatch().then(function () {
-    return queue.finish();
-  }).then(function () {
-    view.seq = currentSeq;
-  });
 }
 
-function reduceView(view, results, options) {
-  if (options.group_level === 0) {
-    delete options.group_level;
-  }
-
-  var shouldGroup = options.group || options.group_level;
-
-  var reduceFun;
-  if (builtInReduce[view.reduceFun]) {
-    reduceFun = builtInReduce[view.reduceFun];
+function reducer(reduceFun) {
+  if (builtInReduce[reduceFun]) {
+    return builtInReduce[reduceFun];
   } else {
-    reduceFun = evalFunctionWithEval(view.reduceFun.toString());
-  }
-
-  var groups = [];
-  var lvl = isNaN(options.group_level) ? Number.POSITIVE_INFINITY :
-    options.group_level;
-  results.forEach(function (e) {
-    var last = groups[groups.length - 1];
-    var groupKey = shouldGroup ? e.key : null;
-
-    // only set group_level for array keys
-    if (shouldGroup && Array.isArray(groupKey)) {
-      groupKey = groupKey.slice(0, lvl);
-    }
-
-    if (last && collate(last.groupKey, groupKey) === 0) {
-      last.keys.push([e.key, e.id]);
-      last.values.push(e.value);
-      return;
-    }
-    groups.push({
-      keys: [[e.key, e.id]],
-      values: [e.value],
-      groupKey: groupKey
-    });
-  });
-  results = [];
-  for (var i = 0, len = groups.length; i < len; i++) {
-    var e = groups[i];
-    var reduceTry = tryReduce(view.sourceDB, reduceFun, e.keys, e.values, false);
-    if (reduceTry.error && reduceTry.error instanceof BuiltInError) {
-      // CouchDB returns an error if a built-in errors out
-      throw reduceTry.error;
-    }
-    results.push({
-      // CouchDB just sets the value to null if a non-built-in errors out
-      value: reduceTry.error ? null : reduceTry.output,
-      key: e.groupKey
-    });
-  }
-  // no total_rows/offset when reducing
-  return {rows: sliceResults(results, options.limit, options.skip)};
-}
-
-function queryView(view, opts) {
-  return sequentialize(getQueue(view), function () {
-    return queryViewInQueue(view, opts);
-  })();
-}
-
-function queryViewInQueue(view, opts) {
-  var totalRows;
-  var shouldReduce = view.reduceFun && opts.reduce !== false;
-  var skip = opts.skip || 0;
-  if (typeof opts.keys !== 'undefined' && !opts.keys.length) {
-    // equivalent query
-    opts.limit = 0;
-    delete opts.keys;
-  }
-
-  function fetchFromView(viewOpts) {
-    viewOpts.include_docs = true;
-    return view.db.allDocs(viewOpts).then(function (res) {
-      totalRows = res.total_rows;
-      return res.rows.map(function (result) {
-
-        // implicit migration - in older versions of PouchDB,
-        // we explicitly stored the doc as {id: ..., key: ..., value: ...}
-        // this is tested in a migration test
-        /* istanbul ignore next */
-        if ('value' in result.doc && typeof result.doc.value === 'object' &&
-            result.doc.value !== null) {
-          var keys = Object.keys(result.doc.value).sort();
-          // this detection method is not perfect, but it's unlikely the user
-          // emitted a value which was an object with these 3 exact keys
-          var expectedKeys = ['id', 'key', 'value'];
-          if (!(keys < expectedKeys || keys > expectedKeys)) {
-            return result.doc.value;
-          }
-        }
-
-        var parsedKeyAndDocId = parseIndexableString(result.doc._id);
-        return {
-          key: parsedKeyAndDocId[0],
-          id: parsedKeyAndDocId[1],
-          value: ('value' in result.doc ? result.doc.value : null)
-        };
-      });
-    });
-  }
-
-  function onMapResultsReady(rows) {
-    var finalResults;
-    if (shouldReduce) {
-      finalResults = reduceView(view, rows, opts);
-    } else {
-      finalResults = {
-        total_rows: totalRows,
-        offset: skip,
-        rows: rows
-      };
-    }
-    if (opts.include_docs) {
-      var docIds = uniq(rows.map(rowToDocId));
-
-      return view.sourceDB.allDocs({
-        keys: docIds,
-        include_docs: true,
-        conflicts: opts.conflicts,
-        attachments: opts.attachments,
-        binary: opts.binary
-      }).then(function (allDocsRes) {
-        var docIdsToDocs = new ExportedMap();
-        allDocsRes.rows.forEach(function (row) {
-          docIdsToDocs.set(row.id, row.doc);
-        });
-        rows.forEach(function (row) {
-          var docId = rowToDocId(row);
-          var doc = docIdsToDocs.get(docId);
-          if (doc) {
-            row.doc = doc;
-          }
-        });
-        return finalResults;
-      });
-    } else {
-      return finalResults;
-    }
-  }
-
-  if (typeof opts.keys !== 'undefined') {
-    var keys = opts.keys;
-    var fetchPromises = keys.map(function (key) {
-      var viewOpts = {
-        startkey : toIndexableString([key]),
-        endkey   : toIndexableString([key, {}])
-      };
-      return fetchFromView(viewOpts);
-    });
-    return PouchPromise$1.all(fetchPromises).then(flatten).then(onMapResultsReady);
-  } else { // normal query, no 'keys'
-    var viewOpts = {
-      descending : opts.descending
-    };
-    if (opts.start_key) {
-        opts.startkey = opts.start_key;
-    }
-    if (opts.end_key) {
-        opts.endkey = opts.end_key;
-    }
-    if (typeof opts.startkey !== 'undefined') {
-      viewOpts.startkey = opts.descending ?
-        toIndexableString([opts.startkey, {}]) :
-        toIndexableString([opts.startkey]);
-    }
-    if (typeof opts.endkey !== 'undefined') {
-      var inclusiveEnd = opts.inclusive_end !== false;
-      if (opts.descending) {
-        inclusiveEnd = !inclusiveEnd;
-      }
-
-      viewOpts.endkey = toIndexableString(
-        inclusiveEnd ? [opts.endkey, {}] : [opts.endkey]);
-    }
-    if (typeof opts.key !== 'undefined') {
-      var keyStart = toIndexableString([opts.key]);
-      var keyEnd = toIndexableString([opts.key, {}]);
-      if (viewOpts.descending) {
-        viewOpts.endkey = keyStart;
-        viewOpts.startkey = keyEnd;
-      } else {
-        viewOpts.startkey = keyStart;
-        viewOpts.endkey = keyEnd;
-      }
-    }
-    if (!shouldReduce) {
-      if (typeof opts.limit === 'number') {
-        viewOpts.limit = opts.limit;
-      }
-      viewOpts.skip = skip;
-    }
-    return fetchFromView(viewOpts).then(onMapResultsReady);
+    return evalFunctionWithEval(reduceFun.toString());
   }
 }
 
-function httpViewCleanup(db) {
-  return db.request({
-    method: 'POST',
-    url: '_view_cleanup'
-  });
-}
-
-function localViewCleanup(db) {
-  return db.get('_local/mrviews').then(function (metaDoc) {
-    var docsToViews = new ExportedMap();
-    Object.keys(metaDoc.views).forEach(function (fullViewName) {
-      var parts = parseViewName(fullViewName);
-      var designDocName = '_design/' + parts[0];
-      var viewName = parts[1];
-      var views = docsToViews.get(designDocName);
-      if (!views) {
-        views = new ExportedSet();
-        docsToViews.set(designDocName, views);
-      }
-      views.add(viewName);
-    });
-    var opts = {
-      keys : mapToKeysArray(docsToViews),
-      include_docs : true
-    };
-    return db.allDocs(opts).then(function (res) {
-      var viewsToStatus = {};
-      res.rows.forEach(function (row) {
-        var ddocName = row.key.substring(8); // cuts off '_design/'
-        docsToViews.get(row.key).forEach(function (viewName) {
-          var fullViewName = ddocName + '/' + viewName;
-          /* istanbul ignore if */
-          if (!metaDoc.views[fullViewName]) {
-            // new format, without slashes, to support PouchDB 2.2.0
-            // migration test in pouchdb's browser.migration.js verifies this
-            fullViewName = viewName;
-          }
-          var viewDBNames = Object.keys(metaDoc.views[fullViewName]);
-          // design doc deleted, or view function nonexistent
-          var statusIsGood = row.doc && row.doc.views &&
-            row.doc.views[viewName];
-          viewDBNames.forEach(function (viewDBName) {
-            viewsToStatus[viewDBName] =
-              viewsToStatus[viewDBName] || statusIsGood;
-          });
-        });
-      });
-      var dbsToDelete = Object.keys(viewsToStatus).filter(
-        function (viewDBName) { return !viewsToStatus[viewDBName]; });
-      var destroyPromises = dbsToDelete.map(function (viewDBName) {
-        return sequentialize(getQueue(viewDBName), function () {
-          return new db.constructor(viewDBName, db.__opts).destroy();
-        })();
-      });
-      return PouchPromise$1.all(destroyPromises).then(function () {
-        return {ok: true};
-      });
-    });
-  }, defaultsTo({ok: true}));
-}
-
-var viewCleanup = callbackify(function () {
-  var db = this;
-  if (db.type() === 'http') {
-    return httpViewCleanup(db);
-  }
-  /* istanbul ignore next */
-  if (typeof db._viewCleanup === 'function') {
-    return customViewCleanup(db);
-  }
-  return localViewCleanup(db);
-});
-
-function queryPromised(db, fun, opts) {
-  if (db.type() === 'http') {
-    return httpQuery(db, fun, opts);
-  }
-
-  /* istanbul ignore next */
-  if (typeof db._query === 'function') {
-    return customQuery(db, fun, opts);
-  }
-
-  if (typeof fun !== 'string') {
-    // temp_view
-    checkQueryParseError(opts, fun);
-
-    var createViewOpts = {
-      db : db,
-      viewName : 'temp_view/temp_view',
-      map : fun.map,
-      reduce : fun.reduce,
-      temporary : true
-    };
-    tempViewQueue.add(function () {
-      return createView(createViewOpts).then(function (view) {
-        function cleanup() {
-          return view.db.destroy();
-        }
-        return fin(updateView(view).then(function () {
-          return queryView(view, opts);
-        }), cleanup);
-      });
-    });
-    return tempViewQueue.finish();
-  } else {
-    // persistent view
-    var fullViewName = fun;
-    var parts = parseViewName(fullViewName);
-    var designDocName = parts[0];
-    var viewName = parts[1];
-    return db.get('_design/' + designDocName).then(function (doc) {
-      var fun = doc.views && doc.views[viewName];
-
-      if (!fun || typeof fun.map !== 'string') {
-        throw new NotFoundError('ddoc ' + designDocName +
-        ' has no view named ' + viewName);
-      }
-      checkQueryParseError(opts, fun);
-
-      var createViewOpts = {
-        db : db,
-        viewName : fullViewName,
-        map : fun.map,
-        reduce : fun.reduce
-      };
-      return createView(createViewOpts).then(function (view) {
-        if (opts.stale === 'ok' || opts.stale === 'update_after') {
-          if (opts.stale === 'update_after') {
-            nextTick(function () {
-              updateView(view);
-            });
-          }
-          return queryView(view, opts);
-        } else { // stale not ok
-          return updateView(view).then(function () {
-            return queryView(view, opts);
-          });
-        }
-      });
-    });
+function ddocValidator(ddoc, viewName) {
+  var fun = ddoc.views && ddoc.views[viewName];
+  if (typeof fun.map !== 'string') {
+    throw new NotFoundError('ddoc ' + ddoc._id + ' has no string view named ' +
+      viewName + ', instead found object of type: ' + typeof fun.map);
   }
 }
 
-var query = function (fun, opts, callback) {
-  if (typeof opts === 'function') {
-    callback = opts;
-    opts = {};
-  }
-  opts = opts ? coerceOptions(opts) : {};
+var localDocName = 'mrviews';
+var abstract = createAbstractMapReduce(localDocName, mapper, reducer, ddocValidator);
 
-  if (typeof fun === 'function') {
-    fun = {map : fun};
-  }
+function query(fun, opts, callback) {
+  return abstract.query.call(this, fun, opts, callback);
+}
 
-  var db = this;
-  var promise = PouchPromise$1.resolve().then(function () {
-    return queryPromised(db, fun, opts);
-  });
-  promisedCallback(promise, callback);
-  return promise;
-};
-
+function viewCleanup(callback) {
+  return abstract.viewCleanup.call(this, callback);
+}
 
 var mapreduce = {
   query: query,
@@ -23115,8 +23112,8 @@ function Sync(src, target, opts, callback) {
   var self = this;
   this.canceled = false;
 
-  var optsPush = opts.push ? assign$1({}, opts, opts.push) : opts;
-  var optsPull = opts.pull ? assign$1({}, opts, opts.pull) : opts;
+  var optsPush = opts.push ? $inject_Object_assign({}, opts, opts.push) : opts;
+  var optsPull = opts.pull ? $inject_Object_assign({}, opts, opts.pull) : opts;
 
   this.push = replicateWrapper(src, target, optsPush);
   this.pull = replicateWrapper(target, src, optsPull);
@@ -23335,7 +23332,262 @@ PouchDB$3.plugin(IDBPouch)
 module.exports = PouchDB$3;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"argsarray":76,"debug":89,"events":91,"immediate":98,"inherits":99,"lie":101,"scope-eval":347,"spark-md5":348,"vuvuzela":350}],293:[function(require,module,exports){
+},{"argsarray":76,"debug":88,"events":90,"immediate":97,"inherits":98,"lie":292,"scope-eval":347,"spark-md5":348,"vuvuzela":350}],292:[function(require,module,exports){
+'use strict';
+var immediate = require('immediate');
+
+/* istanbul ignore next */
+function INTERNAL() {}
+
+var handlers = {};
+
+var REJECTED = ['REJECTED'];
+var FULFILLED = ['FULFILLED'];
+var PENDING = ['PENDING'];
+
+module.exports = Promise;
+
+function Promise(resolver) {
+  if (typeof resolver !== 'function') {
+    throw new TypeError('resolver must be a function');
+  }
+  this.state = PENDING;
+  this.queue = [];
+  this.outcome = void 0;
+  if (resolver !== INTERNAL) {
+    safelyResolveThenable(this, resolver);
+  }
+}
+
+Promise.prototype["catch"] = function (onRejected) {
+  return this.then(null, onRejected);
+};
+Promise.prototype.then = function (onFulfilled, onRejected) {
+  if (typeof onFulfilled !== 'function' && this.state === FULFILLED ||
+    typeof onRejected !== 'function' && this.state === REJECTED) {
+    return this;
+  }
+  var promise = new this.constructor(INTERNAL);
+  if (this.state !== PENDING) {
+    var resolver = this.state === FULFILLED ? onFulfilled : onRejected;
+    unwrap(promise, resolver, this.outcome);
+  } else {
+    this.queue.push(new QueueItem(promise, onFulfilled, onRejected));
+  }
+
+  return promise;
+};
+function QueueItem(promise, onFulfilled, onRejected) {
+  this.promise = promise;
+  if (typeof onFulfilled === 'function') {
+    this.onFulfilled = onFulfilled;
+    this.callFulfilled = this.otherCallFulfilled;
+  }
+  if (typeof onRejected === 'function') {
+    this.onRejected = onRejected;
+    this.callRejected = this.otherCallRejected;
+  }
+}
+QueueItem.prototype.callFulfilled = function (value) {
+  handlers.resolve(this.promise, value);
+};
+QueueItem.prototype.otherCallFulfilled = function (value) {
+  unwrap(this.promise, this.onFulfilled, value);
+};
+QueueItem.prototype.callRejected = function (value) {
+  handlers.reject(this.promise, value);
+};
+QueueItem.prototype.otherCallRejected = function (value) {
+  unwrap(this.promise, this.onRejected, value);
+};
+
+function unwrap(promise, func, value) {
+  immediate(function () {
+    var returnValue;
+    try {
+      returnValue = func(value);
+    } catch (e) {
+      return handlers.reject(promise, e);
+    }
+    if (returnValue === promise) {
+      handlers.reject(promise, new TypeError('Cannot resolve promise with itself'));
+    } else {
+      handlers.resolve(promise, returnValue);
+    }
+  });
+}
+
+handlers.resolve = function (self, value) {
+  var result = tryCatch(getThen, value);
+  if (result.status === 'error') {
+    return handlers.reject(self, result.value);
+  }
+  var thenable = result.value;
+
+  if (thenable) {
+    safelyResolveThenable(self, thenable);
+  } else {
+    self.state = FULFILLED;
+    self.outcome = value;
+    var i = -1;
+    var len = self.queue.length;
+    while (++i < len) {
+      self.queue[i].callFulfilled(value);
+    }
+  }
+  return self;
+};
+handlers.reject = function (self, error) {
+  self.state = REJECTED;
+  self.outcome = error;
+  var i = -1;
+  var len = self.queue.length;
+  while (++i < len) {
+    self.queue[i].callRejected(error);
+  }
+  return self;
+};
+
+function getThen(obj) {
+  // Make sure we only access the accessor once as required by the spec
+  var then = obj && obj.then;
+  if (obj && typeof obj === 'object' && typeof then === 'function') {
+    return function appyThen() {
+      then.apply(obj, arguments);
+    };
+  }
+}
+
+function safelyResolveThenable(self, thenable) {
+  // Either fulfill, reject or reject with error
+  var called = false;
+  function onError(value) {
+    if (called) {
+      return;
+    }
+    called = true;
+    handlers.reject(self, value);
+  }
+
+  function onSuccess(value) {
+    if (called) {
+      return;
+    }
+    called = true;
+    handlers.resolve(self, value);
+  }
+
+  function tryToUnwrap() {
+    thenable(onSuccess, onError);
+  }
+
+  var result = tryCatch(tryToUnwrap);
+  if (result.status === 'error') {
+    onError(result.value);
+  }
+}
+
+function tryCatch(func, value) {
+  var out = {};
+  try {
+    out.value = func(value);
+    out.status = 'success';
+  } catch (e) {
+    out.status = 'error';
+    out.value = e;
+  }
+  return out;
+}
+
+Promise.resolve = resolve;
+function resolve(value) {
+  if (value instanceof this) {
+    return value;
+  }
+  return handlers.resolve(new this(INTERNAL), value);
+}
+
+Promise.reject = reject;
+function reject(reason) {
+  var promise = new this(INTERNAL);
+  return handlers.reject(promise, reason);
+}
+
+Promise.all = all;
+function all(iterable) {
+  var self = this;
+  if (Object.prototype.toString.call(iterable) !== '[object Array]') {
+    return this.reject(new TypeError('must be an array'));
+  }
+
+  var len = iterable.length;
+  var called = false;
+  if (!len) {
+    return this.resolve([]);
+  }
+
+  var values = new Array(len);
+  var resolved = 0;
+  var i = -1;
+  var promise = new this(INTERNAL);
+
+  while (++i < len) {
+    allResolver(iterable[i], i);
+  }
+  return promise;
+  function allResolver(value, i) {
+    self.resolve(value).then(resolveFromAll, function (error) {
+      if (!called) {
+        called = true;
+        handlers.reject(promise, error);
+      }
+    });
+    function resolveFromAll(outValue) {
+      values[i] = outValue;
+      if (++resolved === len && !called) {
+        called = true;
+        handlers.resolve(promise, values);
+      }
+    }
+  }
+}
+
+Promise.race = race;
+function race(iterable) {
+  var self = this;
+  if (Object.prototype.toString.call(iterable) !== '[object Array]') {
+    return this.reject(new TypeError('must be an array'));
+  }
+
+  var len = iterable.length;
+  var called = false;
+  if (!len) {
+    return this.resolve([]);
+  }
+
+  var i = -1;
+  var promise = new this(INTERNAL);
+
+  while (++i < len) {
+    resolver(iterable[i]);
+  }
+  return promise;
+  function resolver(value) {
+    self.resolve(value).then(function (response) {
+      if (!called) {
+        called = true;
+        handlers.resolve(promise, response);
+      }
+    }, function (error) {
+      if (!called) {
+        called = true;
+        handlers.reject(promise, error);
+      }
+    });
+  }
+}
+
+},{"immediate":97}],293:[function(require,module,exports){
 module.exports = {
   doc: docApi
 }
@@ -23618,7 +23870,7 @@ exports.INVALID_URL = INVALID_URL;
 exports.createError = createError;
 exports.generateErrorFromResponse = generateErrorFromResponse;
 
-},{"inherits":99}],301:[function(require,module,exports){
+},{"inherits":98}],301:[function(require,module,exports){
 "use strict";
 
 // Extends method
@@ -23957,7 +24209,7 @@ module.exports = function addOne (object) {
   })
 }
 
-},{"../utils/add-timestamps":327,"../utils/to-doc":332,"lie":101,"pouchdb-errors":300}],308:[function(require,module,exports){
+},{"../utils/add-timestamps":327,"../utils/to-doc":332,"lie":100,"pouchdb-errors":300}],308:[function(require,module,exports){
 module.exports = eventify
 
 /**
@@ -24129,7 +24381,7 @@ function findOrAddOne (state, idOrObject, newObject) {
   })
 }
 
-},{"../utils/to-id":333,"./add-one":307,"./eventify":308,"./find-one":310,"lie":101,"pouchdb-errors":300}],313:[function(require,module,exports){
+},{"../utils/to-id":333,"./add-one":307,"./eventify":308,"./find-one":310,"lie":100,"pouchdb-errors":300}],313:[function(require,module,exports){
 'use strict'
 
 var extend = require('pouchdb-extend')
@@ -24231,7 +24483,7 @@ module.exports = function updateOne (idOrObject, change) {
   })
 }
 
-},{"../utils/add-timestamps":327,"../utils/change-object":328,"../utils/to-doc":332,"./find-one":310,"lie":101,"pouchdb-errors":300,"pouchdb-extend":301}],315:[function(require,module,exports){
+},{"../utils/add-timestamps":327,"../utils/change-object":328,"../utils/to-doc":332,"./find-one":310,"lie":100,"pouchdb-errors":300,"pouchdb-extend":301}],315:[function(require,module,exports){
 var toId = require('../utils/to-id')
 var addMany = require('./add-many')
 var updateMany = require('./update-many')
@@ -24332,7 +24584,7 @@ if (typeof window !== 'undefined' && window.PouchDB) {
   window.PouchDB.plugin(exports)
 }
 
-},{"./add":302,"./clear":303,"./find":305,"./find-all":304,"./helpers/eventify":308,"./lib/find-or-add-with-events":318,"./lib/off":319,"./lib/on":320,"./lib/one":321,"./remove":323,"./remove-all":322,"./update":326,"./update-all":324,"./update-or-add":325,"events":91}],318:[function(require,module,exports){
+},{"./add":302,"./clear":303,"./find":305,"./find-all":304,"./helpers/eventify":308,"./lib/find-or-add-with-events":318,"./lib/off":319,"./lib/on":320,"./lib/one":321,"./remove":323,"./remove-all":322,"./update":326,"./update-all":324,"./update-or-add":325,"events":90}],318:[function(require,module,exports){
 'use strict'
 
 var findOrAddOne = require('../helpers/find-or-add-one')
@@ -24568,7 +24820,7 @@ function updateAll (changedProperties) {
   })
 }
 
-},{"./utils/add-timestamps":327,"./utils/isnt-design-doc":329,"./utils/to-doc":332,"./utils/to-object":334,"lie":101,"pouchdb-extend":301}],325:[function(require,module,exports){
+},{"./utils/add-timestamps":327,"./utils/isnt-design-doc":329,"./utils/to-doc":332,"./utils/to-object":334,"lie":100,"pouchdb-extend":301}],325:[function(require,module,exports){
 'use strict'
 
 var updateOrAddOne = require('./helpers/update-or-add-one')
@@ -24619,7 +24871,7 @@ function update (objectsOrIds, change) {
     : updateOne.call(this, objectsOrIds, change)
 }
 
-},{"./helpers/update-many":313,"./helpers/update-one":314,"lie":101}],327:[function(require,module,exports){
+},{"./helpers/update-many":313,"./helpers/update-one":314,"lie":100}],327:[function(require,module,exports){
 'use strict'
 
 var now = require('./now')
@@ -24786,7 +25038,7 @@ function connect (state) {
   return Promise.resolve()
 }
 
-},{"lie":101}],337:[function(require,module,exports){
+},{"lie":100}],337:[function(require,module,exports){
 module.exports = disconnect
 
 var Promise = require('lie')
@@ -24806,7 +25058,7 @@ function disconnect (state) {
   return Promise.resolve()
 }
 
-},{"lie":101}],338:[function(require,module,exports){
+},{"lie":100}],338:[function(require,module,exports){
 module.exports = isConnected
 
 /**
@@ -24930,7 +25182,7 @@ function pull (state, docsOrIds) {
   return defer.promise
 }
 
-},{"./utils/to-id":346,"lie":101}],343:[function(require,module,exports){
+},{"./utils/to-id":346,"lie":100}],343:[function(require,module,exports){
 module.exports = push
 
 var Promise = require('lie')
@@ -24992,7 +25244,7 @@ function push (state, docsOrIds) {
   return defer.promise
 }
 
-},{"./utils/to-id":346,"lie":101}],344:[function(require,module,exports){
+},{"./utils/to-id":346,"lie":100}],344:[function(require,module,exports){
 module.exports = sync
 
 var Promise = require('lie')
@@ -25054,7 +25306,7 @@ function sync (state, docsOrIds) {
   return defer.promise
 }
 
-},{"./utils/to-id":346,"lie":101}],345:[function(require,module,exports){
+},{"./utils/to-id":346,"lie":100}],345:[function(require,module,exports){
 module.exports = getState
 
 var EventEmitter = require('events').EventEmitter
@@ -25078,7 +25330,7 @@ function getState (db, options) {
   }
 }
 
-},{"events":91}],346:[function(require,module,exports){
+},{"events":90}],346:[function(require,module,exports){
 module.exports = docOrIdToId
 
 /**
@@ -26307,7 +26559,7 @@ function getXml(xhr) {
 
 function noop() {}
 
-},{"global/window":93,"is-function":100,"parse-headers":291,"xtend":352}],352:[function(require,module,exports){
+},{"global/window":92,"is-function":99,"parse-headers":290,"xtend":352}],352:[function(require,module,exports){
 module.exports = extend
 
 var hasOwnProperty = Object.prototype.hasOwnProperty;
