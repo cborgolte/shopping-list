@@ -25,6 +25,11 @@ export class ShoppingListComponent {
   trackLineItems(index: number, lineItem: LineItem) {
     const lineItemRepr = (<any>lineItem);
     return lineItemRepr.id;
-   }
+  }
 
+  // done - clear bought items from list
+  done() {
+    let bought = this.lineItems.filter((item: LineItem) => item.bought);
+    this.shoppingListService.resetLineItems(bought);
+  }
 }

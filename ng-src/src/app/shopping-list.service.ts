@@ -120,4 +120,13 @@ export class ShoppingListService {
   removeItem(item: LineItem) {
     this.db_deleteLineItem(item);
   }
+
+  resetLineItems(lineItems: LineItem[]) {
+    let items = lineItems.map((item) => {
+      item.bought = false;
+      item.selected = false;
+      return item;
+    });
+    this.db_updateLineItems(items);
+  }
 };
