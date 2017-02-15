@@ -10,14 +10,19 @@ import { ShoppingListService } from './shopping-list.service';
 })
 export class ShoppingListComponent {
   title = 'Shopping List';
-  lineItems = null;
+  private lineItems = null;
 
-  constructor(private shoppingListService: ShoppingListService) { 
+  constructor(private shoppingListService: ShoppingListService) {
     this.lineItems = shoppingListService.getLineItems();
   }
 
+  // return line items that were selected for the shopping list
+  getLineItems(): LineItem[] {
+    return this.lineItems.filter((item: LineItem) => item.selected);
+  }
+
   // track items
-  trackLineItems(index: number, lineItem: LineItem) { 
+  trackLineItems(index: number, lineItem: LineItem) {
     const lineItemRepr = (<any>lineItem);
     return lineItemRepr.id;
    }

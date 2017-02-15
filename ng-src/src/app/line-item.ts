@@ -5,6 +5,6 @@ export class LineItem {
   // unit: string;
   name: string;
   selected: boolean;
-  // bought: boolean;
+  bought: boolean;
   // categories: Array<string>;
 }

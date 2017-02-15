@@ -9,7 +9,7 @@ const hoodie: any = _window.hoodie;
 export class ShoppingListService {
   lineItems: LineItem[] = [];
 
-  constructor(zone: NgZone, private dragulaService: DragulaService) { 
+  constructor(zone: NgZone, private dragulaService: DragulaService) {
 
     const li = this.lineItems; // alias
 
@@ -22,7 +22,7 @@ export class ShoppingListService {
 
         function init(items: any[]) {
           li.length = 0; // clear the array
-          let dbItems = items.filter(function (element, index, array) {
+          let dbItems = items.filter( (element, index, array) => {
             let retval = element.type === 'LineItem';
             return retval;
           }).sort((lhs, rhs) => lhs.pos - rhs.pos);
