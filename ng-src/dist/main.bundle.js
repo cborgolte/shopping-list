@@ -723,7 +723,7 @@ module.exports = "<md-card>\n    <md-card-title>Sign in</md-card-title>\n    <md
 /***/ 828:
 /***/ function(module, exports) {
 
-module.exports = "<md-toolbar>\n    <nav>\n        <a routerLink=\"/modify\" routerLinkActive=\"active\">\n            <md-icon>mode edit</md-icon></a>\n        <a routerLink=\"/shop\" routerLinkActive=\"active\">\n            <md-icon>store</md-icon></a>\n    </nav>\n    <span class=\"spacer\"></span>\n    <span class=\"user\">Hi <strong>{{user.username || \"-\"}}</strong>&nbsp;|&nbsp;</span>\n    <nav>\n        <a *ngIf=\"!user.logged_in\" routerLink=\"/log-in\" routerLinkActive=\"active\">Sign in</a>\n        <a *ngIf=\"user.logged_in\" (click)=\"accountService.signOut()\">Sign out</a>\n        <a *ngIf=\"!user.logged_in\" routerLink=\"/sign-up\" routerLinkActive=\"active\">Sign up</a>\n    </nav>\n</md-toolbar>\n<router-outlet></router-outlet>\n"
+module.exports = "<md-toolbar>\n    <nav>\n        <a routerLink=\"/modify\" routerLinkActive=\"active\">\n            <md-icon>mode edit</md-icon></a>\n        <a routerLink=\"/shop\" routerLinkActive=\"active\">\n            <md-icon>store</md-icon></a>\n    </nav>\n    <span class=\"spacer\"></span>\n    <span class=\"user\">Hi <strong>{{user.username || \"-\"}}</strong>&nbsp;|&nbsp;</span>\n    <nav>\n        <a *ngIf=\"!user.logged_in\" routerLink=\"/log-in\" routerLinkActive=\"active\">Sign in</a>\n        <button title=\"sign out\" md-icon-button *ngIf=\"user.logged_in\" (click)=\"accountService.signOut()\"><md-icon>lock-open</md-icon></button>\n        <a *ngIf=\"!user.logged_in\" routerLink=\"/sign-up\" routerLinkActive=\"active\">Sign up</a>\n    </nav>\n</md-toolbar>\n<router-outlet></router-outlet>\n"
 
 /***/ },
 
@@ -737,7 +737,7 @@ module.exports = "<md-card>\n    <md-card-content>\n        <md-list [dragula]='
 /***/ 830:
 /***/ function(module, exports) {
 
-module.exports = "<md-card>\n    <md-card-content>\n        <md-list [dragula]='\"bag-one\"' [dragulaModel]='lineItems'>\n            <md-list-item *ngFor=\"let item of getLineItems(); trackBy: trackLineItems\" layout=\"row\">\n                <md-checkbox [(ngModel)]=\"item.bought\" (click)=\"shoppingListService.updateLineItem(item)\">\n                    <span class=\"qty\">{{item.qty}}</span>\n                    <span class=\"item\">{{item.name}}</span>\n                </md-checkbox>\n                <md-divider></md-divider>\n            </md-list-item>\n        </md-list>\n        <section>\n            <button (click)=\"done()\" md-button>done</button>\n        </section>\n    </md-card-content>\n</md-card>\n"
+module.exports = "<md-card>\n    <md-card-content>\n        <md-list>\n            <md-list-item *ngFor=\"let item of getLineItems(); trackBy: trackLineItems\" layout=\"row\">\n                <md-checkbox [(ngModel)]=\"item.bought\" (click)=\"shoppingListService.updateLineItem(item)\">\n                    <span class=\"qty\">{{item.qty}}</span>\n                    <span class=\"item\">{{item.name}}</span>\n                </md-checkbox>\n                <md-divider></md-divider>\n            </md-list-item>\n        </md-list>\n        <section>\n            <button (click)=\"done()\" md-button>done</button>\n        </section>\n    </md-card-content>\n</md-card>\n"
 
 /***/ },
 
