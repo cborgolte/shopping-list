@@ -1,6 +1,6 @@
 <md-card>
     <md-card-content>
-        <md-list [dragula]='"bag-one"' [dragulaModel]='lineItems'>
+        <md-list>
             <md-list-item *ngFor="let item of getLineItems(); trackBy: trackLineItems" layout="row">
                 <md-checkbox [(ngModel)]="item.bought" (click)="shoppingListService.updateLineItem(item)">
                     <span class="qty">{{item.qty}}</span>
