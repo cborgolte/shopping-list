@@ -1,14 +1,15 @@
 <md-toolbar>
     <nav>
-        <a routerLink="/modify" routerLinkActive="active">Liste ändern</a>
-        <a routerLink="/shop" routerLinkActive="active">Einkaufen</a>
+        <a routerLink="/modify" routerLinkActive="active">
+            <md-icon>mode edit</md-icon></a>
+        <a routerLink="/shop" routerLinkActive="active">
+            <md-icon>store</md-icon></a>
     </nav>
     <span class="spacer"></span>
     <span class="user">Hi <strong>{{user.username || "-"}}</strong>&nbsp;|&nbsp;</span>
     <nav>
-        <a *ngIf="!user.logged_in" routerLink="/log-in" routerLinkActive="active">Log in</a>
-        <!-- <a *ngIf="user.logged_in" routerLink="/log-out" routerLinkActive="active">Log out</a> -->
-        <a *ngIf="user.logged_in" (click)="accountService.signOut()">Log out</a>
+        <a *ngIf="!user.logged_in" routerLink="/log-in" routerLinkActive="active">Sign in</a>
+        <a *ngIf="user.logged_in" (click)="accountService.signOut()">Sign out</a>
         <a *ngIf="!user.logged_in" routerLink="/sign-up" routerLinkActive="active">Sign up</a>
     </nav>
 </md-toolbar>

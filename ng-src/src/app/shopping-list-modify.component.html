@@ -22,7 +22,9 @@
         </md-list>
         <md-divider></md-divider>
         <section>
-                <input md-input (keyup.enter)="onEnter(box)" #box placeholder="add item" value="">
+            <md-input-container>
+                <input mdInput (keyup.enter)="onEnter(box)" #box placeholder="add item" value="">
+            </md-input-container>
         </section>
     </md-card-content>
 </md-card>
