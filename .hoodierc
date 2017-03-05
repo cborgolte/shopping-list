@@ -1,5 +1,7 @@
 {
   "adminPassword": "1234",
   "address": "0.0.0.0",
-  "public": "./ng-src/dist"
+  "public": "./ng-src/dist",
+  "dbUrl": "http://admin:1234@192.168.178.53:5984/",
+  "inMemory": true
 }

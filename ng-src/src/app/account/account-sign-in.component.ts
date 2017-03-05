@@ -6,7 +6,7 @@ import { AccountService } from './account.service';
 @Component({
     selector: 'sign-in',
     templateUrl: './account-sign-in.component.html',
-    providers: [AccountService]
+    providers: [/*AccountService*/]
 })
 export class AccountSignInComponent {
 
