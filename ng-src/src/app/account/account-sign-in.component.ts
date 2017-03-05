@@ -6,7 +6,7 @@ import { AccountService } from './account.service';
 @Component({
     selector: 'sign-in',
     templateUrl: './account-sign-in.component.html',
-    providers: [/*AccountService*/]
+    providers: []
 })
 export class AccountSignInComponent {
 
@@ -23,7 +23,6 @@ export class AccountSignInComponent {
     ) { }
 
     signIn(): void {
-        console.log(this.account);
         this.accountService.signIn(this.account.username, this.account.password)
         .then( () => {
             // TODO: check for redirect URL in query parameters

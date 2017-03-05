@@ -9,16 +9,13 @@ import {DragulaService} from 'ng2-dragula/ng2-dragula';
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css'],
   viewProviders: [DragulaService],
-  providers: [ShoppingListService /*, AccountService*/]
+  providers: [ShoppingListService]
 })
 export class AppComponent {
 
   private user: any;
   constructor(private accountService: AccountService) {
-    console.log("AppComponent constructor");
     this.user = accountService.getAccount();
-    window['UUUUU'] = this.user;
-    window['APC'] = this;
   }
 
   setUser() {

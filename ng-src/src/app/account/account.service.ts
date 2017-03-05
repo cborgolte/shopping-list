@@ -10,9 +10,6 @@ export class AccountService {
     private account: any = {}
 
     constructor(private zone: NgZone) { 
-        console.log("AcountService constructor");
-        _window.XXX = this.account;
-        _window.AAA = this;
         hoodie.ready.then( () => {
             if (hoodie.account.isSignedIn()) {
                 this.setUser(hoodie.account.username);
@@ -27,7 +24,6 @@ export class AccountService {
       this.zone.run( () => {
           this.account.username = username;
           this.account.logged_in = true;
-          console.log(this.account);
       });
   }
 
@@ -46,14 +42,13 @@ export class AccountService {
       let options = { username: username, password: password };
       return hoodie.account.signIn(options)
           .then((sessionProp) => {
-              console.log("logged in as " + sessionProp.username);
               this.setUser(sessionProp.username);
           })
           .catch((error) => {
-              console.log("log in failed " + error);
               this.signOut();
+              alert("log in failed: " + error);
           });
-    }
+  }
 
   public getAccount(): any {
       return this.account;
