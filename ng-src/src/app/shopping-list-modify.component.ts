@@ -6,7 +6,7 @@ import { ShoppingListService } from './shopping-list.service';
   selector: 'shopping-list-modify',
   templateUrl: './shopping-list-modify.component.html',
   styleUrls: ['./shopping-list-modify.component.css'],
-  providers: [ShoppingListService]
+  providers: []
 })
 export class ShoppingListModifyComponent {
   title = 'Modify Shopping List';

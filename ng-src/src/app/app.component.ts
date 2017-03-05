@@ -9,7 +9,7 @@ import {DragulaService} from 'ng2-dragula/ng2-dragula';
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css'],
   viewProviders: [DragulaService],
-  providers: [ShoppingListService]
+  providers: []
 })
 export class AppComponent {
 
