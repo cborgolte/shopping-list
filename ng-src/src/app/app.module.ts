@@ -30,7 +30,7 @@ import {DragulaModule, DragulaService} from 'ng2-dragula/ng2-dragula';
     AppRoutingModule,
     DragulaModule
   ],
-  providers: [ShoppingListService, AccountService, DragulaService],
+  providers: [DragulaService, ShoppingListService, AccountService],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

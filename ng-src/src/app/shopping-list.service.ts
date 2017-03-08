@@ -14,6 +14,7 @@ export class ShoppingListService {
     const li = this.lineItems; // alias
 
     dragulaService.drop.subscribe((value) => {
+      console.log("ondrop");
       this.onDrop(value);
     });
 
@@ -89,6 +90,7 @@ export class ShoppingListService {
     //  they are in correct order now. That is,
     //  we have to persist this new order here.
     let dbItems = this.lineItems.map((lineItem: LineItem, pos: number, array: LineItem[]) => {
+      console.log(lineItem.name, lineItem.pos, pos);
       if (pos != lineItem.pos) {
         lineItem.pos = pos;
         return lineItem;
