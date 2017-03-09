@@ -8,7 +8,7 @@
     <span class="spacer"></span>
     <span class="user">Hi <strong>{{user.username || "-"}}</strong>&nbsp;|&nbsp;</span>
     <nav>
-        <a *ngIf="!user.logged_in" routerLink="/log-in" routerLinkActive="active">Sign in</a>
+        <a *ngIf="!user.logged_in" routerLink="/sign-in" routerLinkActive="active">Sign in</a>
         <button title="sign out" md-icon-button *ngIf="user.logged_in" (click)="accountService.signOut()"><md-icon>lock-open</md-icon></button>
         <a *ngIf="!user.logged_in" routerLink="/sign-up" routerLinkActive="active">Sign up</a>
     </nav>

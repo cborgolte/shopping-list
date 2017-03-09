@@ -13,6 +13,7 @@ import { AccountSignInComponent }  from './account/account-sign-in.component';
 import { ShoppingListComponent }  from './shopping-list.component';
 import { ShoppingListModifyComponent } from './shopping-list-modify.component';
 import {DragulaModule, DragulaService} from 'ng2-dragula/ng2-dragula';
+import { AccountSignUpComponent } from './account/account-sign-up/account-sign-up.component';
 
 
 @NgModule({
@@ -20,7 +21,8 @@ import {DragulaModule, DragulaService} from 'ng2-dragula/ng2-dragula';
     AppComponent,
     ShoppingListModifyComponent,
     ShoppingListComponent,
-    AccountSignInComponent
+    AccountSignInComponent,
+    AccountSignUpComponent
   ],
   imports: [
     BrowserModule,
