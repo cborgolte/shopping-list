@@ -78,7 +78,7 @@ export class ShoppingListService {
     hoodie.store.remove({id: lineItemRepr.id});
   }
 
-  private onReorder() {
+  onReorder() {
     let dbItems = this.lineItems.map((lineItem: LineItem, pos: number, array: LineItem[]) => {
       console.log(lineItem.name, lineItem.pos, pos);
       if (pos != lineItem.pos) {
