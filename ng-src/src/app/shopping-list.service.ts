@@ -1,5 +1,4 @@
 import {Injectable, Component, NgZone} from '@angular/core';
-import {DragulaService} from 'ng2-dragula/ng2-dragula';
 import { LineItem } from './line-item';
 
 const _window: any = (<any>window);
@@ -9,15 +8,9 @@ const hoodie: any = _window.hoodie;
 export class ShoppingListService {
   lineItems: LineItem[] = [];
 
-  constructor(zone: NgZone, private dragulaService: DragulaService) {
+  constructor(zone: NgZone) {
 
     const li = this.lineItems; // alias
-
-    dragulaService.drop.subscribe((value) => {
-      console.log("ondrop");
-      this.onDrop(value);
-    });
-
 
     hoodie.ready.then( () => {
 
@@ -85,10 +78,7 @@ export class ShoppingListService {
     hoodie.store.remove({id: lineItemRepr.id});
   }
 
-  private onDrop(args: any[]) {
-    // since lineItems are the model of the dragula container,
-    //  they are in correct order now. That is,
-    //  we have to persist this new order here.
+  private onReorder() {
     let dbItems = this.lineItems.map((lineItem: LineItem, pos: number, array: LineItem[]) => {
       console.log(lineItem.name, lineItem.pos, pos);
       if (pos != lineItem.pos) {

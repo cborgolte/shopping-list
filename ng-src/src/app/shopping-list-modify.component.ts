@@ -14,9 +14,12 @@ export class ShoppingListModifyComponent {
   title = 'Modify Shopping List';
   lineItems = null;
 
-  constructor(private shoppingListService: ShoppingListService) { 
+  constructor(private shoppingListService: ShoppingListService, private dragulaService: DragulaService) { 
     this.lineItems = shoppingListService.getLineItems();
-    console.log('LineItems', JSON.stringify(this.lineItems));
+
+    dragulaService.drop.subscribe((value) => {
+      this.shoppingListService.onReorder();
+    });
   }
 
   // handle entering a new item
