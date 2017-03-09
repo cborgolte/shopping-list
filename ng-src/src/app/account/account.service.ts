@@ -37,6 +37,19 @@ export class AccountService {
       });
   }
 
+  public signUp(username: String, password: String): any {
+
+      let options = { username: username, password: password };
+      return hoodie.account.signUp(options)
+          .then((sessionProp) => {
+              this.setUser(sessionProp.username);
+          })
+          .catch((error) => {
+              this.signOut();
+              alert("sign up failed: " + error);
+          });
+  }
+
   public signIn(username: String, password: String): any {
 
       let options = { username: username, password: password };

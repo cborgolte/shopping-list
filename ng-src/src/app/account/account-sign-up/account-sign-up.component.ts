@@ -1,4 +1,6 @@
 import { Component, OnInit } from '@angular/core';
+import { Router, ActivatedRoute } from '@angular/router';
+import { AccountService } from '../account.service';
 
 @Component({
   selector: 'app-account-sign-up',
@@ -7,9 +9,24 @@ import { Component, OnInit } from '@angular/core';
 })
 export class AccountSignUpComponent implements OnInit {
 
-  constructor() { }
+    // ngModel
+    account = {
+        username: "",
+        password: "",
+    };
+
+  constructor(private accountService: AccountService, private router: Router) { }
 
   ngOnInit() {
   }
+
+  signUp(): void {
+        this.accountService.signUp(this.account.username, this.account.password)
+        .then( () => this.accountService.signIn(this.account.username, this.account.password) )
+        .then( () => {
+            // TODO: check for redirect URL in query parameters
+            this.router.navigate(["/modify"]);
+        });
+    }
 
 }
