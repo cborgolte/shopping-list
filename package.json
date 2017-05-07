@@ -11,6 +11,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "hoodie": "^27.1.2"
+    "hoodie": "^27.2.0"
   }
 }
