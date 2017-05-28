@@ -67,4 +67,31 @@ export class ShoppingListModifyComponent {
     return lineItemRepr.id;
    }
 
+  categories = [
+    {
+      name: 'Obst',
+      updated: new Date('1/1/16'),
+    },
+    {
+      name: 'Getränke',
+      updated: new Date('1/17/16'),
+    },
+    {
+      name: 'Aufschnitt',
+      updated: new Date('1/28/16'),
+    }
+  ];
+
+  labels = [
+    {
+      name: 'Küche',
+      updated: new Date('2/20/16'),
+    },
+    {
+      name: 'Bad',
+      updated: new Date('1/18/16'),
+    }
+  ];
+
+
 }

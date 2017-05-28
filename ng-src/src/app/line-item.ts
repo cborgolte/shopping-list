@@ -6,5 +6,5 @@ export class LineItem {
   name: string;
   selected: boolean;
   bought: boolean;
-  // categories: Array<string>;
+  categories: Array<string>;
 }

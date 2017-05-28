@@ -31,7 +31,7 @@ import { AccountSignUpComponent } from './account/account-sign-up/account-sign-u
     BrowserModule,
     FormsModule,
     HttpModule,
-    MaterialModule.forRoot(),
+    MaterialModule,
     BrowserAnimationsModule,
     AppRoutingModule,
     DragulaModule

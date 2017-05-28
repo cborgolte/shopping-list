@@ -13,4 +13,6 @@
         <a *ngIf="!user.logged_in" routerLink="/sign-up" routerLinkActive="active">Sign up</a>
     </nav>
 </md-toolbar>
-<router-outlet></router-outlet>
+<div class="app-content">
+    <router-outlet></router-outlet>
+</div>

@@ -1,31 +1,59 @@
 <md-card>
     <md-card-content>
-        <md-list [dragula]='"bag-one"' [dragulaModel]='lineItems'>
-            <md-list-item *ngFor="let item of lineItems; trackBy: trackLineItems" layout="row">
-                <md-checkbox [(ngModel)]="item.selected" (click)="shoppingListService.updateLineItem(item)">
-                    <span class="qty">{{item.qty}}</span>
-                    <span class="item">{{item.name}}</span>
-                </md-checkbox>
-                <div class="button-list" flex>
-                    <button md-icon-button (click)="decrease(item)">
+        <md-grid-list cols="3" row->
+            <md-grid-tile class="gt-items" [colspan]=2 [rowspan]="1">
+                <md-list class="lst-items" [dragula]='"bag-one"' [dragulaModel]='lineItems'>
+                    <md-list-item *ngFor="let item of lineItems; trackBy: trackLineItems" layout="row">
+                        <md-checkbox [(ngModel)]="item.selected" (click)="shoppingListService.updateLineItem(item)">
+                            <span class="qty">{{item.qty}}</span>
+                            <span class="item">{{item.name}}</span>
+                        </md-checkbox>
+                        <div class="button-list" flex>
+                            <button md-icon-button (click)="decrease(item)">
                         <md-icon>remove</md-icon>
                     </button>
-                    <button md-icon-button (click)="increase(item)">
+                            <button md-icon-button (click)="increase(item)">
                         <md-icon>add</md-icon>
                     </button>
-                    <button md-icon-button (click)="remove(item)">
+                            <button md-icon-button (click)="remove(item)">
                         <md-icon>delete</md-icon>
                     </button>
-                </div>
-                <md-divider ng-if="!$last"></md-divider>
-            </md-list-item>
-        </md-list>
-        <md-divider></md-divider>
-        <section>
-            <md-input-container>
-                <input mdInput (keyup.enter)="onEnter(box)" #box placeholder="add item" value="">
-            </md-input-container>
-        </section>
+                        </div>
+                        <md-divider ng-if="!$last"></md-divider>
+                    </md-list-item>
+                    <md-list-item>
+                    <md-divider></md-divider>
+                    <section>
+                        <md-input-container>
+                            <input mdInput (keyup.enter)="onEnter(box)" #box placeholder="add item" value="">
+                        </md-input-container>
+                    </section>
+                    </md-list-item>
+                </md-list>
+                <!-- <pre>{{lineItems|json}}</pre> -->
+            </md-grid-tile>
+            <md-grid-tile [colspan]="1" [rowspan]="2">
+                <md-list>
+                    <h3 md-subheader>Categories</h3>
+                    <md-list-item *ngFor="let category of categories">
+                        <md-icon md-list-icon>category</md-icon>
+                        <h4 md-line>{{category.name}}</h4>
+                        <p md-line> {{category.updated | date}} </p>
+                    </md-list-item>
+                    <md-divider></md-divider>
+                    <h3 md-subheader>Labels</h3>
+                    <md-list-item *ngFor="let label of labels">
+                        <md-icon md-list-icon>label</md-icon>
+                        <h4 md-line>{{label.name}}</h4>
+                        <p md-line> {{label.updated | date}} </p>
+                    </md-list-item>
+                </md-list>
+            </md-grid-tile>
+            <md-grid-tile [colspan]="1" [rowspan]="1">
+                <md-input-container>
+                    <input mdInput (keyup.enter)="onEnter(box)" #box placeholder="add item" value="">
+                </md-input-container>
+            </md-grid-tile>
+        </md-grid-list>
     </md-card-content>
 </md-card>
-<!-- <pre>{{lineItems|json}}</pre> -->
