@@ -8,3 +8,7 @@ body {
   flex-direction: column;
 }
 */
+
+md-card {
+  margin: 20px;
+}

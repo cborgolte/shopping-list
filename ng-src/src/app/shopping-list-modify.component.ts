@@ -79,10 +79,19 @@ export class ShoppingListModifyComponent {
     {
       name: 'Aufschnitt',
       updated: new Date('1/28/16'),
-    }
-  ];
-
-  labels = [
+    },
+    {
+      name: 'Küche',
+      updated: new Date('2/20/16'),
+    },
+    {
+      name: 'Bad',
+      updated: new Date('1/18/16'),
+    },
+    {
+      name: 'Aufschnitt',
+      updated: new Date('1/28/16'),
+    },
     {
       name: 'Küche',
       updated: new Date('2/20/16'),
@@ -91,6 +100,7 @@ export class ShoppingListModifyComponent {
       name: 'Bad',
       updated: new Date('1/18/16'),
     }
+
   ];
 
 
