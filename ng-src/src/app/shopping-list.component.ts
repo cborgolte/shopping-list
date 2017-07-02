@@ -1,4 +1,7 @@
 import { Component } from '@angular/core';
+import { ActivatedRoute, ParamMap } from '@angular/router';
+import { Location }                 from '@angular/common';
+
 import { LineItem } from './line-item';
 import { ShoppingListService } from './shopping-list.service';
 
@@ -10,15 +13,25 @@ import { ShoppingListService } from './shopping-list.service';
 })
 export class ShoppingListComponent {
   title = 'Shopping List';
-  private lineItems = null;
+  private lineItems: Map<string, LineItem[]>;
+  private categories: any[];
+  private activeTab: string;
 
-  constructor(private shoppingListService: ShoppingListService) {
+  constructor(
+    private shoppingListService: ShoppingListService,
+    private route: ActivatedRoute,
+    private location: Location
+  ) {
     this.lineItems = shoppingListService.getLineItems();
+    this.categories = shoppingListService.getCategories();
   }
 
   // return line items that were selected for the shopping list
-  getLineItems(): LineItem[] {
-    return this.lineItems.filter((item: LineItem) => item.selected);
+  getLineItems(category: string): LineItem[] {
+    if (this.lineItems && this.lineItems[category]) {
+      return this.lineItems[category].filter((item: LineItem) => item.selected);
+    }
+    return [];
   }
 
   // track items
@@ -28,8 +41,8 @@ export class ShoppingListComponent {
   }
 
   // done - clear bought items from list
-  done() {
-    let bought = this.lineItems.filter((item: LineItem) => item.bought);
+  done(category: string) {
+    let bought = this.lineItems[category].filter((item: LineItem) => item.bought);
     this.shoppingListService.resetLineItems(bought);
   }
 }

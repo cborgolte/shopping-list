@@ -10,6 +10,7 @@ const routes: Routes = [
   { path: '', redirectTo: '/modify', pathMatch: 'full' },
   { path: 'modify',  component: ShoppingListModifyComponent },
   { path: 'shop',  component: ShoppingListComponent },
+  { path: 'shop/:tab',  component: ShoppingListComponent },
   { path: 'sign-in',  component: AccountSignInComponent },
   { path: 'sign-up',  component: AccountSignUpComponent },
 ];

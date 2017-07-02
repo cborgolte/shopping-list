@@ -7,7 +7,42 @@ const hoodie: any = _window.hoodie;
 @Injectable()
 export class ShoppingListService {
   lineItems: Map<string, LineItem[]> = new Map<string, LineItem[]>();
-  categories: string[] = ['all'];
+  // categories: string[] = ['all'];
+
+  categories: any[] = [
+    {
+      name: 'Obst + Gemüse',
+      updated: new Date('1/1/16'),
+    },
+    {
+      name: 'Getränke',
+      updated: new Date('1/17/16'),
+    },
+    {
+      name: 'Aufschnitt',
+      updated: new Date('1/28/16'),
+    },
+    {
+      name: 'Tiefkühl',
+      updated: new Date('2/20/16'),
+    },
+    {
+      name: 'Bad',
+      updated: new Date('1/18/16'),
+    },
+    {
+      name: 'Haushaltswaren',
+      updated: new Date('1/28/16'),
+    },
+    {
+      name: 'sonstiges',
+      updated: new Date('2/20/16'),
+    },
+    {
+      name: 'all',
+      updated: new Date('1/18/16'),
+    }
+  ];
 
   constructor(zone: NgZone) {
 
@@ -20,8 +55,8 @@ export class ShoppingListService {
 
           // clear all data
           // WTF: li.clear() does not work!
-          cat.forEach((c) => li[c] = []);
-          cat.length = 0;
+          cat.forEach((c) => li[c.name] = []);
+          // cat.length = 0;
 
           // retrieve all line items
           let dbItems = items.filter( (element, index, array) => {
@@ -47,7 +82,7 @@ export class ShoppingListService {
                     li[category] = [];
                   }
                   li[category].push(val);
-                  if (cat.indexOf(category) === -1) {
+                  if (cat.findIndex((value) => value.name === category) === -1) {
                     cat.push(category);
                   }
                 })
@@ -80,6 +115,10 @@ export class ShoppingListService {
 
       }
     );
+  }
+
+  public getCategories(): any[] {
+    return this.categories;
   }
 
   private db_updateOrCreateLineItem(id: string, lineItemRepr: any) {

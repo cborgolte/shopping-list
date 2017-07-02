@@ -1,16 +1,22 @@
-<md-card>
-    <md-card-content>
-        <md-list>
-            <md-list-item *ngFor="let item of getLineItems(); trackBy: trackLineItems" layout="row">
-                <md-checkbox [(ngModel)]="item.bought" (click)="shoppingListService.updateLineItem(item)">
-                    <span class="qty">{{item.qty}}</span>
-                    <span class="item">{{item.name}}</span>
-                </md-checkbox>
-                <md-divider></md-divider>
-            </md-list-item>
-        </md-list>
+<md-tab-group>
+    <md-tab *ngFor="let category of categories" label="{{category.name}}">
+        <div>
+            <md-card>
+                <md-card-content>
+                    <md-list class="lst-items">
+                        <md-list-item *ngFor="let item of getLineItems(category.name); trackBy: trackLineItems" layout="row">
+                            <md-checkbox [(ngModel)]="item.bought" (click)="shoppingListService.updateLineItem(item)">
+                                <span class="qty">{{item.qty}}</span>
+                                <span class="item">{{item.name}}</span>
+                            </md-checkbox>
+                            <md-divider ng-if="!$last"></md-divider>
+                        </md-list-item>
+                    </md-list>
+                </md-card-content>
+            </md-card>
+        </div>
         <section>
-            <button (click)="done()" md-button>done</button>
+            <button (click)="done(category.name)" md-button>done</button>
         </section>
-    </md-card-content>
-</md-card>
+    </md-tab>
+</md-tab-group>

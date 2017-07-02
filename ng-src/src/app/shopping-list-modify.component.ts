@@ -13,9 +13,11 @@ import {DragulaService} from 'ng2-dragula/ng2-dragula';
 export class ShoppingListModifyComponent {
   title = 'Modify Shopping List';
   lineItems: Map<string, LineItem[]>;
+  categories: any[];
 
   constructor(private shoppingListService: ShoppingListService, private dragulaService: DragulaService) { 
     this.lineItems = shoppingListService.getLineItems();
+    this.categories = shoppingListService.getCategories();
 
     dragulaService.drop.subscribe((value) => {
       console.log("reorder", this.lineItems[value[0]]);
@@ -74,46 +76,5 @@ export class ShoppingListModifyComponent {
     const lineItemRepr = (<any>lineItem);
     return lineItemRepr.id;
    }
-
-  categories = [
-    {
-      name: 'all',
-      updated: new Date('1/1/16'),
-    },
-    {
-      name: 'Obst',
-      updated: new Date('1/1/16'),
-    },
-    {
-      name: 'Getränke',
-      updated: new Date('1/17/16'),
-    },
-    {
-      name: 'Aufschnitt',
-      updated: new Date('1/28/16'),
-    },
-    {
-      name: 'Küche',
-      updated: new Date('2/20/16'),
-    },
-    {
-      name: 'Bad',
-      updated: new Date('1/18/16'),
-    },
-    {
-      name: 'Aufschnitt',
-      updated: new Date('1/28/16'),
-    },
-    {
-      name: 'Küche',
-      updated: new Date('2/20/16'),
-    },
-    {
-      name: 'Bad',
-      updated: new Date('1/18/16'),
-    }
-
-  ];
-
 
 }
