@@ -4,29 +4,29 @@
             <md-card>
                 <md-card-content>
                     <md-input-container>
-                        <input mdInput (keyup.enter)="onEnter(box)" #box placeholder="add item" value="">
+                        <input mdInput (keyup.enter)="onEnter(box)" #box placeholder="add item" [attr.data-category]="category.name" value="">
                     </md-input-container>
                 </md-card-content>
             </md-card>
 
             <md-card>
                 <md-card-content>
-                    <md-list class="lst-items" [dragula]='"bag-one"' [dragulaModel]='lineItems'>
-                        <md-list-item *ngFor="let item of lineItems; trackBy: trackLineItems" layout="row">
+                    <md-list class="lst-items"><!-- [dragula]='category.name' [dragulaModel]='lineItems[category.name]'--> 
+                        <md-list-item *ngFor="let item of lineItems[category.name]" layout="row">
                             <md-checkbox [(ngModel)]="item.selected" (click)="shoppingListService.updateLineItem(item)">
                                 <span class="qty">{{item.qty}}</span>
                                 <span class="item">{{item.name}}</span>
                             </md-checkbox>
                             <div class="button-list" flex>
                                 <button md-icon-button (click)="decrease(item)">
-                        <md-icon>remove</md-icon>
-                    </button>
+                                    <md-icon>remove</md-icon>
+                                </button>
                                 <button md-icon-button (click)="increase(item)">
-                        <md-icon>add</md-icon>
-                    </button>
+                                    <md-icon>add</md-icon>
+                                </button>
                                 <button md-icon-button (click)="remove(item)">
-                        <md-icon>delete</md-icon>
-                    </button>
+                                    <md-icon>delete</md-icon>
+                                </button>
                             </div>
                             <md-divider ng-if="!$last"></md-divider>
                         </md-list-item>
@@ -39,24 +39,3 @@
         </div>
     </md-tab>
 </md-tab-group>
-
-<md-card>
-    <md-card-content>
-        <md-list>
-            <h3 md-subheader>Categories</h3>
-            <md-list-item *ngFor="let category of categories">
-                <md-icon md-list-icon>category</md-icon>
-                <h4 md-line>{{category.name}}</h4>
-                <p md-line> {{category.updated | date}} </p>
-            </md-list-item>
-            <md-divider></md-divider>
-            <h3 md-subheader>Labels</h3>
-            <md-list-item *ngFor="let label of labels">
-                <md-icon md-list-icon>label</md-icon>
-                <h4 md-line>{{label.name}}</h4>
-                <p md-line> {{label.updated | date}} </p>
-            </md-list-item>
-        </md-list>
-
-    </md-card-content>
-</md-card>

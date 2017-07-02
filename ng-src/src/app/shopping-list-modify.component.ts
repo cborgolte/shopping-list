@@ -12,19 +12,21 @@ import {DragulaService} from 'ng2-dragula/ng2-dragula';
 })
 export class ShoppingListModifyComponent {
   title = 'Modify Shopping List';
-  lineItems = null;
+  lineItems: Map<string, LineItem[]>;
 
   constructor(private shoppingListService: ShoppingListService, private dragulaService: DragulaService) { 
     this.lineItems = shoppingListService.getLineItems();
 
     dragulaService.drop.subscribe((value) => {
-      this.shoppingListService.onReorder();
+      console.log("reorder", this.lineItems[value[0]]);
+      this.shoppingListService.onReorder(value[0]);
     });
   }
 
   // handle entering a new item
   onEnter(input: any) {
-    let value = input.value;
+    console.log(input);
+    let value = input.value.trim();
     let amount = parseInt(value.split(' ', 1));
     if (!isNaN(amount)) {
       let valueSplitted = value.split(' ');
@@ -33,7 +35,13 @@ export class ShoppingListModifyComponent {
     else {
       amount = 1;
     }
-    this.shoppingListService.createLineItem(value, amount, true);
+    let category = input.dataset.category;
+    console.log(category);
+    this.shoppingListService.createLineItem(value, amount, true, category);
+    /*
+    this.lineItems[category] = this.lineItems[category] || [];
+    this.lineItems[category].push(li);
+    */
     // clear input
     input.value = "";
   }
@@ -68,6 +76,10 @@ export class ShoppingListModifyComponent {
    }
 
   categories = [
+    {
+      name: 'all',
+      updated: new Date('1/1/16'),
+    },
     {
       name: 'Obst',
       updated: new Date('1/1/16'),
