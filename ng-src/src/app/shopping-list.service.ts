@@ -85,9 +85,9 @@ export class ShoppingListService {
                   if (cat.findIndex((value) => value.name === category) === -1) {
                     cat.push(category);
                   }
-                })
+                });
               }
-            })
+            });
           });
         }
 
@@ -169,7 +169,7 @@ export class ShoppingListService {
         return lineItem;
       }
       return null;
-    }).filter((lineItem: LineItem, pos: number, array: LineItem[]) => {return lineItem != null});
+    }).filter((lineItem: LineItem, pos: number, array: LineItem[]) => {return lineItem != null;});
     this.db_updateLineItems(dbItems);
   }
 
