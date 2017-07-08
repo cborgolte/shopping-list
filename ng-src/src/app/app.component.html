@@ -6,11 +6,11 @@
             <md-icon>store</md-icon></a>
     </nav>
     <span class="spacer"></span>
-    <span class="user">Hi <strong>{{user.username || "-"}}</strong>&nbsp;|&nbsp;</span>
+    <span class="user">Hi <strong>{{username() || "-"}}</strong>&nbsp;|&nbsp;</span>
     <nav>
-        <a *ngIf="!user.logged_in" routerLink="/sign-in" routerLinkActive="active">Sign in</a>
-        <button title="sign out" md-icon-button *ngIf="user.logged_in" (click)="accountService.signOut()"><md-icon>lock-open</md-icon></button>
-        <a *ngIf="!user.logged_in" routerLink="/sign-up" routerLinkActive="active">Sign up</a>
+        <a *ngIf="!loggedIn()" routerLink="/sign-in" routerLinkActive="active">Sign in</a>
+        <button title="sign out" md-icon-button *ngIf="loggedIn()" (click)="accountService.signOut()"><md-icon>lock-open</md-icon></button>
+        <a *ngIf="!loggedIn()" routerLink="/sign-up" routerLinkActive="active">Sign up</a>
     </nav>
 </md-toolbar>
 <div class="app-content">

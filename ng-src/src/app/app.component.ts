@@ -18,6 +18,14 @@ export class AppComponent {
     this.user = accountService.getAccount();
   }
 
+  username(): string {
+    return this.user.username;
+  }
+
+  loggedIn(): boolean {
+    return this.user.logged_in;
+  }
+
   setUser() {
     this.user = this.accountService.getAccount();
   }

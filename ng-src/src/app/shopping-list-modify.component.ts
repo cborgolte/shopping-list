@@ -72,9 +72,13 @@ export class ShoppingListModifyComponent {
   }
 
   // track items
-  trackLineItems(index: number, lineItem: LineItem) { 
+  trackLineItems(index: number, lineItem: LineItem) {
     const lineItemRepr = (<any>lineItem);
     return lineItemRepr.id;
-   }
+  }
+
+  getCategories(): any[] {
+    return this.categories;
+  }
 
 }

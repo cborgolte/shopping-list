@@ -34,6 +34,10 @@ export class ShoppingListComponent {
     return [];
   }
 
+  getCategories(): any[] {
+    return this.categories;
+  }
+
   // track items
   trackLineItems(index: number, lineItem: LineItem) {
     const lineItemRepr = (<any>lineItem);
