@@ -3,6 +3,7 @@ version: "3.3"
 services:
     couch:
         image: couchdb:latest
+        restart: always
         ports:
             - "5984:5984"
         environment:
@@ -12,6 +13,7 @@ services:
             - ./couch-data:/usr/local/var/lib/couchdb
     hoodie-app:
         image: cborgolte/hoodie
+        restart: always
         ports:
             - "8080:8080"
         depends_on:
@@ -22,8 +24,10 @@ services:
             - hoodie_inMemory true
     caddy:
         image: abiosoft/caddy
+        restart: always
         ports:
             - "80:80"
+            - "443:443"
         volumes:
             -   ./caddy/Caddyfile:/etc/Caddyfile
             -   ./caddy/.caddy:/root/.caddy
