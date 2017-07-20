@@ -18,3 +18,9 @@
 .spacer {
     flex: 1 1 auto;
 }
+
+.legal {
+  font-size: 0.8em;
+  float: right;
+  padding: 0.8em;
+}
