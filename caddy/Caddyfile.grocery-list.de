@@ -1,0 +1,3 @@
+grocery-list.de {
+    proxy / http://hoodie-app:8080
+}

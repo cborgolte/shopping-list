@@ -1,0 +1,32 @@
+version: "3.3"
+
+services:
+    couch:
+        image: couchdb:latest
+        ports:
+            - "5984:5984"
+        environment:
+            - COUCHDB_USER=admin
+            - COUCHDB_PASSWORD=${COUCH_PW}
+        volumes:
+            - ./couch-data:/usr/local/var/lib/couchdb
+    hoodie-app:
+        image: cborgolte/hoodie
+        ports:
+            - "8080:8080"
+        depends_on:
+            - couch
+        environment:
+            - hoodie_adminPassword ${COUCH_PW}
+            - hoodie_dbUrl "http://admin:${COUCH_PW}@couch:5984/"
+            - hoodie_inMemory true
+    caddy:
+        image: abiosoft/caddy
+        ports:
+            - "80:80"
+        volumes:
+            -   ./caddy/Caddyfile:/etc/Caddyfile
+            -   ./caddy/.caddy:/root/.caddy
+        depends_on:
+            - couch
+            - hoodie-app
