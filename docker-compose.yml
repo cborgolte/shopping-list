@@ -19,9 +19,9 @@ services:
         depends_on:
             - couch
         environment:
-            - hoodie_adminPassword ${COUCH_PW}
-            - hoodie_dbUrl "http://admin:${COUCH_PW}@couch:5984/"
-            - hoodie_inMemory true
+            - hoodie_adminPassword=${COUCH_PW}
+            - hoodie_dbUrl=http://admin:${COUCH_PW}@couch:5984/
+            - hoodie_inMemory=true
     caddy:
         image: abiosoft/caddy
         restart: always
