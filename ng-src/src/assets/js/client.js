@@ -6,11 +6,9 @@ var options = {
 }
 module.exports = new Hoodie(options)
 
-},{"@hoodie/client":27,"pouchdb-browser":291}],2:[function(require,module,exports){
+},{"@hoodie/client":21,"pouchdb-browser":307}],2:[function(require,module,exports){
 module.exports = Account
 
-var getUsername = require('./lib/username')
-var getId = require('./lib/id')
 var events = require('./lib/events')
 
 var getState = require('./utils/get-state')
@@ -23,24 +21,14 @@ function Account (options) {
   var state = getState(options)
 
   var api = {
-    get username () {
-      return getUsername(state)
-    },
-    get id () {
-      return getId(state)
-    },
     signUp: require('./lib/sign-up').bind(null, state),
     signIn: require('./lib/sign-in').bind(null, state),
     signOut: require('./lib/sign-out').bind(null, state),
     destroy: require('./lib/destroy').bind(null, state),
-    isSignedIn: require('./lib/is-signed-in').bind(null, state),
-    hasInvalidSession: require('./lib/has-invalid-session').bind(null, state),
     get: require('./lib/get').bind(null, state),
-    fetch: require('./lib/fetch').bind(null, state),
     update: require('./lib/update').bind(null, state),
     profile: {
       get: require('./lib/profile-get').bind(null, state),
-      fetch: require('./lib/profile-fetch').bind(null, state),
       update: require('./lib/profile-update').bind(null, state)
     },
     request: require('./lib/request').bind(null, state),
@@ -48,54 +36,55 @@ function Account (options) {
     one: events.one.bind(null, state),
     off: events.off.bind(null, state),
     hook: state.hook.api,
-    validate: require('./lib/validate').bind(null, state),
-    ready: state.ready.then(function () { return api })
+    validate: require('./lib/validate').bind(null, state)
   }
 
   return api
 }
 
-},{"./lib/destroy":3,"./lib/events":4,"./lib/fetch":5,"./lib/get":6,"./lib/has-invalid-session":7,"./lib/id":8,"./lib/is-signed-in":9,"./lib/profile-fetch":10,"./lib/profile-get":11,"./lib/profile-update":12,"./lib/request":13,"./lib/sign-in":14,"./lib/sign-out":15,"./lib/sign-up":16,"./lib/update":17,"./lib/username":18,"./lib/validate":19,"./utils/get-state":24}],3:[function(require,module,exports){
+},{"./lib/destroy":3,"./lib/events":4,"./lib/get":5,"./lib/profile-get":6,"./lib/profile-update":7,"./lib/request":8,"./lib/sign-in":9,"./lib/sign-out":10,"./lib/sign-up":11,"./lib/update":12,"./lib/validate":13,"./utils/get-state":18}],3:[function(require,module,exports){
 module.exports = destroy
 
-var clone = require('lodash/clone')
+var omit = require('lodash/omit')
 
 var internals = module.exports.internals = {}
 internals.request = require('../utils/request')
 internals.get = require('./get')
-internals.isSignedIn = require('./is-signed-in')
 
 function destroy (state) {
-  var accountProperties
-  return state.ready
+  return state.setup
 
   .then(function () {
-    accountProperties = internals.get(state)
-
-    if (internals.isSignedIn(state)) {
-      return internals.request({
-        method: 'DELETE',
-        url: state.url + '/session/account',
-        headers: {
-          authorization: 'Session ' + state.account.session.id
-        }
-      })
-    }
+    return state.cache.get()
   })
 
-  .then(function () {
-    state.cache.unset()
+  .then(function (cache) {
+    var promise = Promise.resolve()
+    if (internals.get(state, 'session')) {
+      promise = promise.then(function () {
+        internals.request({
+          method: 'DELETE',
+          url: state.url + '/session/account',
+          headers: {
+            authorization: 'Session ' + cache.session.id
+          }
+        })
+      })
+    }
 
-    state.emitter.emit('signout', clone(state.account))
-    state.emitter.emit('destroy', clone(state.account))
+    return promise.then(function () {
+      state.cache.unset()
 
-    delete state.account
+      var account = omit(cache, 'session')
+      state.emitter.emit('signout', account)
+      state.emitter.emit('destroy', account)
 
-    return clone(accountProperties)
+      return account
+    })
   })
 }
 
-},{"../utils/request":25,"./get":6,"./is-signed-in":9,"lodash/clone":253}],4:[function(require,module,exports){
+},{"../utils/request":19,"./get":5,"lodash/omit":296}],4:[function(require,module,exports){
 module.exports = {
   on: on,
   one: one,
@@ -143,179 +132,166 @@ function off (state, eventName, handler) {
 }
 
 },{}],5:[function(require,module,exports){
-module.exports = fetch
+module.exports = accountGet
 
-var Promise = require('lie')
-var get = require('lodash/get')
-var merge = require('lodash/merge')
 var set = require('lodash/set')
+var merge = require('lodash/merge')
 
 var internals = module.exports.internals = {}
-internals.fetchProperties = require('../utils/fetch-properties')
+internals.getProperties = require('../utils/get-properties')
 internals.fetchProperties = require('../utils/fetch-properties')
 
-function fetch (state, path) {
-  return state.ready
+function accountGet (state, path, options) {
+  if (typeof path === 'object' && !Array.isArray(path)) {
+    options = path
+    path = undefined
+  }
 
-  .then(function () {
-    if (get(state, 'account.session') === undefined) {
-      var error = new Error('Not signed in')
-      error.name = 'UnauthenticatedError'
-      return Promise.reject(error)
+  return state.setup
+
+  .then(state.cache.get)
+
+  .then(function (cachedProperties) {
+    if ((options && options.local) || !cachedProperties.session || pathIsLocalOnly(path)) {
+      return internals.getProperties(cachedProperties, path)
     }
 
     return internals.fetchProperties({
       url: state.url + '/session/account',
-      sessionId: get(state, 'account.session.id'),
+      sessionId: cachedProperties.session.id,
       path: path
     })
-  })
 
-  .then(function (properties) {
-    if (typeof path === 'string') {
-      set(state.account, path, properties)
-    } else {
-      merge(state.account, properties)
-    }
+    .then(function (result) {
+      if (typeof path === 'string') {
+        set(cachedProperties, path, result)
+      } else if (Array.isArray(path)) {
+        merge(cachedProperties, result, {
+          session: cachedProperties.session
+        })
+      } else {
+        result.session = cachedProperties.session
+        cachedProperties = result
+      }
 
-    state.cache.set(state.account)
+      // reauthenticate an expired session
+      if (cachedProperties.session.invalid) {
+        delete cachedProperties.session.invalid
+        state.emitter.emit('reauthenticate')
+      }
 
-    return properties
-  })
+      return state.cache.set(cachedProperties)
 
-  .catch(function (error) {
-    if (error.statusCode === 401) {
-      state.account.session.invalid = true
+      .then(function () {
+        return internals.getProperties(cachedProperties, path)
+      })
+    })
+
+    .catch(function (error) {
+      if (error.statusCode !== 401) {
+        throw error
+      }
+
+      cachedProperties.session.invalid = true
       state.emitter.emit('unauthenticate')
 
-      state.cache.set(state.account)
-    }
+      return state.cache.set(cachedProperties)
 
-    throw error
+      .then(function () {
+        throw error
+      })
+    })
   })
 }
 
-},{"../utils/fetch-properties":21,"lie":100,"lodash/get":260,"lodash/merge":279,"lodash/set":283}],6:[function(require,module,exports){
-module.exports = accountGet
-
-var internals = module.exports.internals = {}
-internals.getProperties = require('../utils/get-properties')
-
-function accountGet (state, path) {
-  if (!state.account) {
-    throw new Error('account.get() not yet accessible, wait for account.ready to resolve')
+function pathIsLocalOnly (path) {
+  if (!path) {
+    return false
   }
 
-  return internals.getProperties(state.account, path)
-}
-
-},{"../utils/get-properties":23}],7:[function(require,module,exports){
-module.exports = hasInvalidSession
-
-var get = require('lodash/get')
-
-function hasInvalidSession (state) {
-  if (!state.account) {
-    throw new Error('account.hasInvalidSession() not yet accessible, wait for account.ready to resolve')
+  if (typeof path === 'string') {
+    return isLocalPath(path)
   }
 
-  return get(state, 'account.session.invalid')
+  return path.filter(isLocalPath).length === path.length
 }
 
-},{"lodash/get":260}],8:[function(require,module,exports){
-module.exports = getId
-
-function getId (state) {
-  if (!state.account) {
-    throw new Error('account.id not yet accessible, wait for account.ready to resolve')
-  }
-  return state.account.id
+function isLocalPath (path) {
+  return /^(id|session)\b/.test(path)
 }
 
-},{}],9:[function(require,module,exports){
-module.exports = isSignedIn
+},{"../utils/fetch-properties":15,"../utils/get-properties":17,"lodash/merge":294,"lodash/set":298}],6:[function(require,module,exports){
+module.exports = profileGet
 
-var get = require('lodash/get')
-
-function isSignedIn (state) {
-  if (!state.account) {
-    throw new Error('account.isSignedIn() not yet accessible, wait for account.ready to resolve')
-  }
-
-  return get(state, 'account.session') !== undefined
-}
-
-},{"lodash/get":260}],10:[function(require,module,exports){
-module.exports = profileFetch
-
-var get = require('lodash/get')
 var set = require('lodash/set')
 
 var internals = module.exports.internals = {}
+internals.getProperties = require('../utils/get-properties')
 internals.fetchProperties = require('../utils/fetch-properties')
 
-function profileFetch (state, path) {
-  return state.ready
+function profileGet (state, path, options) {
+  if (typeof path === 'object' && !Array.isArray(path)) {
+    options = path
+    path = undefined
+  }
 
-  .then(function () {
+  return state.setup
+
+  .then(state.cache.get)
+
+  .then(function (cachedProperties) {
+    if (!cachedProperties.session) {
+      return internals.getProperties(cachedProperties.profile || {}, path)
+    }
+
+    if (options && options.local) {
+      return internals.getProperties(cachedProperties.profile || {}, path)
+    }
+
     return internals.fetchProperties({
       url: state.url + '/session/account/profile',
-      sessionId: get(state, 'account.session.id'),
+      sessionId: cachedProperties.session.id,
       path: path
     })
-  })
 
-  .then(function (properties) {
-    if (typeof path === 'string') {
-      set(state.account.profile, path, properties)
-    } else {
-      set(state.account, 'profile', properties)
-    }
+    .then(function (result) {
+      if (typeof path === 'string') {
+        set(cachedProperties.profile, path, result)
+      } else {
+        cachedProperties.profile = result
+      }
 
-    state.cache.set(state.account)
+      // reauthenticate an expired session
+      if (cachedProperties.session.invalid) {
+        delete cachedProperties.session.invalid
+        state.emitter.emit('reauthenticate')
+      }
 
-    return properties
-  })
+      return state.cache.set(cachedProperties)
 
-  .catch(function (error) {
-    if (error.statusCode === 401) {
-      state.account.session.invalid = true
+      .then(function () {
+        return internals.getProperties(cachedProperties.profile || {}, path)
+      })
+    })
+
+    .catch(function (error) {
+      if (error.statusCode !== 401) {
+        throw error
+      }
+
+      cachedProperties.session.invalid = true
       state.emitter.emit('unauthenticate')
 
-      state.cache.set(state.account)
-    }
+      return state.cache.set(cachedProperties)
 
-    throw error
+      .then(function () {
+        throw error
+      })
+    })
   })
 }
 
-},{"../utils/fetch-properties":21,"lodash/get":260,"lodash/set":283}],11:[function(require,module,exports){
-module.exports = profileGet
-
-var get = require('lodash/get')
-
-var internals = module.exports.internals = {}
-internals.getProperties = require('../utils/get-properties')
-internals.isSignedIn = require('./is-signed-in')
-
-function profileGet (state, path) {
-  if (!state.account) {
-    throw new Error('account.profile.get() not yet accessible, wait for account.ready to resolve')
-  }
-
-  if (!internals.isSignedIn(state)) {
-    return undefined
-  }
-  var profile = get(state, 'account.profile')
-
-  if (!path) {
-    return profile || {}
-  }
-
-  return internals.getProperties(profile, path)
-}
-
-},{"../utils/get-properties":23,"./is-signed-in":9,"lodash/get":260}],12:[function(require,module,exports){
+},{"../utils/fetch-properties":15,"../utils/get-properties":17,"lodash/set":298}],7:[function(require,module,exports){
 module.exports = updateProfile
 
 var clone = require('lodash/clone')
@@ -332,45 +308,49 @@ function updateProfile (state, options) {
     return Promise.reject(new Error('Please specify a profile property to update or add.'))
   }
 
-  return state.ready
+  return state.setup
 
   .then(function () {
+    return state.cache.get()
+  })
+
+  .then(function (cache) {
     return internals.request({
       method: 'PATCH',
       url: state.url + '/session/account/profile',
       headers: {
-        authorization: 'Session ' + state.account.session.id
+        authorization: 'Session ' + cache.session.id
       },
-      body: internals.serialise('profile', options, state.account.id + '-profile')
+      body: internals.serialise('profile', options, cache.id + '-profile')
     })
-  })
 
-  .then(function () {
-    if (!state.account.profile) {
-      state.account.profile = {}
-    }
+    .then(function () {
+      if (!cache.profile) {
+        cache.profile = {}
+      }
 
-    merge(state.account.profile, options)
-    state.cache.set(state.account)
+      merge(cache.profile, options)
+      state.cache.set(cache)
 
-    state.emitter.emit('update', clone(state.account))
+      state.emitter.emit('update', clone(cache))
 
-    return state.account.profile
-  })
+      return cache.profile
+    })
 
-  .catch(function (error) {
-    if (error.statusCode === 401) {
-      state.account.session.invalid = true
-      state.emitter.emit('unauthenticate')
+    .catch(function (error) {
+      if (error.statusCode === 401) {
+        cache.session.invalid = true
+        state.emitter.emit('unauthenticate')
 
-      state.cache.set(state.account)
-    }
+        state.cache.set(cache)
+      }
 
-    throw error
+      throw error
+    })
   })
 }
 
-},{"../utils/request":25,"../utils/serialise":26,"lie":100,"lodash/clone":253,"lodash/merge":279}],13:[function(require,module,exports){
+},{"../utils/request":19,"../utils/serialise":20,"lie":115,"lodash/clone":269,"lodash/merge":294}],8:[function(require,module,exports){
 module.exports = request
 
 var Promise = require('lie')
@@ -385,7 +365,7 @@ function request (state, options) {
     return Promise.reject(new Error('account.request: options.type must be passed'))
   }
 
-  return state.ready
+  return state.setup
 
   .then(function () {
     return internals.request({
@@ -403,12 +383,11 @@ function request (state, options) {
   })
 }
 
-},{"../utils/deserialise":20,"../utils/request":25,"../utils/serialise":26,"lie":100}],14:[function(require,module,exports){
+},{"../utils/deserialise":14,"../utils/request":19,"../utils/serialise":20,"lie":115}],9:[function(require,module,exports){
 module.exports = signIn
 
 var Promise = require('lie')
-var clone = require('lodash/clone')
-var get = require('lodash/get')
+var omit = require('lodash/omit')
 
 var internals = module.exports.internals = {}
 internals.deserialise = require('../utils/deserialise')
@@ -424,9 +403,18 @@ function signIn (state, options) {
     return Promise.reject(new Error('options.username/options.password or options.token required'))
   }
 
-  return state.ready
+  return state.setup
 
   .then(function () {
+    return state.cache.get()
+  })
+
+  .then(function (cache) {
+    // If a different user is signed in than the one trying to signIn, throw an error
+    if (cache.session && cache.username !== options.username) {
+      return Promise.reject(new Error('You must sign out before signing in'))
+    }
+
     return state.hook('signin', options, function (options) {
       return internals.request({
         url: state.url + '/session',
@@ -447,12 +435,11 @@ function signIn (state, options) {
         }
 
         // If the username hasn’t changed, emit 'reauthenticate' instead of 'signin'
-        var emitEvent = 'signin'
-        if (get(state, 'account.username') === options.username) {
-          emitEvent = 'reauthenticate'
-        }
+        var emitEvent = cache.username === data.account.username
+          ? 'reauthenticate'
+          : 'signin'
 
-        state.account = {
+        cache = {
           username: data.account.username,
           session: {
             id: data.id
@@ -460,35 +447,38 @@ function signIn (state, options) {
         }
 
         if (data.account.id) {
-          state.account.id = data.account.id
+          cache.id = data.account.id
         }
 
-        state.cache.set(state.account)
+        state.cache.set(cache)
 
-        state.emitter.emit(emitEvent, clone(state.account))
+        state.emitter.emit(emitEvent, cache)
 
-        return data.account
+        return omit(cache, 'session')
       })
     })
   })
 }
 
-},{"../utils/deserialise":20,"../utils/request":25,"../utils/serialise":26,"lie":100,"lodash/clone":253,"lodash/get":260}],15:[function(require,module,exports){
+},{"../utils/deserialise":14,"../utils/request":19,"../utils/serialise":20,"lie":115,"lodash/omit":296}],10:[function(require,module,exports){
 module.exports = signOut
 
-var clone = require('lodash/clone')
+var omit = require('lodash/omit')
 
 var internals = module.exports.internals = {}
 internals.request = require('../utils/request')
 internals.get = require('./get')
-internals.isSignedIn = require('./is-signed-in')
 internals.generateId = require('../utils/generate-id')
 
 function signOut (state) {
-  return state.ready
+  return state.setup
 
   .then(function () {
-    if (!internals.isSignedIn(state)) {
+    return state.cache.get()
+  })
+
+  .then(function (cache) {
+    if (!cache.session) {
       throw new Error('UnauthenticatedError: Not signed in')
     }
 
@@ -497,7 +487,7 @@ function signOut (state) {
         method: 'DELETE',
         url: state.url + '/session',
         headers: {
-          authorization: 'Session ' + state.account.session.id
+          authorization: 'Session ' + cache.session.id
         }
       })
 
@@ -506,27 +496,24 @@ function signOut (state) {
       })
 
       .then(function () {
-        var accountClone = clone(state.account)
-
-        state.account = {
+        return state.cache.set({
           id: internals.generateId()
-        }
-        return state.cache.set(state.account)
+        })
 
         .then(function () {
-          state.emitter.emit('signout', accountClone)
+          var account = omit(cache, 'session')
+          state.emitter.emit('signout', account)
 
-          return accountClone
+          return account
         })
       })
     })
   })
 }
 
-},{"../utils/generate-id":22,"../utils/request":25,"./get":6,"./is-signed-in":9,"lodash/clone":253}],16:[function(require,module,exports){
+},{"../utils/generate-id":16,"../utils/request":19,"./get":5,"lodash/omit":296}],11:[function(require,module,exports){
 module.exports = signUp
 
-var get = require('lodash/get')
 var Promise = require('lie')
 
 var internals = module.exports.internals = {}
@@ -539,21 +526,25 @@ function signUp (state, options) {
     return Promise.reject(new Error('options.username and options.password is required'))
   }
 
-  return state.ready
+  return state.setup
 
   .then(function () {
+    return state.cache.get()
+  })
+
+  .then(function (cache) {
     state.validate(options)
 
     if (options.profile) {
       throw new Error('SignUp with profile data not yet implemented. Please see https://github.com/hoodiehq/hoodie-account-client/issues/11.')
     }
 
-    options.createdAt = get(state, 'account.createdAt')
+    options.createdAt = cache.createdAt
 
     return internals.request({
       url: state.url + '/session/account',
       method: 'PUT',
-      body: internals.serialise('account', options, get(state, 'account.id'))
+      body: internals.serialise('account', options, cache.id)
     })
 
     .then(function (response) {
@@ -568,10 +559,9 @@ function signUp (state, options) {
   })
 }
 
-},{"../utils/deserialise":20,"../utils/request":25,"../utils/serialise":26,"lie":100,"lodash/get":260}],17:[function(require,module,exports){
+},{"../utils/deserialise":14,"../utils/request":19,"../utils/serialise":20,"lie":115}],12:[function(require,module,exports){
 module.exports = update
 
-var clone = require('lodash/clone')
 var merge = require('lodash/merge')
 var omit = require('lodash/omit')
 
@@ -587,58 +577,53 @@ function update (state, options) {
     return Promise.reject(new Error('Specify an account property to update'))
   }
 
-  return state.ready
+  return state.setup
 
   .then(function () {
+    return state.cache.get()
+  })
+
+  .then(function (cache) {
     return internals.request({
       method: 'PATCH',
       url: state.url + '/session/account',
       headers: {
-        authorization: 'Session ' + state.account.session.id
+        authorization: 'Session ' + cache.session.id
       },
-      body: internals.serialise('account', options, state.account.id)
+      body: internals.serialise('account', options, cache.id)
+    })
+
+    .then(function (response) {
+      // when a username changes, the session ID gets recalculated, as it’s based
+      // on the username, see npm.im/couchdb-calculate-session-id. In that case
+      // the server sets x-set-session with the new session id.
+      if (response.headers['x-set-session']) {
+        cache.session.id = response.headers['x-set-session']
+      }
+
+      merge(cache, omit(options, ['password']))
+      state.cache.set(cache)
+
+      var account = omit(cache, 'session')
+      state.emitter.emit('update', account)
+
+      return account
+    })
+
+    .catch(function (error) {
+      if (error.statusCode === 401) {
+        cache.session.invalid = true
+        state.emitter.emit('unauthenticate')
+
+        state.cache.set(cache)
+      }
+
+      throw error
     })
   })
-
-  .then(function (response) {
-    // when a username changes, the session ID gets recalculated, as it’s based
-    // on the username, see npm.im/couchdb-calculate-session-id. In that case
-    // the server sets x-set-session with the new session id.
-    if (response.headers['x-set-session']) {
-      state.account.session.id = response.headers['x-set-session']
-    }
-
-    merge(state.account, omit(options, ['password']))
-    state.cache.set(state.account)
-
-    state.emitter.emit('update', clone(state.account))
-
-    return state.account
-  })
-
-  .catch(function (error) {
-    if (error.statusCode === 401) {
-      state.account.session.invalid = true
-      state.emitter.emit('unauthenticate')
-
-      state.cache.set(state.account)
-    }
-
-    throw error
-  })
 }
 
-},{"../utils/deserialise":20,"../utils/request":25,"../utils/serialise":26,"lie":100,"lodash/clone":253,"lodash/merge":279,"lodash/omit":281}],18:[function(require,module,exports){
-module.exports = username
-
-function username (state) {
-  if (!state.account) {
-    throw new Error('account.username not yet accessible, wait for account.ready to resolve')
-  }
-  return state.account.username
-}
-
-},{}],19:[function(require,module,exports){
+},{"../utils/deserialise":14,"../utils/request":19,"../utils/serialise":20,"lie":115,"lodash/merge":294,"lodash/omit":296}],13:[function(require,module,exports){
 module.exports = validate
 
 var Promise = require('lie')
@@ -662,7 +647,7 @@ function validate (state, options) {
   })
 }
 
-},{"lie":100}],20:[function(require,module,exports){
+},{"lie":115}],14:[function(require,module,exports){
 module.exports = deserialise
 
 var merge = require('lodash/merge')
@@ -730,7 +715,7 @@ function deserialiseMany (options, response) {
   })
 }
 
-},{"lodash/filter":258,"lodash/merge":279}],21:[function(require,module,exports){
+},{"lodash/filter":273,"lodash/merge":294}],15:[function(require,module,exports){
 module.exports = fetchProperties
 
 var deserialise = require('./deserialise')
@@ -753,7 +738,7 @@ function fetchProperties (options) {
   })
 }
 
-},{"./deserialise":20,"./get-properties":23,"./request":25}],22:[function(require,module,exports){
+},{"./deserialise":14,"./get-properties":17,"./request":19}],16:[function(require,module,exports){
 module.exports = generateId
 
 // uuids consist of numbers and lowercase letters only.
@@ -776,7 +761,7 @@ function generateId () {
   return id
 }
 
-},{}],23:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 module.exports = getProperties
 
 var get = require('lodash/get')
@@ -796,7 +781,7 @@ function getProperties (baseObject, path) {
   return get(baseObject, path)
 }
 
-},{"lodash/get":260,"lodash/set":283}],24:[function(require,module,exports){
+},{"lodash/get":275,"lodash/set":298}],18:[function(require,module,exports){
 module.exports = getState
 
 var Hook = require('before-after-hook')
@@ -820,46 +805,44 @@ function getState (options) {
 
   var cacheKey = options.cacheKey || 'account'
   var cache = options.cache || new LocalStorageStore(cacheKey)
+  var setup = cache.get()
+
+  .then(function (storedAccount) {
+    if (storedAccount.id) {
+      if (options.id && options.id !== storedAccount.id) {
+        throw new Error('account.id conflict')
+      }
+
+      return
+    }
+
+    storedAccount = {
+      id: options.id || generateId(),
+      createdAt: new Date().toISOString()
+    }
+
+    return cache.set(storedAccount)
+  })
+
+  .catch(function (error) {
+    error.message = 'Error while initialising: ' + error.message
+    throw error
+  })
 
   var state = {
     cacheKey: cacheKey,
     emitter: options.emitter || new EventEmitter(),
     hook: new Hook(),
-    account: undefined,
     url: options.url,
     validate: options.validate || function () {},
     cache: cache,
-    ready: cache.get()
-      .then(function (storedAccount) {
-        if (storedAccount.id) {
-          state.account = storedAccount
-
-          var storedAccountId = storedAccount.id
-          if (options.id && storedAccountId && options.id !== storedAccountId) {
-            throw new Error('account.id conflict')
-          }
-
-          return
-        }
-
-        state.account = {
-          id: options.id || generateId(),
-          createdAt: new Date().toISOString()
-        }
-
-        return cache.set(state.account)
-      })
-      .catch(function (error) {
-        error.name = 'SetupError'
-        error.message = 'Error while initialising: ' + error.message
-        throw error
-      })
+    setup: setup
   }
 
   return state
 }
 
-},{"./generate-id":22,"async-get-set-store":77,"before-after-hook":79,"events":90}],25:[function(require,module,exports){
+},{"./generate-id":16,"async-get-set-store":92,"before-after-hook":94,"events":105}],19:[function(require,module,exports){
 module.exports = request
 
 var nets = require('nets')
@@ -896,7 +879,7 @@ function request (options) {
   })
 }
 
-},{"lie":100,"lodash/set":283,"nets":289}],26:[function(require,module,exports){
+},{"lie":115,"lodash/set":298,"nets":304}],20:[function(require,module,exports){
 module.exports = serialise
 
 function serialise (type, attributes, id) {
@@ -915,7 +898,7 @@ function serialise (type, attributes, id) {
   return { data: data }
 }
 
-},{}],27:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 module.exports = Hoodie
 
 var getState = require('./lib/get-state')
@@ -928,7 +911,7 @@ function Hoodie (options) {
   return api
 }
 
-},{"./lib/get-api":29,"./lib/get-state":30}],28:[function(require,module,exports){
+},{"./lib/get-api":23,"./lib/get-state":24}],22:[function(require,module,exports){
 module.exports = {
   on: on,
   one: one,
@@ -987,7 +970,7 @@ function trigger (state, eventName) {
   return this
 }
 
-},{}],29:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 module.exports = getApi
 
 var defaultsDeep = require('lodash/defaultsDeep')
@@ -1018,95 +1001,55 @@ function getApi (state) {
   }, state.connectionStatus)
   var log = mergeOptionsAndCreate(internals.Log, { prefix: 'hoodie' }, state.log)
 
-  var hoodieStore
+  var hoodieStore = new internals.Store('store', {
+    PouchDB: state.PouchDB,
+    get remote () {
+      return hoodieAccount.get(['id', 'session.id']).then(function (properties) {
+        return new state.PouchDB(url + '/store/api/' + encodeURIComponent('user/' + properties.id), {
+          ajax: {
+            headers: {
+              authorization: 'Session ' + properties.session.id
+            }
+          }
+        })
+      })
+    }
+  })
+
   var api = {
     get url () {
       return state.url + '/hoodie'
     },
-    get ready () {
-      if (state.isReady) {
-        return Promise.resolve(api)
-      }
-
-      return Promise.all([hoodieAccount.ready, hoodieConnectionStatus.ready])
-
-      .then(function () {
-        if (state.isReady) {
-          return api
-        }
-
-        state.isReady = true
-        var CustomPouchDB = state.PouchDB.defaults({
-          ajax: {
-            headers: {
-              get authorization () {
-                var session = api.account.get('session')
-                if (!session) {
-                  return
-                }
-
-                return 'Session ' + session.id
-              }
-            }
-          }
-        })
-        var CustomStore = internals.Store.defaults({
-          PouchDB: CustomPouchDB,
-          remoteBaseUrl: url + '/store/api'
-        })
-        var dbName = 'user/' + hoodieAccount.id
-        hoodieStore = new CustomStore(dbName)
-
-        internals.init(api)
-
-        return api
-      })
-    },
 
     // core modules
-    get account () {
-      if (!state.isReady) {
-        throw new Error('hoodie.account not yet accessible, wait for hoodie.ready to resolve')
-      }
-
-      return hoodieAccount
-    },
-    get store () {
-      if (!state.isReady) {
-        throw new Error('hoodie.store not yet accessible, wait for hoodie.ready to resolve')
-      }
-
-      return hoodieStore
-    },
-    get connectionStatus () {
-      if (!state.isReady) {
-        throw new Error('hoodie.connectionStatus not yet accessible, wait for hoodie.ready to resolve')
-      }
-
-      return hoodieConnectionStatus
-    },
+    account: hoodieAccount,
+    store: hoodieStore,
+    connectionStatus: hoodieConnectionStatus,
 
     // helpers
-    request: require('./request').bind(this, state),
+    request: require('./request').bind(null, state),
     log: log,
-    plugin: require('./plugin'),
 
     // events
-    on: require('./events').on.bind(this, state),
-    one: require('./events').one.bind(this, state),
-    off: require('./events').off.bind(this, state),
-    trigger: require('./events').trigger.bind(this, state)
+    on: require('./events').on.bind(null, state),
+    one: require('./events').one.bind(null, state),
+    off: require('./events').off.bind(null, state),
+    trigger: require('./events').trigger.bind(null, state)
   }
+
+  api.plugin = require('./plugin').bind(null, api, state)
+
+  internals.init(api)
 
   return api
 }
 
-function mergeOptionsAndCreate (objectConstructor, defaultOptions, stateOptions) {
+function mergeOptionsAndCreate (ObjectConstructor, defaultOptions, stateOptions) {
   var options = defaultsDeep(defaultOptions, stateOptions || {})
-  return objectConstructor(options)
+  return new ObjectConstructor(options)
 }
 
-},{"./events":28,"./init":31,"./plugin":32,"./request":33,"@hoodie/account-client":2,"@hoodie/connection-status/client":35,"@hoodie/log/client":47,"@hoodie/store-client":56,"lodash/defaultsDeep":256,"pouchdb-doc-api":293}],30:[function(require,module,exports){
+},{"./events":22,"./init":25,"./plugin":26,"./request":27,"@hoodie/account-client":2,"@hoodie/connection-status/client":29,"@hoodie/log/client":41,"@hoodie/store-client":50,"lodash/defaultsDeep":271,"pouchdb-doc-api":309}],24:[function(require,module,exports){
 module.exports = getState
 
 var EventEmitter = require('events').EventEmitter
@@ -1124,17 +1067,13 @@ function getState (options) {
   }
 
   var requiredProperties = {
-    emitter: options && options.emitter || new EventEmitter()
+    emitter: (options && options.emitter) || new EventEmitter()
   }
 
-  var state = defaultsDeep(requiredProperties, options)
-
-  state.isReady = false
-
-  return state
+  return defaultsDeep(requiredProperties, options)
 }
 
-},{"events":90,"lodash/defaultsDeep":256}],31:[function(require,module,exports){
+},{"events":105,"lodash/defaultsDeep":271}],25:[function(require,module,exports){
 module.exports = init
 
 function init (hoodie) {
@@ -1143,27 +1082,30 @@ function init (hoodie) {
   // on signin. So before the signin happens, we store the user account’s id
   // and data and store it again after the signin
   hoodie.account.hook.before('signin', function (options) {
-    options.beforeSignin = {
-      accountId: hoodie.account.id
-    }
-    return hoodie.store.findAll().then(function (docs) {
-      options.beforeSignin.docs = docs
+    return Promise.all([
+      hoodie.account.get('id'),
+      hoodie.store.findAll()
+    ]).then(function (results) {
+      options.beforeSignin = {
+        accountId: results[0],
+        docs: results[1]
+      }
     })
   })
 
-  hoodie.account.hook.after('signin', function (session, options) {
+  hoodie.account.hook.after('signin', function (account, options) {
     // when signing in to a newly created account, the account.id does not
     // change. The same is true when the user changed their username. In both
     // cases there is no need to migrate local data
-    if (options.beforeSignin.accountId === hoodie.account.id) {
+    if (options.beforeSignin.accountId === account.id) {
       return hoodie.store.connect()
     }
 
-    return hoodie.store.reset({ name: 'user/' + hoodie.account.id })
+    return hoodie.store.reset()
 
     .then(function () {
       function migrate (doc) {
-        doc.createdBy = hoodie.account.id
+        doc.createdBy = account.id
         delete doc._rev
         return doc
       }
@@ -1187,7 +1129,7 @@ function init (hoodie) {
     })
   })
   hoodie.account.hook.after('signout', function (options) {
-    return hoodie.store.reset({ name: 'user/' + hoodie.account.id })
+    return hoodie.store.reset()
   })
 
   hoodie.account.on('unauthenticate', hoodie.store.disconnect)
@@ -1195,42 +1137,62 @@ function init (hoodie) {
 
   // handle connection status changes
   hoodie.connectionStatus.on('disconnect', function () {
-    if (!hoodie.account.isSignedIn()) {
-      return
-    }
-    hoodie.store.disconnect()
+    hoodie.account.get('session')
+
+    .then(function (session) {
+      if (session) {
+        hoodie.store.disconnect()
+      }
+    })
   })
-  hoodie.connectionStatus.on('connect', function () {
-    if (!hoodie.account.isSignedIn()) {
-      return
-    }
-    hoodie.store.connect()
+  hoodie.connectionStatus.on('reconnect', function () {
+    hoodie.account.get('session')
+
+    .then(function (session) {
+      if (session) {
+        hoodie.store.connect()
+      }
+    })
   })
 
-  // hoodie.connectionStatus.ok is false if there is a connection issue
-  if (hoodie.account.isSignedIn() && hoodie.connectionStatus.ok !== false) {
+  hoodie.account.get('session')
+
+  .then(function (session) {
+    // signed out
+    if (!session) {
+      return
+    }
+
+    // signed in, but session was invalid
+    if (session.invalid) {
+      return
+    }
+
+    // hoodie.connectionStatus.ok is false if there is a connection issue
+    if (hoodie.connectionStatus.ok === false) {
+      return
+    }
+
     hoodie.store.connect()
-  }
+  })
 }
 
-},{}],32:[function(require,module,exports){
-module.exports = function pluginMethod (plugin) {
-  var self = this
-
+},{}],26:[function(require,module,exports){
+module.exports = function pluginMethod (hoodie, options, plugin) {
   if (typeof plugin === 'function') {
-    plugin(self)
+    plugin(hoodie, options)
   }
 
   if (typeof plugin === 'object') {
     Object.keys(plugin).forEach(function (key) {
-      self[key] = plugin[key]
+      hoodie[key] = plugin[key]
     })
   }
 
-  return self
+  return hoodie
 }
 
-},{}],33:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 module.exports = request
 
 var Promise = require('lie')
@@ -1264,7 +1226,7 @@ function request (state, options) {
   return internals.request(requestOptions)
 }
 
-},{"./utils/request":34,"lie":100}],34:[function(require,module,exports){
+},{"./utils/request":28,"lie":115}],28:[function(require,module,exports){
 module.exports = request
 
 var nets = require('nets')
@@ -1293,7 +1255,7 @@ function request (options) {
   })
 }
 
-},{"lie":100,"nets":289}],35:[function(require,module,exports){
+},{"lie":115,"nets":304}],29:[function(require,module,exports){
 module.exports = Connection
 
 var EventEmitter = require('events').EventEmitter
@@ -1335,10 +1297,10 @@ function Connection (options) {
   return api
 }
 
-},{"../lib/check":36,"../lib/get-ok":37,"../lib/is-checking":38,"../lib/off":39,"../lib/on":40,"../lib/reset":41,"../lib/start-checking":42,"../lib/stop-checking":43,"../lib/utils/parse-options":45,"events":90}],36:[function(require,module,exports){
-(function (process){
+},{"../lib/check":30,"../lib/get-ok":31,"../lib/is-checking":32,"../lib/off":33,"../lib/on":34,"../lib/reset":35,"../lib/start-checking":36,"../lib/stop-checking":37,"../lib/utils/parse-options":39,"events":105}],30:[function(require,module,exports){
 module.exports = check
 
+var nextTick = require('next-tick')
 var internals = module.exports.internals = {}
 internals.cache = require('./utils/cache')
 internals.request = require('./utils/request')
@@ -1365,7 +1327,7 @@ function check (state) {
       state.timestamp = new Date().toISOString()
 
       if (state.error) {
-        process.nextTick(function () {
+        nextTick(function () {
           state.emitter.emit('reconnect')
         })
         delete state.error
@@ -1377,7 +1339,7 @@ function check (state) {
       state.timestamp = new Date().toISOString()
 
       if (!state.error) {
-        process.nextTick(function () {
+        nextTick(function () {
           state.emitter.emit('disconnect')
         })
       }
@@ -1400,8 +1362,7 @@ function check (state) {
   })
 }
 
-}).call(this,require('_process'))
-},{"./utils/cache":44,"./utils/request":46,"_process":86}],37:[function(require,module,exports){
+},{"./utils/cache":38,"./utils/request":40,"next-tick":305}],31:[function(require,module,exports){
 module.exports = getOk
 
 function getOk (state) {
@@ -1412,14 +1373,14 @@ function getOk (state) {
   return state.error === undefined
 }
 
-},{}],38:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 module.exports = isChecking
 
 function isChecking (state) {
   return !!state.checkTimeout
 }
 
-},{}],39:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 module.exports = off
 
 function off (state, eventName, handler) {
@@ -1428,7 +1389,7 @@ function off (state, eventName, handler) {
   return this
 }
 
-},{}],40:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 module.exports = on
 
 function on (state, eventName, handler) {
@@ -1437,7 +1398,7 @@ function on (state, eventName, handler) {
   return this
 }
 
-},{}],41:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 module.exports = reset
 
 var cache = require('./utils/cache')
@@ -1470,7 +1431,7 @@ function reset (state, o) {
   })
 }
 
-},{"./utils/cache":44}],42:[function(require,module,exports){
+},{"./utils/cache":38}],36:[function(require,module,exports){
 module.exports = startChecking
 
 var internals = module.exports.internals = {}
@@ -1533,7 +1494,7 @@ function parse (options) {
   return options
 }
 
-},{"./check":36,"./get-ok":37}],43:[function(require,module,exports){
+},{"./check":30,"./get-ok":31}],37:[function(require,module,exports){
 module.exports = stopChecking
 
 function stopChecking (state) {
@@ -1545,7 +1506,7 @@ function stopChecking (state) {
   })
 }
 
-},{}],44:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
 module.exports = {
   get: getCache,
   set: setCache,
@@ -1585,11 +1546,11 @@ function clearCache (state) {
   return state.cache.unset()
 }
 
-},{}],45:[function(require,module,exports){
-(function (process){
+},{}],39:[function(require,module,exports){
 module.exports = parseOptions
 
 var Store = require('async-get-set-store')
+var nextTick = require('next-tick')
 
 var cache = require('./cache')
 
@@ -1642,7 +1603,7 @@ function parseOptions (options) {
           var cachedTime = +new Date(cache.timestamp)
           var currentTime = +new Date()
           if (state.cacheTimeout && currentTime >= cachedTime + state.cacheTimeout) {
-            process.nextTick(function () {
+            nextTick(function () {
               state.emitter.emit('reset', cache)
             })
           } else {
@@ -1661,8 +1622,7 @@ function parseOptions (options) {
   return state
 }
 
-}).call(this,require('_process'))
-},{"./cache":44,"_process":86,"async-get-set-store":77}],46:[function(require,module,exports){
+},{"./cache":38,"async-get-set-store":92,"next-tick":305}],40:[function(require,module,exports){
 module.exports = request
 
 var internals = module.exports.internals = {}
@@ -1676,7 +1636,12 @@ function request (options) {
     requestState = internals.nets({
       method: options.method,
       url: options.url,
-      timeout: options.timeout
+      timeout: options.timeout,
+      // Turn off the use of Buffer in nets
+      // in order to make this module compatible
+      // for Webpack builds.
+      // see: https://github.com/maxogden/nets
+      encoding: undefined
     }, function (error, response, body) {
       if (error) {
         error.name = error.code === 'ETIMEDOUT' ? 'TimeoutError' : 'ConnectionError'
@@ -1708,7 +1673,7 @@ function request (options) {
   return promise
 }
 
-},{"nets":289}],47:[function(require,module,exports){
+},{"nets":304}],41:[function(require,module,exports){
 module.exports = Log
 
 Log.console = console
@@ -1765,7 +1730,7 @@ function Log (options) {
   return api
 }
 
-},{"../lib/debug":48,"../lib/error":49,"../lib/info":50,"../lib/log":51,"../lib/utils/parse-options":53,"../lib/warn":55}],48:[function(require,module,exports){
+},{"../lib/debug":42,"../lib/error":43,"../lib/info":44,"../lib/log":45,"../lib/utils/parse-options":47,"../lib/warn":49}],42:[function(require,module,exports){
 module.exports = debug
 
 var logLevelIgnored = require('./utils/log-level-ignored')
@@ -1779,7 +1744,7 @@ function debug (state) {
   state.console.log.apply(state.console, args)
 }
 
-},{"./utils/log-level-ignored":52,"./utils/prepare-log-arguments":54}],49:[function(require,module,exports){
+},{"./utils/log-level-ignored":46,"./utils/prepare-log-arguments":48}],43:[function(require,module,exports){
 module.exports = error
 
 var prepareLogArguments = require('./utils/prepare-log-arguments')
@@ -1789,7 +1754,7 @@ function error (state) {
   state.console.error.apply(state.console, args)
 }
 
-},{"./utils/prepare-log-arguments":54}],50:[function(require,module,exports){
+},{"./utils/prepare-log-arguments":48}],44:[function(require,module,exports){
 module.exports = info
 
 var logLevelIgnored = require('./utils/log-level-ignored')
@@ -1803,7 +1768,7 @@ function info (state) {
   state.console.info.apply(state.console, args)
 }
 
-},{"./utils/log-level-ignored":52,"./utils/prepare-log-arguments":54}],51:[function(require,module,exports){
+},{"./utils/log-level-ignored":46,"./utils/prepare-log-arguments":48}],45:[function(require,module,exports){
 module.exports = log
 
 var prepareLogArguments = require('./utils/prepare-log-arguments')
@@ -1813,7 +1778,7 @@ function log (state) {
   state.console.log.apply(state.console, args)
 }
 
-},{"./utils/prepare-log-arguments":54}],52:[function(require,module,exports){
+},{"./utils/prepare-log-arguments":48}],46:[function(require,module,exports){
 module.exports = logLevelIgnored
 
 function logLevelIgnored (state, target) {
@@ -1827,7 +1792,7 @@ var LEVELS = {
   error: 3
 }
 
-},{}],53:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 module.exports = parseOptions
 
 parseOptions.browserSupportsLogStyles = require('browser-supports-log-styles')
@@ -1879,7 +1844,7 @@ function parseOptions (options) {
   return options
 }
 
-},{"browser-supports-log-styles":85}],54:[function(require,module,exports){
+},{"browser-supports-log-styles":100}],48:[function(require,module,exports){
 module.exports = prepareLogArguments
 
 function prepareLogArguments (state, type, args) {
@@ -1890,7 +1855,7 @@ function prepareLogArguments (state, type, args) {
   return ['(' + state.prefix + ':' + type + ')'].concat(args)
 }
 
-},{}],55:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 module.exports = warn
 
 var logLevelIgnored = require('./utils/log-level-ignored')
@@ -1904,23 +1869,21 @@ function warn (state) {
   state.console.warn.apply(state.console, args)
 }
 
-},{"./utils/log-level-ignored":52,"./utils/prepare-log-arguments":54}],56:[function(require,module,exports){
+},{"./utils/log-level-ignored":46,"./utils/prepare-log-arguments":48}],50:[function(require,module,exports){
 module.exports = Store
 
 var EventEmitter = require('events').EventEmitter
 
-var merge = require('lodash/merge')
+var assign = require('lodash/assign')
 
-var subscribeToSyncEvents = require('./lib/subscribe-to-sync-events')
-var syncWrapper = require('./lib/sync-wrapper')
-var scoped = require('./lib/scoped/')
-var isPersistent = require('./lib/is-persistent')
+var internals = Store.internals = {}
+internals.handleChanges = require('./lib/helpers/handle-changes')
 
 function Store (dbName, options) {
   if (!(this instanceof Store)) return new Store(dbName, options)
   if (typeof dbName !== 'string') throw new Error('Must be a valid string.')
 
-  if (!options || (!options.remote && !options.remoteBaseUrl)) {
+  if (!options || (!('remote' in options) && !options.remoteBaseUrl)) {
     throw new Error('options.remote or options.remoteBaseUrl is required')
   }
 
@@ -1934,61 +1897,47 @@ function Store (dbName, options) {
     }
   }
 
-  // plugins are directly applied to `options.PouchDB`
-  options.PouchDB
-    .plugin(require('pouchdb-hoodie-api'))
-    .plugin(require('pouchdb-hoodie-sync'))
-
   var db = new options.PouchDB(dbName)
   var emitter = new EventEmitter()
-  var remote = options.remote
-  var syncApi = db.hoodieSync({remote: remote})
-  var storeApi = db.hoodieApi({emitter: emitter})
 
   var state = {
-    objectTypeById: {},
-    scopedApis: {},
-    db: db
+    db: db,
+    dbName: dbName,
+    PouchDB: options.PouchDB,
+    emitter: emitter,
+    get remote () {
+      return options.remote
+    }
   }
 
-  // possible race condition...
-  storeApi.findAll().then(function (objects) {
-    objects.forEach(function (object) {
-      state.objectTypeById[object.id] = object.type
-    })
-  })
+  var api = {
+    db: state.db,
+    isPersistent: require('./lib/is-persistent').bind(null, state),
+    add: require('./lib/add').bind(null, state, null),
+    find: require('./lib/find').bind(null, state, null),
+    findAll: require('./lib/find-all').bind(null, state, null),
+    findOrAdd: require('./lib/find-or-add').bind(null, state, null),
+    update: require('./lib/update').bind(null, state, null),
+    updateOrAdd: require('./lib/update-or-add').bind(null, state, null),
+    updateAll: require('./lib/update-all').bind(null, state, null),
+    remove: require('./lib/remove').bind(null, state, null),
+    removeAll: require('./lib/remove-all').bind(null, state, null),
+    withIdPrefix: require('./lib/with-id-prefix').bind(null, state),
+    on: require('./lib/on').bind(null, state),
+    one: require('./lib/one').bind(null, state),
+    off: require('./lib/off').bind(null, state),
+    pull: require('./lib/pull').bind(null, state),
+    push: require('./lib/push').bind(null, state),
+    sync: require('./lib/sync').bind(null, state),
+    connect: require('./lib/connect').bind(null, state),
+    disconnect: require('./lib/disconnect').bind(null, state),
+    isConnected: require('./lib/is-connected').bind(null, state),
+    reset: require('./lib/reset').bind(null, state)
+  }
 
-  var api = merge(
-    scoped.bind(null, state, storeApi),
-    {
-      db: storeApi.db,
-      add: storeApi.add,
-      find: storeApi.find,
-      findAll: storeApi.findAll,
-      findOrAdd: storeApi.findOrAdd,
-      update: storeApi.update,
-      updateOrAdd: storeApi.updateOrAdd,
-      updateAll: storeApi.updateAll,
-      remove: storeApi.remove,
-      removeAll: storeApi.removeAll,
-      on: storeApi.on,
-      one: storeApi.one,
-      off: storeApi.off
-    },
-    {
-      push: syncWrapper.bind(syncApi, 'push'),
-      pull: syncWrapper.bind(syncApi, 'pull'),
-      sync: syncWrapper.bind(syncApi, 'sync'),
-      connect: syncApi.connect,
-      disconnect: syncApi.disconnect,
-      isConnected: syncApi.isConnected,
-      isPersistent: isPersistent.bind(null, state)
-    }
-  )
+  state.api = api
 
-  api.reset = require('./lib/reset').bind(null, dbName, options.PouchDB, state, api, storeApi.clear, emitter, options.remoteBaseUrl, remote)
-
-  subscribeToSyncEvents(syncApi, emitter)
+  internals.handleChanges(state)
 
   return api
 }
@@ -1998,592 +1947,1358 @@ Store.defaults = function (defaultOpts) {
     if (typeof dbName !== 'string') throw new Error('Must be a valid string.')
     options = options || {}
 
-    options = merge({}, defaultOpts, options)
+    options = assign({}, defaultOpts, options)
 
-    return Store(dbName, options)
+    return new Store(dbName, options)
   }
 
   return CustomStore
 }
 
-},{"./lib/is-persistent":57,"./lib/reset":58,"./lib/scoped/":63,"./lib/subscribe-to-sync-events":69,"./lib/sync-wrapper":70,"events":90,"lodash/merge":279,"pouchdb-hoodie-api":317,"pouchdb-hoodie-sync":335}],57:[function(require,module,exports){
+},{"./lib/add":51,"./lib/connect":52,"./lib/disconnect":53,"./lib/find":56,"./lib/find-all":54,"./lib/find-or-add":55,"./lib/helpers/handle-changes":65,"./lib/is-connected":70,"./lib/is-persistent":71,"./lib/off":72,"./lib/on":73,"./lib/one":74,"./lib/pull":75,"./lib/push":76,"./lib/remove":78,"./lib/remove-all":77,"./lib/reset":79,"./lib/sync":80,"./lib/update":83,"./lib/update-all":81,"./lib/update-or-add":82,"./lib/with-id-prefix":90,"events":105,"lodash/assign":268}],51:[function(require,module,exports){
+var addOne = require('./helpers/add-one')
+var addMany = require('./helpers/add-many')
+
+module.exports = add
+
+/**
+ * adds one or multiple objects to local database
+ *
+ * @param  {String}          prefix       optional id prefix
+ * @param  {Object|Object[]} properties   Properties of one or
+ *                                        multiple objects
+ * @return {Promise}
+ */
+function add (state, prefix, properties) {
+  return Array.isArray(properties)
+    ? addMany(state, properties, prefix)
+    : addOne(state, properties, prefix)
+}
+
+},{"./helpers/add-many":57,"./helpers/add-one":58}],52:[function(require,module,exports){
+module.exports = connect
+
+var Promise = require('lie')
+
+/**
+ * connects local and remote database
+ *
+ * @return {Promise}
+ */
+function connect (state) {
+  return Promise.resolve(state.remote)
+
+  .then(function (remote) {
+    if (state.replication) {
+      return
+    }
+
+    state.replication = state.db.sync(remote, {
+      create_target: true,
+      live: true,
+      retry: true
+    })
+
+    state.replication.on('error', function (error) {
+      state.emitter.emit('error', error)
+    })
+
+    state.replication.on('change', function (change) {
+      for (var i = 0; i < change.change.docs.length; i++) {
+        state.emitter.emit(change.direction, change.change.docs[i])
+      }
+    })
+
+    state.emitter.emit('connect')
+  })
+}
+
+},{"lie":115}],53:[function(require,module,exports){
+module.exports = disconnect
+
+var Promise = require('lie')
+
+/**
+ * disconnects local and remote database
+ *
+ * @return {Promise}
+ */
+function disconnect (state) {
+  if (state.replication) {
+    state.replication.cancel()
+    delete state.replication
+    state.emitter.emit('disconnect')
+  }
+
+  return Promise.resolve()
+}
+
+},{"lie":115}],54:[function(require,module,exports){
+var isntDesignDoc = require('./utils/isnt-design-doc')
+
+module.exports = findAll
+
+/**
+ * finds all existing objects in local database.
+ *
+ * @param  {String}   prefix     optional id prefix
+ * @param  {Function} [filter]   Function returning `true` for any object
+ *                               to be returned.
+ * @return {Promise}
+ */
+
+function findAll (state, prefix, filter) {
+  var options = {
+    include_docs: true
+  }
+
+  if (prefix) {
+    options.startkey = prefix
+    options.endkey = prefix + '\uffff'
+  }
+
+  return state.db.allDocs(options)
+
+  .then(function (res) {
+    var objects = res.rows
+      .filter(isntDesignDoc)
+      .map(function (row) {
+        return row.doc
+      })
+
+    return typeof filter === 'function'
+      ? objects.filter(filter)
+      : objects
+  })
+}
+
+},{"./utils/isnt-design-doc":86}],55:[function(require,module,exports){
+var findOrAddOne = require('./helpers/find-or-add-one')
+var findOrAddMany = require('./helpers/find-or-add-many')
+
+module.exports = findOrAdd
+
+/**
+ * tries to find object in local database, otherwise creates new one
+ * with passed properties.
+ *
+ * @param  {String}                 prefix       optional id prefix
+ * @param  {String|Object|Object[]} idOrObject   id or object with `._id` property
+ * @param  {Object}                 [properties] Optional properties if id passed
+ *                                               as first option
+ * @return {Promise}
+ */
+function findOrAdd (state, prefix, idOrObjectOrArray, properties) {
+  return Array.isArray(idOrObjectOrArray)
+    ? findOrAddMany(state, idOrObjectOrArray, prefix)
+    : findOrAddOne(state, idOrObjectOrArray, properties, prefix)
+}
+
+},{"./helpers/find-or-add-many":63,"./helpers/find-or-add-one":64}],56:[function(require,module,exports){
+var findOne = require('./helpers/find-one')
+var findMany = require('./helpers/find-many')
+
+module.exports = find
+
+/**
+ * finds existing object in local database
+ *
+ * @param  {String}                 prefix        optional id prefix
+ * @param  {String|Object|Object[]} objectsOrIds  Id of object or object with
+ *                                                `._id` property
+ * @return {Promise}
+ */
+function find (state, prefix, objectsOrIds) {
+  return Array.isArray(objectsOrIds)
+    ? findMany(state, objectsOrIds, prefix)
+    : findOne(state, objectsOrIds, prefix)
+}
+
+},{"./helpers/find-many":61,"./helpers/find-one":62}],57:[function(require,module,exports){
+var clone = require('lodash/clone')
+var uuid = require('pouchdb-utils').uuid
+
+var addTimestamps = require('../utils/add-timestamps')
+var bulkDocs = require('./db-bulk-docs')
+
+module.exports = function addMany (state, docs, prefix) {
+  docs = docs.map(function (doc) {
+    doc = clone(doc)
+    delete doc.hoodie
+    return addTimestamps(doc)
+  })
+
+  if (prefix) {
+    docs.forEach(function (doc) {
+      doc._id = prefix + (doc._id || uuid())
+    })
+  }
+
+  return bulkDocs(state, docs)
+}
+
+},{"../utils/add-timestamps":84,"./db-bulk-docs":59,"lodash/clone":269,"pouchdb-utils":318}],58:[function(require,module,exports){
+module.exports = addOne
+
+var clone = require('lodash/clone')
+var PouchDBErrors = require('pouchdb-errors')
+var Promise = require('lie')
+var uuid = require('pouchdb-utils').uuid
+
+var internals = addOne.internals = {}
+internals.addTimestamps = require('../utils/add-timestamps')
+internals.put = require('./db-put')
+
+function addOne (state, doc, prefix) {
+  if (typeof doc !== 'object') {
+    return Promise.reject(PouchDBErrors.NOT_AN_OBJECT)
+  }
+
+  doc = clone(doc)
+
+  if (!doc._id) {
+    doc._id = uuid()
+  }
+
+  if (prefix) {
+    doc._id = prefix + doc._id
+  }
+
+  delete doc.hoodie
+
+  return internals.put(state, internals.addTimestamps(doc))
+
+  .catch(function (error) {
+    if (error.status === 409) {
+      var conflict = new Error('Object with id "' + doc._id + '" already exists')
+      conflict.name = 'Conflict'
+      conflict.status = 409
+      throw conflict
+    } else {
+      throw error
+    }
+  })
+}
+
+},{"../utils/add-timestamps":84,"./db-put":60,"lie":115,"lodash/clone":269,"pouchdb-errors":316,"pouchdb-utils":318}],59:[function(require,module,exports){
+module.exports = bulkDocs
+
+var internals = bulkDocs.internals = {}
+
+// we wrap PouchDB’s .bulkDocs method in order to guarantee that the events get
+// emmited before the Promise gets resolved. This is how the rest of Hoodie’s
+// APIs behave. Also it avoids confusion that listening to events after adding
+// a revision will emit an add event for the previously added document, e.g.
+//
+//    store.add([{_id: 'foo'}, {_id: 'bar'}]).then(function () {
+//      hoodie.on('add', handler) // called with {_id: 'foo'} & {_id: 'bar'}
+//    })
+//
+// With our workaround, the handler will not be called in the example above.
+function bulkDocs (state, docs) {
+  return new Promise(function (resolve, reject) {
+    var scope = {
+      wantedRevs: [],
+      missedChangedDocs: [],
+      resolve: resolve,
+      result: [],
+      docs: docs
+    }
+
+    scope.changeHandler = changeHandler.bind(null, state, scope)
+    scope.resetHandler = resetHandler.bind(null, state, scope)
+    state.emitter.on('change', scope.changeHandler)
+    state.emitter.once('reset', scope.resetHandler)
+
+    scope.bulkDocsPromise = state.db.bulkDocs(docs)
+
+    .then(function (result) {
+      if (result.length === 0) {
+        state.emitter.removeListener('change', scope.changeHandler)
+        state.emitter.removeListener('reset', scope.resetHandler)
+        resolve([])
+        return
+      }
+
+      scope.result = result
+        .map(internals.toNormalisedError.bind(null, scope))
+        .map(function (result, i) {
+          if (!result.rev) {
+            return result
+          }
+
+          docs[i]._id = result.id
+          docs[i]._rev = result.rev
+          return docs[i]
+        })
+      scope.wantedRevs = result.map(toRev).filter(Boolean)
+    })
+
+    .catch(reject)
+  })
+}
+
+function toRev (result) {
+  return result.rev
+}
+
+internals.toNormalisedError = function toNormalisedError (scope, result, i) {
+  if (result instanceof Error) {
+    if (result.status === 409) {
+      var conflict = new Error('Document with id "' + scope.docs[i]._id + '" already exists')
+      conflict.name = 'Conflict'
+      conflict.status = 409
+      return conflict
+    }
+  }
+
+  return result
+}
+
+function changeHandler (state, scope, eventName, doc) {
+  var index = scope.wantedRevs.indexOf(doc._rev)
+
+  if (index === -1) {
+    return
+  }
+
+  scope.wantedRevs.splice(index, 1)
+
+  if (scope.wantedRevs.length === 0) {
+    state.emitter.removeListener('change', scope.changeHandler)
+    state.emitter.removeListener('reset', scope.resetHandler)
+    scope.resolve(scope.result)
+  }
+}
+
+function resetHandler (state, scope) {
+  state.emitter.removeListener('change', scope.changeHandler)
+  scope.bulkDocsPromise.then(function (result) {
+    scope.resolve(scope.result)
+  })
+}
+
+},{}],60:[function(require,module,exports){
+module.exports = put
+
+// we wrap PouchDB’s .put method in order to guarantee that the events get
+// emmited before the Promise gets resolved. This is how the rest of Hoodie’s
+// APIs behave. Also it avoids confusion that listening to events after adding
+// a revision will emit an add event for the previously added document, e.g.
+//
+//    store.add({_id: 'foo'}).then(function () {
+//      hoodie.on('add', handler) // called with {_id: 'foo'}
+//    })
+//
+// With our workaround, the handler will not be called in the example above.
+function put (state, doc) {
+  return new Promise(function (resolve, reject) {
+    var scope = {
+      wantedRev: null,
+      missedChangedDocs: [],
+      resolve: resolve
+    }
+
+    scope.changeHandler = changeHandler.bind(null, state, scope)
+    scope.resetHandler = resetHandler.bind(null, state, scope)
+    state.emitter.on('change', scope.changeHandler)
+    state.emitter.once('reset', scope.resetHandler)
+
+    scope.putPromise = state.db.put(doc)
+
+    .then(function (result) {
+      doc._id = result.id
+      doc._rev = result.rev
+      scope.result = doc
+      scope.wantedRev = result.rev
+      scope.missedChangedDocs.forEach(scope.changeHandler.bind(null, state, scope, null))
+    })
+
+    .catch(reject)
+  })
+}
+
+function changeHandler (state, scope, _notUsedEventName, doc) {
+  if (!scope.wantedRev) {
+    scope.missedChangedDocs.push(doc._rev)
+    return
+  }
+
+  if (doc._rev === scope.wantedRev) {
+    state.emitter.removeListener('change', scope.changeHandler)
+    state.emitter.once('reset', scope.resetHandler)
+    scope.resolve(scope.result)
+  }
+}
+
+function resetHandler (state, scope) {
+  state.emitter.removeListener('change', scope.changeHandler)
+  scope.putPromise.then(function (result) {
+    scope.resolve(scope.result)
+  })
+}
+
+},{}],61:[function(require,module,exports){
+var toId = require('../utils/to-id')
+
+module.exports = function findMany (state, idsOrObjects, prefix) {
+  var ids = idsOrObjects.map(toId)
+
+  if (prefix) {
+    ids = ids.map(function (id) {
+      return id.substr(0, prefix.length) === prefix ? id : prefix + id
+    })
+  }
+
+  return state.db.allDocs({keys: ids, include_docs: true})
+
+  .then(function (response) {
+    var foundMap = response.rows.reduce(function (map, row) {
+      map[row.id] = row.doc
+      return map
+    }, {})
+    var docs = ids.map(function (id) {
+      var doc = foundMap[id]
+      if (doc) {
+        return doc
+      }
+
+      var missing = new Error('Object with id "' + id + '" is missing')
+      missing.name = 'Not found'
+      missing.status = 404
+      return missing
+    })
+
+    return docs
+  })
+}
+
+},{"../utils/to-id":89}],62:[function(require,module,exports){
+var toId = require('../utils/to-id')
+
+module.exports = function findOne (state, idOrObject, prefix) {
+  var id = toId(idOrObject)
+
+  if (prefix && id.substr(0, prefix.length) !== prefix) {
+    id = prefix + id
+  }
+
+  return state.db.get(id)
+
+  .catch(function (error) {
+    if (error.status === 404) {
+      var missing = new Error('Object with id "' + id + '" is missing')
+      missing.name = 'Not found'
+      missing.status = 404
+      throw missing
+    } else {
+      throw error
+    }
+  })
+}
+
+},{"../utils/to-id":89}],63:[function(require,module,exports){
+var toId = require('../utils/to-id')
+var findMany = require('./find-many')
+var addMany = require('./add-many')
+
+module.exports = function findOrAddMany (state, passedObjects, prefix) {
+  var foundObjects
+  var passedObjectIds = passedObjects.map(toId)
+
+  if (prefix) {
+    passedObjectIds = passedObjectIds.map(function (id) {
+      return prefix + id
+    })
+  }
+
+  return findMany(state, passedObjectIds, prefix)
+
+  .then(function (_foundObjects) {
+    foundObjects = _foundObjects
+
+    var foundObjectIds = foundObjects.map(toId)
+    var notFoundObjects = passedObjects.reduce(function (notFoundObjects, passedObject) {
+      if (foundObjectIds.indexOf((prefix || '') + passedObject._id) === -1) {
+        notFoundObjects.push(passedObject)
+      }
+      return notFoundObjects
+    }, [])
+
+    return addMany(state, notFoundObjects, prefix)
+  })
+
+  .then(function (addedObjects) {
+    var objects = []
+
+    foundObjects.concat(addedObjects).forEach(function (object) {
+      var index = passedObjectIds.indexOf(object._id)
+      objects[index] = object
+    })
+
+    return objects
+  })
+}
+
+},{"../utils/to-id":89,"./add-many":57,"./find-many":61}],64:[function(require,module,exports){
+module.exports = findOrAddOne
+
+var PouchDBErrors = require('pouchdb-errors')
+var Promise = require('lie')
+
+var toId = require('../utils/to-id')
+var findOne = require('./find-one')
+var addOne = require('./add-one')
+
+function findOrAddOne (state, idOrObject, newObject, prefix) {
+  var id = toId(idOrObject)
+
+  if (!id) {
+    return Promise.reject(PouchDBErrors.MISSING_ID)
+  }
+
+  if (idOrObject === id && !newObject) {
+    return Promise.reject(PouchDBErrors.MISSING_ID)
+  }
+
+  return findOne(state, id, prefix)
+
+  .catch(function (/* error */) {
+    if (typeof newObject === 'object') {
+      newObject._id = id
+    } else {
+      newObject = idOrObject
+    }
+
+    return addOne(state, newObject, prefix)
+  })
+}
+
+},{"../utils/to-id":89,"./add-one":58,"./find-one":62,"lie":115,"pouchdb-errors":316}],65:[function(require,module,exports){
+module.exports = handleChanges
+
+function handleChanges (state) {
+  var isBootstrapping = true
+  var changesDuringBootstrapping = []
+  var knownDocIds = {}
+
+  // we have to initially load all documents in order to differentiate add from
+  // change events by populating knownDocIds. This is something we wish would be
+  // simpler but unfortunately we can’t expose the necessery information with
+  // pouchDB directly, see https://github.com/pouchdb/pouchdb/pull/6553
+  state.bootstrap = state.db.allDocs()
+
+  .then(function (result) {
+    isBootstrapping = false
+
+    result.rows.forEach(function (row) {
+      knownDocIds[row.id] = 1
+    })
+
+    changesDuringBootstrapping.forEach(handleChange)
+  })
+
+  // we listen to the changes feed which we use to emit our own events
+  // if there happen to be events while we are still populating knownDocIds
+  // then we store the events in changesDuringBootstrapping which are handled
+  // once the initial bootstrap is done
+  state.db.changes({
+    since: 'now',
+    live: true,
+    include_docs: true
+  })
+  .on('change', function (change) {
+    if (isBootstrapping) {
+      changesDuringBootstrapping.push(change)
+      return
+    }
+
+    handleChange(change)
+  })
+
+  function handleChange (change) {
+    var doc = change.doc
+
+    if (!doc.hoodie) {
+      doc.hoodie = {}
+    }
+
+    if (change.deleted) {
+      // ignore deletes for unknown docs
+      if (!knownDocIds[change.id]) {
+        return
+      }
+
+      delete knownDocIds[change.id]
+      state.emitter.emit('remove', doc)
+      state.emitter.emit('change', 'remove', doc)
+      return
+    }
+
+    if (knownDocIds[change.id]) {
+      state.emitter.emit('update', doc)
+      state.emitter.emit('change', 'update', doc)
+      return
+    }
+
+    knownDocIds[change.id] = 1
+    state.emitter.emit('add', doc)
+    state.emitter.emit('change', 'add', doc)
+  }
+}
+
+},{}],66:[function(require,module,exports){
+var assign = require('lodash/assign')
+var PouchDBErrors = require('pouchdb-errors')
+
+var addTimestamps = require('../utils/add-timestamps')
+var bulkDocs = require('./db-bulk-docs')
+var changeObject = require('../utils/change-object')
+var toId = require('../utils/to-id')
+
+var findMany = require('./find-many')
+
+module.exports = function updateMany (state, array, change, prefix) {
+  var docs
+  var ids = array.map(function (doc) {
+    var id = toId(doc)
+
+    if (prefix && id.substr(0, prefix.length) !== prefix) {
+      id = prefix + id
+    }
+
+    return id
+  })
+
+  return findMany(state, array, prefix)
+
+  .then(function (docs) {
+    if (change) {
+      return docs.map(function (doc) {
+        if (doc instanceof Error) {
+          return doc
+        }
+        return changeObject(change, doc)
+      })
+    }
+
+    return docs.map(function (doc, index) {
+      var passedDoc = array[index]
+      if (doc instanceof Error) {
+        return doc
+      }
+      if (typeof passedDoc !== 'object') {
+        return PouchDBErrors.NOT_AN_OBJECT
+      }
+      return assign(doc, passedDoc, {_id: doc._id, _rev: doc._rev, hoodie: doc.hoodie})
+    })
+  })
+
+  .then(function (_docs) {
+    docs = _docs
+    var validObjects = docs.filter(function (doc) {
+      return !(doc instanceof Error)
+    })
+    validObjects.forEach(addTimestamps)
+    return bulkDocs(state, validObjects)
+  })
+
+  .then(function (updatedDocs) {
+    updatedDocs.forEach(function (doc) {
+      var index = ids.indexOf(doc._id)
+      docs[index] = doc
+    })
+
+    return docs
+  })
+}
+
+},{"../utils/add-timestamps":84,"../utils/change-object":85,"../utils/to-id":89,"./db-bulk-docs":59,"./find-many":61,"lodash/assign":268,"pouchdb-errors":316}],67:[function(require,module,exports){
+var assign = require('lodash/assign')
+var PouchDBErrors = require('pouchdb-errors')
+var Promise = require('lie')
+
+var changeObject = require('../utils/change-object')
+var addTimestamps = require('../utils/add-timestamps')
+
+var findOne = require('./find-one')
+var put = require('./db-put')
+
+module.exports = function updateOne (state, idOrDoc, change, prefix) {
+  var doc
+
+  if (typeof idOrDoc === 'string' && !change) {
+    return Promise.reject(PouchDBErrors.NOT_AN_OBJECT)
+  }
+
+  return findOne(state, idOrDoc, prefix)
+
+  .then(function (doc) {
+    if (!change) {
+      return assign(doc, idOrDoc, {_id: doc._id, _rev: doc._rev, hoodie: doc.hoodie})
+    }
+    return changeObject(change, doc)
+  })
+
+  .then(function (_doc) {
+    doc = _doc
+    return put(state, addTimestamps(doc))
+  })
+}
+
+},{"../utils/add-timestamps":84,"../utils/change-object":85,"./db-put":60,"./find-one":62,"lie":115,"lodash/assign":268,"pouchdb-errors":316}],68:[function(require,module,exports){
+var toId = require('../utils/to-id')
+var addMany = require('./add-many')
+var updateMany = require('./update-many')
+
+module.exports = function updateOrAddMany (state, passedObjects, prefix) {
+  var addedObjects
+  var passedObjectIds = passedObjects.map(toId)
+
+  if (prefix) {
+    passedObjectIds = passedObjectIds.map(function (id) {
+      return prefix + id
+    })
+  }
+
+  return addMany(state, passedObjects, prefix)
+
+  .then(function (_addedObjectsAndErrors) {
+    addedObjects = _addedObjectsAndErrors
+
+    var conflicting = passedObjects.reduce(function (array, passedObject, i) {
+      var objectOrError = _addedObjectsAndErrors[i]
+      var isConflictError = objectOrError instanceof Error && objectOrError.status === 409
+
+      if (isConflictError) {
+        array.push(passedObject)
+      }
+      return array
+    }, [])
+
+    return updateMany(state, conflicting, null, prefix)
+  })
+
+  .then(function (updatedObjects) {
+    var objects = []
+
+    updatedObjects.concat(addedObjects).forEach(function (object) {
+      var index = passedObjectIds.indexOf(object._id)
+      if (index !== -1) {
+        objects[index] = object
+      }
+    })
+
+    return objects
+  })
+}
+
+},{"../utils/to-id":89,"./add-many":57,"./update-many":66}],69:[function(require,module,exports){
+var toId = require('../utils/to-id')
+var addOne = require('./add-one')
+var updateOne = require('./update-one')
+
+module.exports = function updateOrAddOne (state, idOrObject, newObject, prefix) {
+  return updateOne(state, idOrObject, newObject, prefix)
+
+  .catch(function (error) {
+    if (error.status !== 404) {
+      throw error
+    }
+
+    if (newObject) {
+      newObject._id = toId(idOrObject)
+      return addOne(state, newObject, prefix)
+    }
+
+    return addOne(state, idOrObject, prefix)
+  })
+}
+
+},{"../utils/to-id":89,"./add-one":58,"./update-one":67}],70:[function(require,module,exports){
+module.exports = isConnected
+
+/**
+ * checks if database connection is open and working
+ *
+ * @return {Boolean}
+ */
+function isConnected (state) {
+  return !!state.replication
+}
+
+},{}],71:[function(require,module,exports){
 module.exports = isPersistent
 
 function isPersistent (state) {
   return state.db.adapter !== 'memory'
 }
 
-},{}],58:[function(require,module,exports){
-module.exports = reset
+},{}],72:[function(require,module,exports){
+module.exports = off
 
-var merge = require('lodash/merge')
+/**
+ * removes a listener for the specified event
+ *
+ * It will unsubscribe at most, one instance of a listener for a particular event.
+ * If any single listener has subcribed multiple times to the same event,
+ * then `off` must be called multiple times.
+ *
+ * Supported events:
+ *
+ * - `add`
+ * - `update`
+ * - `remove`
+ * - `change`
+ *
+ * @param  {String} eventName   Name of event, one of listed above
+ * @param  {Function} handler   callback for event
+ */
+function off (state, eventName, handler) {
+  state.emitter.removeListener(eventName, handler)
 
-var subscribeToSyncEvents = require('./subscribe-to-sync-events')
-var syncWrapper = require('./sync-wrapper')
-var scoped = require('./scoped/')
-
-function reset (dbName, CustomPouchDB, state, api, clear, emitter, remoteBaseUrl, remote, options) {
-  if (options) {
-    if (options.name) {
-      dbName = options.name
-    }
-
-    if (options.remote) {
-      remote = options.remote
-    } else if (options.name && remoteBaseUrl) {
-      remote = remoteBaseUrl + '/' + encodeURIComponent(options.name)
-    }
-
-    CustomPouchDB = CustomPouchDB.defaults(options)
-  }
-
-  return api.disconnect()
-
-  .then(clear)
-
-  .then(function () {
-    var newDB = new CustomPouchDB(dbName)
-    var syncApi = newDB.hoodieSync({remote: remote})
-    var storeApi = newDB.hoodieApi({emitter: emitter})
-
-    subscribeToSyncEvents(syncApi, emitter)
-
-    merge(
-      api,
-      scoped.bind(null, state, storeApi),
-      {
-        db: storeApi.db,
-        add: storeApi.add,
-        find: storeApi.find,
-        findAll: storeApi.findAll,
-        findOrAdd: storeApi.findOrAdd,
-        update: storeApi.update,
-        updateOrAdd: storeApi.updateOrAdd,
-        updateAll: storeApi.updateAll,
-        remove: storeApi.remove,
-        removeAll: storeApi.removeAll,
-        on: storeApi.on,
-        one: storeApi.one,
-        off: storeApi.off
-      },
-      {
-        push: syncWrapper.bind(syncApi, 'push'),
-        pull: syncWrapper.bind(syncApi, 'pull'),
-        sync: syncWrapper.bind(syncApi, 'sync'),
-        connect: syncApi.connect,
-        disconnect: syncApi.disconnect,
-        isConnected: syncApi.isConnected
-      }
-    )
-
-    api.reset = reset.bind(null, dbName, CustomPouchDB, state, api, storeApi.clear, emitter, remoteBaseUrl, remote)
-  })
+  return state.api
 }
 
-},{"./scoped/":63,"./subscribe-to-sync-events":69,"./sync-wrapper":70,"lodash/merge":279}],59:[function(require,module,exports){
-module.exports = add
+},{}],73:[function(require,module,exports){
+module.exports = on
 
-var addType = require('../utils/add-type')
-var checkType = require('../utils/check-scoped-type')
+/**
+ * add a listener to an event
+ *
+ * Supported events:
+ *
+ * - `add`    → (doc)
+ * - `update` → (doc)
+ * - `remove` → (doc)
+ * - `change` → (eventName, doc)
+ *
+ * @param  {String} eventName   Name of event, one of listed above
+ * @param  {Function} handler   callback for event
+ */
+function on (state, eventName, handler) {
+  state.emitter.on(eventName, handler)
 
-function add (type, api, objects) {
-  if (checkType.isTypeError(objects, type)) {
-    return Promise.reject(new TypeError(checkType.createErrorMessage(type)))
-  }
-
-  if (Array.isArray(objects)) {
-    objects = objects.map(addType.bind(null, type))
-  } else {
-    objects.type = type
-  }
-
-  return api.add(objects)
+  return state.api
 }
 
-},{"../utils/add-type":71,"../utils/check-scoped-type":72}],60:[function(require,module,exports){
-module.exports = findAll
+},{}],74:[function(require,module,exports){
+module.exports = one
 
-var typeFilter = require('../utils/type-filter')
+/**
+ * adds a one time listener to an event
+ *
+ * Supported events:
+ *
+ * - `add`    → (doc)
+ * - `update` → (doc)
+ * - `remove` → (doc)
+ * - `change` → (eventName, doc)
+ *
+ * @param  {String} eventName   Name of event, one of listed above
+ * @param  {Function} handler   callback for event
+ */
+function one (state, eventName, handler) {
+  state.emitter.once(eventName, handler)
 
-function findAll (type, api, filterFunction) {
-  return api.findAll(typeFilter.bind(null, type))
-
-  .then(function (scopedObjects) {
-    return filterFunction ? scopedObjects.filter(filterFunction) : scopedObjects
-  })
+  return state.api
 }
 
-},{"../utils/type-filter":75}],61:[function(require,module,exports){
-module.exports = findOrAdd
+},{}],75:[function(require,module,exports){
+module.exports = pull
 
-var toId = require('pouchdb-hoodie-api/utils/to-id')
-var find = require('./find')
-var add = require('./add')
-var checkType = require('../utils/check-scoped-type')
+var Promise = require('lie')
 
-function findOrAdd (type, api, idOrObjectOrArray, newObject) {
-  if (checkType.isTypeError(idOrObjectOrArray, type) || checkType.isTypeError(newObject, type)) {
-    return Promise.reject(new TypeError(checkType.createErrorMessage(type)))
-  }
+var toId = require('./utils/to-id')
 
-  return find(type, api, idOrObjectOrArray)
+/**
+ * pulls one or multiple objects from remote to local database
+ *
+ * @param  {StringOrObject} docsOrIds   object or ID of object or array of objects/ids (all optional)
+ * @return {Promise}
+ */
+function pull (state, docsOrIds) {
+  var pulledObjects = []
+  var errors = state.db.constructor.Errors
 
-  .then(function (typedObjects) {
-    if (Array.isArray(idOrObjectOrArray)) {
-      var objectIds = typedObjects.map(toId)
+  return Promise.resolve(state.remote)
 
-      var notFoundObjects = idOrObjectOrArray.reduce(function (notFoundObjects, typedObject) {
-        if (objectIds.indexOf(typedObject.id) === -1) {
-          notFoundObjects.push(typedObject)
-        }
-
-        return notFoundObjects
-      }, [])
-
-      return add(type, api, notFoundObjects)
-
-      .then(function (addedObjects) {
-        var passedObjectIds = idOrObjectOrArray.map(toId)
-        var objects = []
-
-        typedObjects.concat(addedObjects).forEach(function (object) {
-          var index = passedObjectIds.indexOf(object.id)
-          objects[index] = object
-        })
-
-        return objects
-      })
-    } else {
-      return typedObjects
-    }
-  })
-
-  .catch(function () {
-    var id = toId(idOrObjectOrArray)
-
-    if (!id) {
-      throw new Error('Missing ID')
-    }
-
-    if (idOrObjectOrArray === id && !newObject) {
-      throw new Error('Missing ID')
-    }
-
-    if (typeof newObject === 'object') {
-      newObject.id = id
-    } else {
-      newObject = idOrObjectOrArray
-    }
-
-    return add(type, api, newObject)
-  })
-}
-
-},{"../utils/check-scoped-type":72,"./add":59,"./find":62,"pouchdb-hoodie-api/utils/to-id":333}],62:[function(require,module,exports){
-module.exports = find
-
-var checkType = require('../utils/check-scoped-type')
-var typeFilter = require('../utils/type-filter')
-
-function find (type, api, objectsOrIds) {
-  if (checkType.isTypeError(objectsOrIds, type)) {
-    return Promise.reject(new TypeError(checkType.createErrorMessage(type)))
-  }
-
-  return api.find(objectsOrIds)
-
-  .then(function (storedObjects) {
-    if (Array.isArray(storedObjects)) {
-      return storedObjects.map(function (storedObject) {
-        return (storedObject instanceof Error || typeFilter(type, storedObject))
-          ? storedObject
-          : handleIncorrectTypeError(type, storedObject)
-      })
-    } else {
-      if (storedObjects.type === type) {
-        return storedObjects
+  .then(function (remote) {
+    return new Promise(function (resolve, reject) {
+      if (Array.isArray(docsOrIds)) {
+        docsOrIds = docsOrIds.map(toId)
       } else {
-        throw handleIncorrectTypeError(type, storedObjects)
-      }
-    }
-  })
-}
-
-function handleIncorrectTypeError (type, storedObject) {
-  var errorMessage = 'Object with type "' + type + '" and id "' + storedObject.id + '" is missing'
-  var incorrectType = new Error(errorMessage)
-  incorrectType.name = 'Not found'
-  incorrectType.status = 404
-  return incorrectType
-}
-
-},{"../utils/check-scoped-type":72,"../utils/type-filter":75}],63:[function(require,module,exports){
-module.exports = scoped
-
-var EventEmitter = require('events').EventEmitter
-
-function scoped (state, api, type) {
-  if (typeof type === 'undefined') {
-    throw new TypeError('type must be set for scoped stores')
-  }
-
-  if (state.scopedApis[type]) {
-    return state.scopedApis[type]
-  }
-
-  var emitter = new EventEmitter()
-
-  var scopedApi = {
-    add: require('./add').bind(null, type, api),
-    find: require('./find').bind(null, type, api),
-    findOrAdd: require('./find-or-add').bind(null, type, api),
-    findAll: require('./find-all').bind(null, type, api),
-    update: require('./update').bind(null, type, api),
-    updateOrAdd: require('./update-or-add').bind(null, type, api),
-    updateAll: require('./update-all').bind(null, type, api),
-    remove: require('./remove').bind(null, type, api),
-    removeAll: require('./remove-all').bind(null, type, api),
-    on: function (eventName, handler) {
-      emitter.on(type + ':' + eventName, handler)
-
-      return scopedApi
-    },
-    one: function (eventName, handler) {
-      emitter.once(type + ':' + eventName, handler)
-
-      return scopedApi
-    },
-    off: function (eventName, handler) {
-      emitter.removeListener(type + ':' + eventName, handler)
-
-      return scopedApi
-    }
-  }
-
-  api.on('change', require('../utils/handle-type-change').bind(null, state, emitter, type))
-  state.scopedApis[type] = scopedApi
-
-  return scopedApi
-}
-
-},{"../utils/handle-type-change":73,"./add":59,"./find":62,"./find-all":60,"./find-or-add":61,"./remove":65,"./remove-all":64,"./update":68,"./update-all":66,"./update-or-add":67,"events":90}],64:[function(require,module,exports){
-module.exports = removeAll
-
-var findAll = require('./find-all')
-var remove = require('./remove')
-
-function removeAll (type, api, filterFunction) {
-  return findAll(type, api)
-
-  .then(function (scopedObjects) {
-    if (scopedObjects.length === 0) {
-      return Promise.resolve(scopedObjects)
-    }
-
-    return filterFunction ? remove(type, api, scopedObjects.filter(filterFunction)) : remove(type, api, scopedObjects)
-  })
-}
-
-},{"./find-all":60,"./remove":65}],65:[function(require,module,exports){
-module.exports = remove
-
-var update = require('./update')
-var markAsDeleted = require('pouchdb-hoodie-api/utils/mark-as-deleted')
-var checkType = require('../utils/check-scoped-type')
-
-function remove (type, api, objectsOrIds, change) {
-  if (checkType.isTypeError(objectsOrIds, type) || checkType.isTypeError(change, type)) {
-    return Promise.reject(new TypeError(checkType.createErrorMessage(type)))
-  }
-
-  return Array.isArray(objectsOrIds)
-  ? update(type, api, objectsOrIds.map(markAsDeleted.bind(null, change)))
-  : update(type, api, objectsOrIds, markAsDeleted(change, objectsOrIds))
-}
-
-},{"../utils/check-scoped-type":72,"./update":68,"pouchdb-hoodie-api/utils/mark-as-deleted":330}],66:[function(require,module,exports){
-module.exports = updateAll
-
-var checkType = require('../utils/check-scoped-type')
-var findAll = require('./find-all')
-var update = require('./update')
-
-function updateAll (type, api, changedProperties) {
-  if (checkType.isTypeError(changedProperties, type)) {
-    return Promise.reject(new TypeError(checkType.createErrorMessage(type)))
-  }
-
-  return findAll(type, api)
-
-  .then(function (foundObjects) {
-    return update(type, api, foundObjects, changedProperties)
-  })
-}
-
-},{"../utils/check-scoped-type":72,"./find-all":60,"./update":68}],67:[function(require,module,exports){
-module.exports = updateOrAdd
-
-var update = require('./update')
-var add = require('./add')
-var checkType = require('../utils/check-scoped-type')
-var toId = require('pouchdb-hoodie-api/utils/to-id')
-
-function updateOrAdd (type, api, idOrObjectOrArray, newObject) {
-  if (checkType.isTypeError(idOrObjectOrArray, type) || checkType.isTypeError(newObject, type)) {
-    return Promise.reject(new TypeError(checkType.createErrorMessage(type)))
-  }
-
-  return update(type, api, idOrObjectOrArray, newObject)
-
-  .then(function (updatedItemsOrErrors) {
-    if (!Array.isArray(updatedItemsOrErrors)) {
-      // if this is not an array, then errors will be caught in .catch() below
-      return updatedItemsOrErrors
-    }
-
-    // if this is an array, we need to iterate over all items to
-    // ensure that none are errors
-    return Promise.all(updatedItemsOrErrors.map(function (updatedItemOrError, index) {
-      if (isNotFoundError(updatedItemOrError)) {
-        return add(type, api, idOrObjectOrArray[index])
+        docsOrIds = docsOrIds && [toId(docsOrIds)]
       }
 
-      return Promise.resolve(updatedItemOrError)
-    }))
-  })
-
-  .catch(function () {
-    var id = toId(idOrObjectOrArray)
-
-    if (!id) {
-      throw new Error('Missing ID')
-    }
-
-    if (idOrObjectOrArray === id && !newObject) {
-      throw new Error('Missing ID')
-    }
-
-    if (typeof newObject === 'object') {
-      newObject.id = id
-    } else {
-      newObject = idOrObjectOrArray
-    }
-
-    return add(type, api, newObject)
-  })
-}
-
-function isNotFoundError (obj) {
-  return obj instanceof Error && obj.name === 'Not found'
-}
-
-},{"../utils/check-scoped-type":72,"./add":59,"./update":68,"pouchdb-hoodie-api/utils/to-id":333}],68:[function(require,module,exports){
-module.exports = update
-
-var find = require('./find')
-var merge = require('lodash/merge')
-
-var checkType = require('../utils/check-scoped-type')
-
-function update (type, api, objectsOrIds, change) {
-  if (checkType.isTypeError(objectsOrIds, type) || checkType.isTypeError(change, type)) {
-    return Promise.reject(new TypeError(checkType.createErrorMessage(type)))
-  }
-
-  return find(type, api, objectsOrIds)
-
-  .then(function (storedObjects) {
-    // objectsOrIds may contain updated information for the respective storedObject
-    // (e.g. _deleted = true), so incorporate all information in the objectOrId into
-    // the storedObject
-    var updatedObjects = updateObjectsAndFilterErrors(objectsOrIds, storedObjects)
-
-    return api.update(updatedObjects, change)
-
-    .then(function (apiUpdates) {
-      if (!Array.isArray(apiUpdates)) {
-        return apiUpdates
+      if (docsOrIds && docsOrIds.filter(Boolean).length !== docsOrIds.length) {
+        return Promise.reject(errors.NOT_AN_OBJECT)
       }
 
-      return restoreOriginalFindErrors(storedObjects, apiUpdates)
+      var replication = state.db.replicate.from(remote, {
+        doc_ids: docsOrIds
+      })
+
+      /* istanbul ignore next */
+      replication.catch(function () {
+        // handled trough 'error' event
+      })
+
+      replication.on('complete', function () {
+        resolve(pulledObjects)
+      })
+      replication.on('error', reject)
+
+      replication.on('change', function (change) {
+        pulledObjects = pulledObjects.concat(change.docs)
+        for (var i = 0; i < change.docs.length; i++) {
+          state.emitter.emit('pull', change.docs[i])
+        }
+      })
     })
   })
 }
 
-function updateObjectsAndFilterErrors (objectsOrIds, storedObjects) {
-  if (!Array.isArray(objectsOrIds)) {
-    return updateObject(objectsOrIds, storedObjects)
-  }
+},{"./utils/to-id":89,"lie":115}],76:[function(require,module,exports){
+module.exports = push
 
-  return storedObjects.map(function (storedObject, index) {
-    if (storedObject instanceof Error) {
-      return storedObject
-    }
+var Promise = require('lie')
 
-    return updateObject(objectsOrIds[index], storedObject)
-  }).filter(function (storedObject) {
-    return !(storedObject instanceof Error)
+var toId = require('./utils/to-id')
+
+/**
+ * pushes one or multiple objects from local to remote database
+ *
+ * @param  {StringOrObject} docsOrIds   object or ID of object or array of objects/ids (all optional)
+ * @return {Promise}
+ */
+
+function push (state, docsOrIds) {
+  var pushedObjects = []
+  var errors = state.db.constructor.Errors
+
+  return Promise.resolve(state.remote)
+
+  .then(function (remote) {
+    return new Promise(function (resolve, reject) {
+      if (Array.isArray(docsOrIds)) {
+        docsOrIds = docsOrIds.map(toId)
+      } else {
+        docsOrIds = docsOrIds && [toId(docsOrIds)]
+      }
+
+      if (docsOrIds && docsOrIds.filter(Boolean).length !== docsOrIds.length) {
+        return Promise.reject(errors.NOT_AN_OBJECT)
+      }
+
+      var replication = state.db.replicate.to(remote, {
+        create_target: true,
+        doc_ids: docsOrIds,
+        include_docs: true
+      })
+
+      /* istanbul ignore next */
+      replication.catch(function () {
+        // handled trough 'error' event
+      })
+
+      replication.on('complete', function () {
+        resolve(pushedObjects)
+      })
+      replication.on('error', reject)
+      replication.on('change', function (change) {
+        pushedObjects = pushedObjects.concat(change.docs)
+
+        for (var i = 0; i < change.docs.length; i++) {
+          state.emitter.emit('push', change.docs[i])
+        }
+      })
+    })
   })
 }
 
-function updateObject (objectOrId, storedObject) {
-  if (typeof objectOrId !== 'object') {
-    return storedObject
+},{"./utils/to-id":89,"lie":115}],77:[function(require,module,exports){
+var addTimestamps = require('./utils/add-timestamps')
+var bulkDocs = require('./helpers/db-bulk-docs')
+var isntDesignDoc = require('./utils/isnt-design-doc')
+
+module.exports = removeAll
+
+/**
+ * removes all existing docs
+ *
+ * @param  {String}   prefix     optional id prefix
+ * @param  {Function} [filter]   Function returning `true` for any doc
+ *                               to be removed.
+ * @return {Promise}
+ */
+function removeAll (state, prefix, filter) {
+  var docs
+
+  var options = {
+    include_docs: true
   }
 
-  return merge(storedObject, objectOrId)
-}
+  if (prefix) {
+    options.startkey = prefix
+    options.endkey = prefix + '\uffff'
+  }
 
-function restoreOriginalFindErrors (foundObjects, apiUpdates) {
-  return foundObjects.map(function (foundObject) {
-    if (foundObject instanceof Error) {
-      return foundObject
+  return state.db.allDocs(options)
+
+  .then(function (res) {
+    docs = res.rows
+      .filter(isntDesignDoc)
+      .map(function (row) {
+        return row.doc
+      })
+
+    if (typeof filter === 'function') {
+      docs = docs.filter(filter)
     }
 
-    return apiUpdates.shift()
+    return docs.map(function (doc) {
+      doc._deleted = true
+      return addTimestamps(doc)
+    })
+  })
+
+  .then(bulkDocs.bind(null, state))
+}
+
+},{"./helpers/db-bulk-docs":59,"./utils/add-timestamps":84,"./utils/isnt-design-doc":86}],78:[function(require,module,exports){
+var markAsDeleted = require('./utils/mark-as-deleted')
+
+var updateOne = require('./helpers/update-one')
+var updateMany = require('./helpers/update-many')
+
+module.exports = remove
+
+/**
+ * removes existing object
+ *
+ * @param  {String}          prefix         optional id prefix
+ * @param  {Object|Function} objectsOrIds   id or object with `._id` property
+ * @param  {Object|Function} [change]       Change properties or function that
+ *                                          changes existing object
+ * @return {Promise}
+ */
+function remove (state, prefix, objectsOrIds, change) {
+  return Array.isArray(objectsOrIds)
+    ? updateMany(state, objectsOrIds.map(markAsDeleted.bind(null, change)), null, prefix)
+    : updateOne(state, markAsDeleted(change, objectsOrIds), null, prefix)
+}
+
+},{"./helpers/update-many":66,"./helpers/update-one":67,"./utils/mark-as-deleted":87}],79:[function(require,module,exports){
+module.exports = reset
+
+var handleChanges = require('./helpers/handle-changes')
+var disconnect = require('./disconnect')
+
+function reset (state) {
+  return state.bootstrap
+
+  .then(function () {
+    return disconnect(state)
+  })
+
+  .then(function () {
+    return state.db.destroy()
+  })
+
+  .then(function () {
+    state.emitter.emit('reset')
+    state.db = new state.PouchDB(state.dbName)
+    handleChanges(state)
   })
 }
 
-},{"../utils/check-scoped-type":72,"./find":62,"lodash/merge":279}],69:[function(require,module,exports){
-module.exports = subscribeToSyncEvents
+},{"./disconnect":53,"./helpers/handle-changes":65}],80:[function(require,module,exports){
+module.exports = sync
 
-var toObject = require('./utils/to-object')
+var Promise = require('lie')
 
-function subscribeToSyncEvents (syncApi, emmiter) {
-  syncApi.on('push', emitHoodieObject.bind(emmiter, 'push'))
-  syncApi.on('pull', emitHoodieObject.bind(emmiter, 'pull'))
-  syncApi.on('connect', emitHoodieObject.bind(emmiter, 'connect'))
-  syncApi.on('disconnect', emitHoodieObject.bind(emmiter, 'disconnect'))
+var toId = require('./utils/to-id')
+
+/**
+ * syncs one or multiple objects between local and remote database
+ *
+ * @param  {StringOrObject} docsOrIds   object or ID of object or array of objects/ids (all optional)
+ * @return {Promise}
+ */
+function sync (state, docsOrIds) {
+  var syncedObjects = []
+  var errors = state.db.constructor.Errors
+
+  return Promise.resolve(state.remote)
+
+  .then(function (remote) {
+    return new Promise(function (resolve, reject) {
+      if (Array.isArray(docsOrIds)) {
+        docsOrIds = docsOrIds.map(toId)
+      } else {
+        docsOrIds = docsOrIds && [toId(docsOrIds)]
+      }
+
+      if (docsOrIds && docsOrIds.filter(Boolean).length !== docsOrIds.length) {
+        return Promise.reject(errors.NOT_AN_OBJECT)
+      }
+
+      var replication = state.db.sync(remote, {
+        doc_ids: docsOrIds,
+        include_docs: true
+      })
+
+      /* istanbul ignore next */
+      replication.catch(function () {
+        // handled trough 'error' event
+      })
+
+      replication.on('complete', function () {
+        resolve(syncedObjects)
+      })
+      replication.on('error', reject)
+
+      replication.on('change', function (change) {
+        syncedObjects = syncedObjects.concat(change.change.docs)
+
+        for (var i = 0; i < change.change.docs.length; i++) {
+          state.emitter.emit(change.direction, change.change.docs[i])
+        }
+      })
+    })
+  })
 }
 
-function emitHoodieObject (event, doc) {
-  if (doc) {
-    var object = toObject(doc)
-    this.emit(event, object)
+},{"./utils/to-id":89,"lie":115}],81:[function(require,module,exports){
+module.exports = updateAll
 
-    if (event === 'pull') {
-      var changeType = getChangeTypeFor(object)
-      this.emit('change', changeType, object, {remote: true})
-      this.emit(changeType, object, {remote: true})
+var assign = require('lodash/assign')
+var Promise = require('lie')
+
+var addTimestamps = require('./utils/add-timestamps')
+var bulkDocs = require('./helpers/db-bulk-docs')
+var isntDesignDoc = require('./utils/isnt-design-doc')
+
+/**
+ * updates all existing docs
+ *
+ * @param  {String}          prefix   optional id prefix
+ * @param  {Object|Function} change   changed properties or function that
+ *                                    alters passed doc
+ * @return {Promise}
+ */
+
+function updateAll (state, prefix, changedProperties) {
+  var type = typeof changedProperties
+  var docs
+
+  if (type !== 'object' && type !== 'function') {
+    return Promise.reject(new Error('Must provide object or function'))
+  }
+
+  var options = {
+    include_docs: true
+  }
+
+  if (prefix) {
+    options.startkey = prefix
+    options.endkey = prefix + '\uffff'
+  }
+
+  return state.db.allDocs(options)
+
+  .then(function (res) {
+    docs = res.rows
+      .filter(isntDesignDoc)
+      .map(function (row) {
+        return row.doc
+      })
+
+    docs.forEach(addTimestamps)
+
+    if (type === 'function') {
+      docs.forEach(changedProperties)
+      return docs
     }
+
+    return docs.map(function (doc) {
+      assign(doc, changedProperties, {_id: doc._id, _rev: doc._rev, hoodie: doc.hoodie})
+      return doc
+    })
+  })
+
+  .then(bulkDocs.bind(null, state))
+}
+
+},{"./helpers/db-bulk-docs":59,"./utils/add-timestamps":84,"./utils/isnt-design-doc":86,"lie":115,"lodash/assign":268}],82:[function(require,module,exports){
+var updateOrAddOne = require('./helpers/update-or-add-one')
+var updateOrAddMany = require('./helpers/update-or-add-many')
+
+module.exports = updateOrAdd
+
+/**
+ * updates existing object, or creates otherwise.
+ *
+ * @param  {String} prefix            optional id prefix
+ * @param  {String|Object|Object[]} - id or object with `._id` property, or
+ *                                    array of properties
+ * @param  {Object} [properties]      If id passed, properties for new
+ *                                    or existing object
+ * @return {Promise}
+ */
+function updateOrAdd (state, prefix, idOrObjectOrArray, newObject) {
+  return Array.isArray(idOrObjectOrArray)
+    ? updateOrAddMany(state, idOrObjectOrArray, prefix)
+    : updateOrAddOne(state, idOrObjectOrArray, newObject, prefix)
+}
+
+},{"./helpers/update-or-add-many":68,"./helpers/update-or-add-one":69}],83:[function(require,module,exports){
+module.exports = update
+
+var Promise = require('lie')
+
+var updateOne = require('./helpers/update-one')
+var updateMany = require('./helpers/update-many')
+
+/**
+ * updates existing object.
+ *
+ * @param  {String}                   prefix        optional id prefix
+ * @param  {String|Object|Object[]}   objectsOrIds  id or object (or array of objects) with `._id` property
+ * @param  {Object|Function}          [change]      Changed properties or function
+ *                                                  that changes existing object
+ * @return {Promise}
+ */
+function update (state, prefix, objectsOrIds, change) {
+  if (typeof objectsOrIds !== 'object' && !change) {
+    return Promise.reject(
+      new Error('Must provide change')
+    )
+  }
+
+  return Array.isArray(objectsOrIds)
+    ? updateMany(state, objectsOrIds, change, prefix)
+    : updateOne(state, objectsOrIds, change, prefix)
+}
+
+},{"./helpers/update-many":66,"./helpers/update-one":67,"lie":115}],84:[function(require,module,exports){
+var now = require('./now')
+
+module.exports = function addTimestamps (doc) {
+  if (!doc.hoodie) {
+    doc.hoodie = {}
+  }
+
+  if (doc.hoodie.createdAt) {
+    doc.hoodie.updatedAt = now()
   } else {
-    this.emit(event)
-  }
-}
-
-function getChangeTypeFor (object) {
-  if (object._deleted) {
-    return 'remove'
+    doc.hoodie.createdAt = now()
   }
 
-  if (object._rev.slice(0, 2) === '1-') {
-    return 'add'
+  if (doc._deleted) {
+    doc.hoodie.deletedAt = doc.hoodie.deletedAt || doc.hoodie.updatedAt
   }
 
-  return 'update'
+  return doc
 }
 
-},{"./utils/to-object":74}],70:[function(require,module,exports){
-module.exports = syncWrapper
+},{"./now":88}],85:[function(require,module,exports){
+var assign = require('lodash/assign')
 
-var toObject = require('./utils/to-object')
+/**
+  * change object either by passing changed properties
+  * as an object, or by passing a change function that
+  * manipulates the passed object directly
+  **/
+module.exports = function changeObject (change, object) {
+  if (typeof change === 'object') {
+    return assign(object, change)
+  }
 
-function syncWrapper (method, docsOrIds) {
-  return this[method](docsOrIds).then(function (syncedObjs) {
-    return syncedObjs.map(toObject)
-  })
-}
-
-},{"./utils/to-object":74}],71:[function(require,module,exports){
-module.exports = addType
-
-function addType (type, object) {
-  object.type = type
+  change(object)
   return object
 }
 
+},{"lodash/assign":268}],86:[function(require,module,exports){
+// Checks for a design doc, so we can filters out docs that shouldn't return in *All methods
+module.exports = function isntDesignDoc (row) {
+  return /^_design/.test(row.id) !== true
+}
 
-},{}],72:[function(require,module,exports){
-module.exports = {
-  isTypeError: function (objects, type) {
-    if (Array.isArray(objects)) {
-      return objects.some(function (object) { object.type && object.type !== type })
+},{}],87:[function(require,module,exports){
+var assign = require('lodash/assign')
+var changeObject = require('./change-object')
+
+// Normalizes objectOrId, applies changes if any, and mark as deleted
+module.exports = function markAsDeleted (change, objectOrId) {
+  var object = typeof objectOrId === 'string' ? { _id: objectOrId } : objectOrId
+
+  if (change) {
+    changeObject(change, object)
+  }
+
+  return assign({_deleted: true}, object)
+}
+
+},{"./change-object":85,"lodash/assign":268}],88:[function(require,module,exports){
+module.exports = function now () {
+  return new Date().toISOString()
+}
+
+},{}],89:[function(require,module,exports){
+module.exports = function objectOrIdToId (objectOrId) {
+  return typeof objectOrId === 'object' ? objectOrId._id : objectOrId
+}
+
+},{}],90:[function(require,module,exports){
+module.exports = withIdPrefix
+
+var EventEmitter = require('events').EventEmitter
+
+/**
+ * returns API with all CRUD methods scoped to id prefix
+ *
+ * @param  {String}   prefix   String all ID’s are implicitly prefixed or
+ *                             expected to be prefixed with.
+ */
+function withIdPrefix (state, prefix) {
+  var emitter = new EventEmitter()
+
+  var api = {
+    add: require('./add').bind(null, state, prefix),
+    find: require('./find').bind(null, state, prefix),
+    findAll: require('./find-all').bind(null, state, prefix),
+    findOrAdd: require('./find-or-add').bind(null, state, prefix),
+    update: require('./update').bind(null, state, prefix),
+    updateOrAdd: require('./update-or-add').bind(null, state, prefix),
+    updateAll: require('./update-all').bind(null, state, prefix),
+    remove: require('./remove').bind(null, state, prefix),
+    removeAll: require('./remove-all').bind(null, state, prefix),
+    withIdPrefix: function (moarPrefix) {
+      return withIdPrefix(state, prefix + moarPrefix)
+    }
+  }
+
+  var prefixState = {api: api, emitter: emitter}
+
+  api.on = require('./on').bind(null, prefixState)
+  api.one = require('./one').bind(null, prefixState)
+  api.off = require('./off').bind(null, prefixState)
+
+  state.emitter.on('change', function (eventName, object) {
+    if (object._id.substr(0, prefix.length) !== prefix) {
+      return
     }
 
-    return typeof objects === 'object' && objects.type && objects.type !== type
-  },
+    emitter.emit('change', eventName, object)
+    emitter.emit(eventName, object)
+  })
 
-  createErrorMessage: function (type) {
-    return 'type field in document does not match scoped store type of \'' + type + '\''
-  }
+  return api
 }
 
-},{}],73:[function(require,module,exports){
-module.exports = handleTypeChange
-
-var clone = require('lodash/cloneDeep')
-
-function handleTypeChange (state, emitter, type, eventName, object) {
-  var wasScopeType = state.objectTypeById[object.id] === type
-  var isScopeType = object.type === type
-  var scopedEventName
-
-  if (!wasScopeType && !isScopeType) {
-    return
-  }
-
-  if (objectWasDeleted(object) || objectMovedScope(wasScopeType, isScopeType)) {
-    object = clone(object)
-    object.type = type
-    scopedEventName = 'remove'
-
-    if (objectWasDeleted(object)) {
-      delete state.objectTypeById[object.id]
-    } else {
-      state.objectTypeById[object.id] = type
-    }
-  } else if (!wasScopeType && isScopeType) {
-    state.objectTypeById[object.id] = type
-    scopedEventName = 'add'
-  } else {
-    scopedEventName = 'update'
-  }
-
-  emitter.emit(type + ':' + scopedEventName, object)
-  emitter.emit(type + ':change', scopedEventName, object)
-}
-
-function objectWasDeleted (object) {
-  return object._deleted
-}
-
-function objectMovedScope (wasScopeType, isScopeType) {
-  return wasScopeType && !isScopeType
-}
-
-},{"lodash/cloneDeep":254}],74:[function(require,module,exports){
-module.exports = toObject
-
-var merge = require('lodash/merge')
-
-function toObject (object) {
-  object = merge({
-    id: object._id
-  }, object)
-
-  delete object._id
-
-  return object
-}
-
-},{"lodash/merge":279}],75:[function(require,module,exports){
-module.exports = typeFilter
-
-function typeFilter (type, item) {
-  return item.type === type
-}
-
-},{}],76:[function(require,module,exports){
+},{"./add":51,"./find":56,"./find-all":54,"./find-or-add":55,"./off":72,"./on":73,"./one":74,"./remove":78,"./remove-all":77,"./update":83,"./update-all":81,"./update-or-add":82,"events":105}],91:[function(require,module,exports){
 'use strict';
 
 module.exports = argsArray;
@@ -2603,7 +3318,7 @@ function argsArray(fun) {
     }
   };
 }
-},{}],77:[function(require,module,exports){
+},{}],92:[function(require,module,exports){
 module.exports = LocalStorageStore
 
 var localStorageWrapper = require('humble-localstorage')
@@ -2624,7 +3339,7 @@ function LocalStorageStore (key) {
   }
 }
 
-},{"humble-localstorage":95}],78:[function(require,module,exports){
+},{"humble-localstorage":110}],93:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -2660,22 +3375,22 @@ function placeHoldersCount (b64) {
 
 function byteLength (b64) {
   // base64 is 4/3 + up to two characters of the original data
-  return b64.length * 3 / 4 - placeHoldersCount(b64)
+  return (b64.length * 3 / 4) - placeHoldersCount(b64)
 }
 
 function toByteArray (b64) {
-  var i, j, l, tmp, placeHolders, arr
+  var i, l, tmp, placeHolders, arr
   var len = b64.length
   placeHolders = placeHoldersCount(b64)
 
-  arr = new Arr(len * 3 / 4 - placeHolders)
+  arr = new Arr((len * 3 / 4) - placeHolders)
 
   // if there are placeholders, only get up to the last complete 4 chars
   l = placeHolders > 0 ? len - 4 : len
 
   var L = 0
 
-  for (i = 0, j = 0; i < l; i += 4, j += 3) {
+  for (i = 0; i < l; i += 4) {
     tmp = (revLookup[b64.charCodeAt(i)] << 18) | (revLookup[b64.charCodeAt(i + 1)] << 12) | (revLookup[b64.charCodeAt(i + 2)] << 6) | revLookup[b64.charCodeAt(i + 3)]
     arr[L++] = (tmp >> 16) & 0xFF
     arr[L++] = (tmp >> 8) & 0xFF
@@ -2740,7 +3455,7 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],79:[function(require,module,exports){
+},{}],94:[function(require,module,exports){
 module.exports = Hook
 
 var register = require('./lib/register')
@@ -2768,7 +3483,7 @@ function Hook () {
   return hook
 }
 
-},{"./lib/after":80,"./lib/before":81,"./lib/register":82,"./lib/remove-after":83,"./lib/remove-before":84}],80:[function(require,module,exports){
+},{"./lib/after":95,"./lib/before":96,"./lib/register":97,"./lib/remove-after":98,"./lib/remove-before":99}],95:[function(require,module,exports){
 module.exports = after
 
 function after (state, name, afterHook) {
@@ -2783,7 +3498,7 @@ function after (state, name, afterHook) {
   }
 }
 
-},{}],81:[function(require,module,exports){
+},{}],96:[function(require,module,exports){
 module.exports = before
 
 function before (state, name, beforeHook) {
@@ -2798,7 +3513,7 @@ function before (state, name, beforeHook) {
   }
 }
 
-},{}],82:[function(require,module,exports){
+},{}],97:[function(require,module,exports){
 module.exports = register
 
 function register (state, name, options, method) {
@@ -2868,7 +3583,7 @@ function invokeAfterHook (result, options, method) {
   }
 }
 
-},{}],83:[function(require,module,exports){
+},{}],98:[function(require,module,exports){
 module.exports = removeAfter
 
 function removeAfter (state, name, method) {
@@ -2885,7 +3600,7 @@ function removeAfter (state, name, method) {
   state.registry[name].after.splice(index, 1)
 }
 
-},{}],84:[function(require,module,exports){
+},{}],99:[function(require,module,exports){
 module.exports = removeBefore
 
 function removeBefore (state, name, method) {
@@ -2902,21 +3617,17 @@ function removeBefore (state, name, method) {
   state.registry[name].before.splice(index, 1)
 }
 
-},{}],85:[function(require,module,exports){
-(function (process){
+},{}],100:[function(require,module,exports){
 module.exports = browserSupportsLogStyles
 
 function browserSupportsLogStyles () {
-  // don’t run in node
-  if (!process.browser) {
-    return false
-  }
-
   // don’t run in non-browser environments
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     return false
   }
 
+  // edge browser? https://msdn.microsoft.com/en-us/library/hh869301%28v=vs.85%29.aspx
+  var isEdge = navigator.userAgent.toLowerCase().indexOf('edge') > -1
   // http://stackoverflow.com/a/16459606/376773
   var isWebkit = 'WebkitAppearance' in document.documentElement.style
   // http://stackoverflow.com/a/398120/376773
@@ -2924,11 +3635,10 @@ function browserSupportsLogStyles () {
   // firefox >= v31? https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
   var isFirefoxWithLogStyleSupport = navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31
 
-  return isWebkit || isFirebug || isFirefoxWithLogStyleSupport || false
+  return (isWebkit && !isEdge) || isFirebug || isFirefoxWithLogStyleSupport || false
 }
 
-}).call(this,require('_process'))
-},{"_process":86}],86:[function(require,module,exports){
+},{}],101:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -3099,6 +3809,10 @@ process.off = noop;
 process.removeListener = noop;
 process.removeAllListeners = noop;
 process.emit = noop;
+process.prependListener = noop;
+process.prependOnceListener = noop;
+
+process.listeners = function (name) { return [] }
 
 process.binding = function (name) {
     throw new Error('process.binding is not supported');
@@ -3110,7 +3824,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],87:[function(require,module,exports){
+},{}],102:[function(require,module,exports){
 /*!
  * The buffer module from node.js, for the browser.
  *
@@ -3365,8 +4079,8 @@ function fromObject (obj) {
   }
 
   if (obj) {
-    if (ArrayBuffer.isView(obj) || 'length' in obj) {
-      if (typeof obj.length !== 'number' || isnan(obj.length)) {
+    if (isArrayBufferView(obj) || 'length' in obj) {
+      if (typeof obj.length !== 'number' || numberIsNaN(obj.length)) {
         return createBuffer(0)
       }
       return fromArrayLike(obj)
@@ -3477,7 +4191,7 @@ function byteLength (string, encoding) {
   if (Buffer.isBuffer(string)) {
     return string.length
   }
-  if (ArrayBuffer.isView(string) || string instanceof ArrayBuffer) {
+  if (isArrayBufferView(string) || string instanceof ArrayBuffer) {
     return string.byteLength
   }
   if (typeof string !== 'string') {
@@ -3743,7 +4457,7 @@ function bidirectionalIndexOf (buffer, val, byteOffset, encoding, dir) {
     byteOffset = -0x80000000
   }
   byteOffset = +byteOffset  // Coerce to Number.
-  if (isNaN(byteOffset)) {
+  if (numberIsNaN(byteOffset)) {
     // byteOffset: it it's undefined, null, NaN, "foo", etc, search whole buffer
     byteOffset = dir ? 0 : (buffer.length - 1)
   }
@@ -3874,7 +4588,7 @@ function hexWrite (buf, string, offset, length) {
   }
   for (var i = 0; i < length; ++i) {
     var parsed = parseInt(string.substr(i * 2, 2), 16)
-    if (isNaN(parsed)) return i
+    if (numberIsNaN(parsed)) return i
     buf[offset + i] = parsed
   }
   return i
@@ -4677,7 +5391,7 @@ var INVALID_BASE64_RE = /[^+/0-9A-Za-z-_]/g
 
 function base64clean (str) {
   // Node strips out invalid characters like \n and \t from the string, base64-js does not
-  str = stringtrim(str).replace(INVALID_BASE64_RE, '')
+  str = str.trim().replace(INVALID_BASE64_RE, '')
   // Node converts strings with length < 2 to ''
   if (str.length < 2) return ''
   // Node allows for non-padded base64 strings (missing trailing ===), base64-js does not
@@ -4685,11 +5399,6 @@ function base64clean (str) {
     str = str + '='
   }
   return str
-}
-
-function stringtrim (str) {
-  if (str.trim) return str.trim()
-  return str.replace(/^\s+|\s+$/g, '')
 }
 
 function toHex (n) {
@@ -4814,11 +5523,16 @@ function blitBuffer (src, dst, offset, length) {
   return i
 }
 
-function isnan (val) {
-  return val !== val // eslint-disable-line no-self-compare
+// Node 0.10 supports `ArrayBuffer` but lacks `ArrayBuffer.isView`
+function isArrayBufferView (obj) {
+  return (typeof ArrayBuffer.isView === 'function') && ArrayBuffer.isView(obj)
 }
 
-},{"base64-js":78,"ieee754":96}],88:[function(require,module,exports){
+function numberIsNaN (obj) {
+  return obj !== obj // eslint-disable-line no-self-compare
+}
+
+},{"base64-js":93,"ieee754":111}],103:[function(require,module,exports){
 (function (process){
 /**
  * This is the web browser implementation of `debug()`.
@@ -4970,14 +5684,17 @@ function save(namespaces) {
  */
 
 function load() {
+  var r;
   try {
-    return exports.storage.debug;
+    r = exports.storage.debug;
   } catch(e) {}
 
   // If debug isn't set in LS, and we're in Electron, try to load $DEBUG
-  if (typeof process !== 'undefined' && 'env' in process) {
-    return process.env.DEBUG;
+  if (!r && typeof process !== 'undefined' && 'env' in process) {
+    r = process.env.DEBUG;
   }
+
+  return r;
 }
 
 /**
@@ -5004,7 +5721,7 @@ function localstorage() {
 }
 
 }).call(this,require('_process'))
-},{"./debug":89,"_process":86}],89:[function(require,module,exports){
+},{"./debug":104,"_process":101}],104:[function(require,module,exports){
 
 /**
  * This is the common logic for both the Node.js and web browser
@@ -5013,7 +5730,7 @@ function localstorage() {
  * Expose `debug()` as the module.
  */
 
-exports = module.exports = createDebug.debug = createDebug.default = createDebug;
+exports = module.exports = createDebug.debug = createDebug['default'] = createDebug;
 exports.coerce = coerce;
 exports.disable = disable;
 exports.enable = enable;
@@ -5145,7 +5862,10 @@ function createDebug(namespace) {
 function enable(namespaces) {
   exports.save(namespaces);
 
-  var split = (namespaces || '').split(/[\s,]+/);
+  exports.names = [];
+  exports.skips = [];
+
+  var split = (typeof namespaces === 'string' ? namespaces : '').split(/[\s,]+/);
   var len = split.length;
 
   for (var i = 0; i < len; i++) {
@@ -5205,7 +5925,7 @@ function coerce(val) {
   return val;
 }
 
-},{"ms":288}],90:[function(require,module,exports){
+},{"ms":303}],105:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -5509,7 +6229,7 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],91:[function(require,module,exports){
+},{}],106:[function(require,module,exports){
 var isFunction = require('is-function')
 
 module.exports = forEach
@@ -5557,20 +6277,24 @@ function forEachObject(object, iterator, context) {
     }
 }
 
-},{"is-function":99}],92:[function(require,module,exports){
+},{"is-function":114}],107:[function(require,module,exports){
 (function (global){
+var win;
+
 if (typeof window !== "undefined") {
-    module.exports = window;
+    win = window;
 } else if (typeof global !== "undefined") {
-    module.exports = global;
+    win = global;
 } else if (typeof self !== "undefined"){
-    module.exports = self;
+    win = self;
 } else {
-    module.exports = {};
+    win = {};
 }
 
+module.exports = win;
+
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],93:[function(require,module,exports){
+},{}],108:[function(require,module,exports){
 /**
  * # hasLocalStorage()
  *
@@ -5617,7 +6341,7 @@ if (typeof exports === 'object') {
   module.exports = hasLocalStorage;
 }
 
-},{}],94:[function(require,module,exports){
+},{}],109:[function(require,module,exports){
 (function (global){
 var exports = module.exports = {};
 var localStorageMemory = require('localstorage-memory');
@@ -5691,11 +6415,11 @@ exports.getObject = function (store, key) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"has-localstorage":93,"localstorage-memory":101}],95:[function(require,module,exports){
+},{"has-localstorage":108,"localstorage-memory":116}],110:[function(require,module,exports){
 var api = require('./api');
 module.exports = api.create();
 
-},{"./api":94}],96:[function(require,module,exports){
+},{"./api":109}],111:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = nBytes * 8 - mLen - 1
@@ -5781,7 +6505,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],97:[function(require,module,exports){
+},{}],112:[function(require,module,exports){
 (function (global){
 'use strict';
 var Mutation = global.MutationObserver || global.WebKitMutationObserver;
@@ -5854,7 +6578,7 @@ function immediate(task) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],98:[function(require,module,exports){
+},{}],113:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -5879,7 +6603,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],99:[function(require,module,exports){
+},{}],114:[function(require,module,exports){
 module.exports = isFunction
 
 var toString = Object.prototype.toString
@@ -5896,7 +6620,7 @@ function isFunction (fn) {
       fn === window.prompt))
 };
 
-},{}],100:[function(require,module,exports){
+},{}],115:[function(require,module,exports){
 'use strict';
 var immediate = require('immediate');
 
@@ -6151,7 +6875,7 @@ function race(iterable) {
   }
 }
 
-},{"immediate":97}],101:[function(require,module,exports){
+},{"immediate":112}],116:[function(require,module,exports){
 (function(root) {
   var localStorageMemory = {};
   var cache = {};
@@ -6235,7 +6959,7 @@ function race(iterable) {
   }
 })(this);
 
-},{}],102:[function(require,module,exports){
+},{}],117:[function(require,module,exports){
 var getNative = require('./_getNative'),
     root = require('./_root');
 
@@ -6244,7 +6968,7 @@ var DataView = getNative(root, 'DataView');
 
 module.exports = DataView;
 
-},{"./_getNative":194,"./_root":239}],103:[function(require,module,exports){
+},{"./_getNative":209,"./_root":254}],118:[function(require,module,exports){
 var hashClear = require('./_hashClear'),
     hashDelete = require('./_hashDelete'),
     hashGet = require('./_hashGet'),
@@ -6278,7 +7002,7 @@ Hash.prototype.set = hashSet;
 
 module.exports = Hash;
 
-},{"./_hashClear":202,"./_hashDelete":203,"./_hashGet":204,"./_hashHas":205,"./_hashSet":206}],104:[function(require,module,exports){
+},{"./_hashClear":217,"./_hashDelete":218,"./_hashGet":219,"./_hashHas":220,"./_hashSet":221}],119:[function(require,module,exports){
 var listCacheClear = require('./_listCacheClear'),
     listCacheDelete = require('./_listCacheDelete'),
     listCacheGet = require('./_listCacheGet'),
@@ -6312,7 +7036,7 @@ ListCache.prototype.set = listCacheSet;
 
 module.exports = ListCache;
 
-},{"./_listCacheClear":218,"./_listCacheDelete":219,"./_listCacheGet":220,"./_listCacheHas":221,"./_listCacheSet":222}],105:[function(require,module,exports){
+},{"./_listCacheClear":233,"./_listCacheDelete":234,"./_listCacheGet":235,"./_listCacheHas":236,"./_listCacheSet":237}],120:[function(require,module,exports){
 var getNative = require('./_getNative'),
     root = require('./_root');
 
@@ -6321,7 +7045,7 @@ var Map = getNative(root, 'Map');
 
 module.exports = Map;
 
-},{"./_getNative":194,"./_root":239}],106:[function(require,module,exports){
+},{"./_getNative":209,"./_root":254}],121:[function(require,module,exports){
 var mapCacheClear = require('./_mapCacheClear'),
     mapCacheDelete = require('./_mapCacheDelete'),
     mapCacheGet = require('./_mapCacheGet'),
@@ -6355,7 +7079,7 @@ MapCache.prototype.set = mapCacheSet;
 
 module.exports = MapCache;
 
-},{"./_mapCacheClear":223,"./_mapCacheDelete":224,"./_mapCacheGet":225,"./_mapCacheHas":226,"./_mapCacheSet":227}],107:[function(require,module,exports){
+},{"./_mapCacheClear":238,"./_mapCacheDelete":239,"./_mapCacheGet":240,"./_mapCacheHas":241,"./_mapCacheSet":242}],122:[function(require,module,exports){
 var getNative = require('./_getNative'),
     root = require('./_root');
 
@@ -6364,7 +7088,7 @@ var Promise = getNative(root, 'Promise');
 
 module.exports = Promise;
 
-},{"./_getNative":194,"./_root":239}],108:[function(require,module,exports){
+},{"./_getNative":209,"./_root":254}],123:[function(require,module,exports){
 var getNative = require('./_getNative'),
     root = require('./_root');
 
@@ -6373,7 +7097,7 @@ var Set = getNative(root, 'Set');
 
 module.exports = Set;
 
-},{"./_getNative":194,"./_root":239}],109:[function(require,module,exports){
+},{"./_getNative":209,"./_root":254}],124:[function(require,module,exports){
 var MapCache = require('./_MapCache'),
     setCacheAdd = require('./_setCacheAdd'),
     setCacheHas = require('./_setCacheHas');
@@ -6402,7 +7126,7 @@ SetCache.prototype.has = setCacheHas;
 
 module.exports = SetCache;
 
-},{"./_MapCache":106,"./_setCacheAdd":240,"./_setCacheHas":241}],110:[function(require,module,exports){
+},{"./_MapCache":121,"./_setCacheAdd":255,"./_setCacheHas":256}],125:[function(require,module,exports){
 var ListCache = require('./_ListCache'),
     stackClear = require('./_stackClear'),
     stackDelete = require('./_stackDelete'),
@@ -6431,7 +7155,7 @@ Stack.prototype.set = stackSet;
 
 module.exports = Stack;
 
-},{"./_ListCache":104,"./_stackClear":245,"./_stackDelete":246,"./_stackGet":247,"./_stackHas":248,"./_stackSet":249}],111:[function(require,module,exports){
+},{"./_ListCache":119,"./_stackClear":260,"./_stackDelete":261,"./_stackGet":262,"./_stackHas":263,"./_stackSet":264}],126:[function(require,module,exports){
 var root = require('./_root');
 
 /** Built-in value references. */
@@ -6439,7 +7163,7 @@ var Symbol = root.Symbol;
 
 module.exports = Symbol;
 
-},{"./_root":239}],112:[function(require,module,exports){
+},{"./_root":254}],127:[function(require,module,exports){
 var root = require('./_root');
 
 /** Built-in value references. */
@@ -6447,7 +7171,7 @@ var Uint8Array = root.Uint8Array;
 
 module.exports = Uint8Array;
 
-},{"./_root":239}],113:[function(require,module,exports){
+},{"./_root":254}],128:[function(require,module,exports){
 var getNative = require('./_getNative'),
     root = require('./_root');
 
@@ -6456,7 +7180,7 @@ var WeakMap = getNative(root, 'WeakMap');
 
 module.exports = WeakMap;
 
-},{"./_getNative":194,"./_root":239}],114:[function(require,module,exports){
+},{"./_getNative":209,"./_root":254}],129:[function(require,module,exports){
 /**
  * Adds the key-value `pair` to `map`.
  *
@@ -6473,7 +7197,7 @@ function addMapEntry(map, pair) {
 
 module.exports = addMapEntry;
 
-},{}],115:[function(require,module,exports){
+},{}],130:[function(require,module,exports){
 /**
  * Adds `value` to `set`.
  *
@@ -6490,7 +7214,7 @@ function addSetEntry(set, value) {
 
 module.exports = addSetEntry;
 
-},{}],116:[function(require,module,exports){
+},{}],131:[function(require,module,exports){
 /**
  * A faster alternative to `Function#apply`, this function invokes `func`
  * with the `this` binding of `thisArg` and the arguments of `args`.
@@ -6513,7 +7237,7 @@ function apply(func, thisArg, args) {
 
 module.exports = apply;
 
-},{}],117:[function(require,module,exports){
+},{}],132:[function(require,module,exports){
 /**
  * A specialized version of `_.forEach` for arrays without support for
  * iteratee shorthands.
@@ -6537,7 +7261,7 @@ function arrayEach(array, iteratee) {
 
 module.exports = arrayEach;
 
-},{}],118:[function(require,module,exports){
+},{}],133:[function(require,module,exports){
 /**
  * A specialized version of `_.filter` for arrays without support for
  * iteratee shorthands.
@@ -6564,7 +7288,7 @@ function arrayFilter(array, predicate) {
 
 module.exports = arrayFilter;
 
-},{}],119:[function(require,module,exports){
+},{}],134:[function(require,module,exports){
 var baseTimes = require('./_baseTimes'),
     isArguments = require('./isArguments'),
     isArray = require('./isArray'),
@@ -6615,7 +7339,7 @@ function arrayLikeKeys(value, inherited) {
 
 module.exports = arrayLikeKeys;
 
-},{"./_baseTimes":160,"./_isIndex":211,"./isArguments":263,"./isArray":264,"./isBuffer":267,"./isTypedArray":274}],120:[function(require,module,exports){
+},{"./_baseTimes":175,"./_isIndex":226,"./isArguments":278,"./isArray":279,"./isBuffer":282,"./isTypedArray":289}],135:[function(require,module,exports){
 /**
  * A specialized version of `_.map` for arrays without support for iteratee
  * shorthands.
@@ -6638,7 +7362,7 @@ function arrayMap(array, iteratee) {
 
 module.exports = arrayMap;
 
-},{}],121:[function(require,module,exports){
+},{}],136:[function(require,module,exports){
 /**
  * Appends the elements of `values` to `array`.
  *
@@ -6660,7 +7384,7 @@ function arrayPush(array, values) {
 
 module.exports = arrayPush;
 
-},{}],122:[function(require,module,exports){
+},{}],137:[function(require,module,exports){
 /**
  * A specialized version of `_.reduce` for arrays without support for
  * iteratee shorthands.
@@ -6688,7 +7412,7 @@ function arrayReduce(array, iteratee, accumulator, initAccum) {
 
 module.exports = arrayReduce;
 
-},{}],123:[function(require,module,exports){
+},{}],138:[function(require,module,exports){
 /**
  * A specialized version of `_.some` for arrays without support for iteratee
  * shorthands.
@@ -6713,7 +7437,7 @@ function arraySome(array, predicate) {
 
 module.exports = arraySome;
 
-},{}],124:[function(require,module,exports){
+},{}],139:[function(require,module,exports){
 var baseAssignValue = require('./_baseAssignValue'),
     eq = require('./eq');
 
@@ -6735,7 +7459,7 @@ function assignMergeValue(object, key, value) {
 
 module.exports = assignMergeValue;
 
-},{"./_baseAssignValue":129,"./eq":257}],125:[function(require,module,exports){
+},{"./_baseAssignValue":144,"./eq":272}],140:[function(require,module,exports){
 var baseAssignValue = require('./_baseAssignValue'),
     eq = require('./eq');
 
@@ -6765,7 +7489,7 @@ function assignValue(object, key, value) {
 
 module.exports = assignValue;
 
-},{"./_baseAssignValue":129,"./eq":257}],126:[function(require,module,exports){
+},{"./_baseAssignValue":144,"./eq":272}],141:[function(require,module,exports){
 var eq = require('./eq');
 
 /**
@@ -6788,7 +7512,7 @@ function assocIndexOf(array, key) {
 
 module.exports = assocIndexOf;
 
-},{"./eq":257}],127:[function(require,module,exports){
+},{"./eq":272}],142:[function(require,module,exports){
 var copyObject = require('./_copyObject'),
     keys = require('./keys');
 
@@ -6807,7 +7531,7 @@ function baseAssign(object, source) {
 
 module.exports = baseAssign;
 
-},{"./_copyObject":175,"./keys":275}],128:[function(require,module,exports){
+},{"./_copyObject":190,"./keys":290}],143:[function(require,module,exports){
 var copyObject = require('./_copyObject'),
     keysIn = require('./keysIn');
 
@@ -6826,7 +7550,7 @@ function baseAssignIn(object, source) {
 
 module.exports = baseAssignIn;
 
-},{"./_copyObject":175,"./keysIn":276}],129:[function(require,module,exports){
+},{"./_copyObject":190,"./keysIn":291}],144:[function(require,module,exports){
 var defineProperty = require('./_defineProperty');
 
 /**
@@ -6853,7 +7577,7 @@ function baseAssignValue(object, key, value) {
 
 module.exports = baseAssignValue;
 
-},{"./_defineProperty":184}],130:[function(require,module,exports){
+},{"./_defineProperty":199}],145:[function(require,module,exports){
 var Stack = require('./_Stack'),
     arrayEach = require('./_arrayEach'),
     assignValue = require('./_assignValue'),
@@ -7008,7 +7732,7 @@ function baseClone(value, bitmask, customizer, key, object, stack) {
 
 module.exports = baseClone;
 
-},{"./_Stack":110,"./_arrayEach":117,"./_assignValue":125,"./_baseAssign":127,"./_baseAssignIn":128,"./_cloneBuffer":167,"./_copyArray":174,"./_copySymbols":176,"./_copySymbolsIn":177,"./_getAllKeys":190,"./_getAllKeysIn":191,"./_getTag":199,"./_initCloneArray":207,"./_initCloneByTag":208,"./_initCloneObject":209,"./isArray":264,"./isBuffer":267,"./isObject":270,"./keys":275}],131:[function(require,module,exports){
+},{"./_Stack":125,"./_arrayEach":132,"./_assignValue":140,"./_baseAssign":142,"./_baseAssignIn":143,"./_cloneBuffer":182,"./_copyArray":189,"./_copySymbols":191,"./_copySymbolsIn":192,"./_getAllKeys":205,"./_getAllKeysIn":206,"./_getTag":214,"./_initCloneArray":222,"./_initCloneByTag":223,"./_initCloneObject":224,"./isArray":279,"./isBuffer":282,"./isObject":285,"./keys":290}],146:[function(require,module,exports){
 var isObject = require('./isObject');
 
 /** Built-in value references. */
@@ -7040,7 +7764,7 @@ var baseCreate = (function() {
 
 module.exports = baseCreate;
 
-},{"./isObject":270}],132:[function(require,module,exports){
+},{"./isObject":285}],147:[function(require,module,exports){
 var baseForOwn = require('./_baseForOwn'),
     createBaseEach = require('./_createBaseEach');
 
@@ -7056,7 +7780,7 @@ var baseEach = createBaseEach(baseForOwn);
 
 module.exports = baseEach;
 
-},{"./_baseForOwn":136,"./_createBaseEach":180}],133:[function(require,module,exports){
+},{"./_baseForOwn":151,"./_createBaseEach":195}],148:[function(require,module,exports){
 var baseEach = require('./_baseEach');
 
 /**
@@ -7079,7 +7803,7 @@ function baseFilter(collection, predicate) {
 
 module.exports = baseFilter;
 
-},{"./_baseEach":132}],134:[function(require,module,exports){
+},{"./_baseEach":147}],149:[function(require,module,exports){
 var arrayPush = require('./_arrayPush'),
     isFlattenable = require('./_isFlattenable');
 
@@ -7119,7 +7843,7 @@ function baseFlatten(array, depth, predicate, isStrict, result) {
 
 module.exports = baseFlatten;
 
-},{"./_arrayPush":121,"./_isFlattenable":210}],135:[function(require,module,exports){
+},{"./_arrayPush":136,"./_isFlattenable":225}],150:[function(require,module,exports){
 var createBaseFor = require('./_createBaseFor');
 
 /**
@@ -7137,7 +7861,7 @@ var baseFor = createBaseFor();
 
 module.exports = baseFor;
 
-},{"./_createBaseFor":181}],136:[function(require,module,exports){
+},{"./_createBaseFor":196}],151:[function(require,module,exports){
 var baseFor = require('./_baseFor'),
     keys = require('./keys');
 
@@ -7155,7 +7879,7 @@ function baseForOwn(object, iteratee) {
 
 module.exports = baseForOwn;
 
-},{"./_baseFor":135,"./keys":275}],137:[function(require,module,exports){
+},{"./_baseFor":150,"./keys":290}],152:[function(require,module,exports){
 var castPath = require('./_castPath'),
     toKey = require('./_toKey');
 
@@ -7181,7 +7905,7 @@ function baseGet(object, path) {
 
 module.exports = baseGet;
 
-},{"./_castPath":165,"./_toKey":251}],138:[function(require,module,exports){
+},{"./_castPath":180,"./_toKey":266}],153:[function(require,module,exports){
 var arrayPush = require('./_arrayPush'),
     isArray = require('./isArray');
 
@@ -7203,7 +7927,7 @@ function baseGetAllKeys(object, keysFunc, symbolsFunc) {
 
 module.exports = baseGetAllKeys;
 
-},{"./_arrayPush":121,"./isArray":264}],139:[function(require,module,exports){
+},{"./_arrayPush":136,"./isArray":279}],154:[function(require,module,exports){
 var Symbol = require('./_Symbol'),
     getRawTag = require('./_getRawTag'),
     objectToString = require('./_objectToString');
@@ -7233,7 +7957,7 @@ function baseGetTag(value) {
 
 module.exports = baseGetTag;
 
-},{"./_Symbol":111,"./_getRawTag":196,"./_objectToString":235}],140:[function(require,module,exports){
+},{"./_Symbol":126,"./_getRawTag":211,"./_objectToString":250}],155:[function(require,module,exports){
 /**
  * The base implementation of `_.hasIn` without support for deep paths.
  *
@@ -7248,7 +7972,7 @@ function baseHasIn(object, key) {
 
 module.exports = baseHasIn;
 
-},{}],141:[function(require,module,exports){
+},{}],156:[function(require,module,exports){
 var baseGetTag = require('./_baseGetTag'),
     isObjectLike = require('./isObjectLike');
 
@@ -7268,7 +7992,7 @@ function baseIsArguments(value) {
 
 module.exports = baseIsArguments;
 
-},{"./_baseGetTag":139,"./isObjectLike":271}],142:[function(require,module,exports){
+},{"./_baseGetTag":154,"./isObjectLike":286}],157:[function(require,module,exports){
 var baseIsEqualDeep = require('./_baseIsEqualDeep'),
     isObjectLike = require('./isObjectLike');
 
@@ -7298,7 +8022,7 @@ function baseIsEqual(value, other, bitmask, customizer, stack) {
 
 module.exports = baseIsEqual;
 
-},{"./_baseIsEqualDeep":143,"./isObjectLike":271}],143:[function(require,module,exports){
+},{"./_baseIsEqualDeep":158,"./isObjectLike":286}],158:[function(require,module,exports){
 var Stack = require('./_Stack'),
     equalArrays = require('./_equalArrays'),
     equalByTag = require('./_equalByTag'),
@@ -7383,7 +8107,7 @@ function baseIsEqualDeep(object, other, bitmask, customizer, equalFunc, stack) {
 
 module.exports = baseIsEqualDeep;
 
-},{"./_Stack":110,"./_equalArrays":185,"./_equalByTag":186,"./_equalObjects":187,"./_getTag":199,"./isArray":264,"./isBuffer":267,"./isTypedArray":274}],144:[function(require,module,exports){
+},{"./_Stack":125,"./_equalArrays":200,"./_equalByTag":201,"./_equalObjects":202,"./_getTag":214,"./isArray":279,"./isBuffer":282,"./isTypedArray":289}],159:[function(require,module,exports){
 var Stack = require('./_Stack'),
     baseIsEqual = require('./_baseIsEqual');
 
@@ -7447,7 +8171,7 @@ function baseIsMatch(object, source, matchData, customizer) {
 
 module.exports = baseIsMatch;
 
-},{"./_Stack":110,"./_baseIsEqual":142}],145:[function(require,module,exports){
+},{"./_Stack":125,"./_baseIsEqual":157}],160:[function(require,module,exports){
 var isFunction = require('./isFunction'),
     isMasked = require('./_isMasked'),
     isObject = require('./isObject'),
@@ -7496,7 +8220,7 @@ function baseIsNative(value) {
 
 module.exports = baseIsNative;
 
-},{"./_isMasked":215,"./_toSource":252,"./isFunction":268,"./isObject":270}],146:[function(require,module,exports){
+},{"./_isMasked":230,"./_toSource":267,"./isFunction":283,"./isObject":285}],161:[function(require,module,exports){
 var baseGetTag = require('./_baseGetTag'),
     isLength = require('./isLength'),
     isObjectLike = require('./isObjectLike');
@@ -7558,7 +8282,7 @@ function baseIsTypedArray(value) {
 
 module.exports = baseIsTypedArray;
 
-},{"./_baseGetTag":139,"./isLength":269,"./isObjectLike":271}],147:[function(require,module,exports){
+},{"./_baseGetTag":154,"./isLength":284,"./isObjectLike":286}],162:[function(require,module,exports){
 var baseMatches = require('./_baseMatches'),
     baseMatchesProperty = require('./_baseMatchesProperty'),
     identity = require('./identity'),
@@ -7591,7 +8315,7 @@ function baseIteratee(value) {
 
 module.exports = baseIteratee;
 
-},{"./_baseMatches":150,"./_baseMatchesProperty":151,"./identity":262,"./isArray":264,"./property":282}],148:[function(require,module,exports){
+},{"./_baseMatches":165,"./_baseMatchesProperty":166,"./identity":277,"./isArray":279,"./property":297}],163:[function(require,module,exports){
 var isPrototype = require('./_isPrototype'),
     nativeKeys = require('./_nativeKeys');
 
@@ -7623,7 +8347,7 @@ function baseKeys(object) {
 
 module.exports = baseKeys;
 
-},{"./_isPrototype":216,"./_nativeKeys":232}],149:[function(require,module,exports){
+},{"./_isPrototype":231,"./_nativeKeys":247}],164:[function(require,module,exports){
 var isObject = require('./isObject'),
     isPrototype = require('./_isPrototype'),
     nativeKeysIn = require('./_nativeKeysIn');
@@ -7658,7 +8382,7 @@ function baseKeysIn(object) {
 
 module.exports = baseKeysIn;
 
-},{"./_isPrototype":216,"./_nativeKeysIn":233,"./isObject":270}],150:[function(require,module,exports){
+},{"./_isPrototype":231,"./_nativeKeysIn":248,"./isObject":285}],165:[function(require,module,exports){
 var baseIsMatch = require('./_baseIsMatch'),
     getMatchData = require('./_getMatchData'),
     matchesStrictComparable = require('./_matchesStrictComparable');
@@ -7682,7 +8406,7 @@ function baseMatches(source) {
 
 module.exports = baseMatches;
 
-},{"./_baseIsMatch":144,"./_getMatchData":193,"./_matchesStrictComparable":229}],151:[function(require,module,exports){
+},{"./_baseIsMatch":159,"./_getMatchData":208,"./_matchesStrictComparable":244}],166:[function(require,module,exports){
 var baseIsEqual = require('./_baseIsEqual'),
     get = require('./get'),
     hasIn = require('./hasIn'),
@@ -7717,7 +8441,7 @@ function baseMatchesProperty(path, srcValue) {
 
 module.exports = baseMatchesProperty;
 
-},{"./_baseIsEqual":142,"./_isKey":213,"./_isStrictComparable":217,"./_matchesStrictComparable":229,"./_toKey":251,"./get":260,"./hasIn":261}],152:[function(require,module,exports){
+},{"./_baseIsEqual":157,"./_isKey":228,"./_isStrictComparable":232,"./_matchesStrictComparable":244,"./_toKey":266,"./get":275,"./hasIn":276}],167:[function(require,module,exports){
 var Stack = require('./_Stack'),
     assignMergeValue = require('./_assignMergeValue'),
     baseFor = require('./_baseFor'),
@@ -7760,7 +8484,7 @@ function baseMerge(object, source, srcIndex, customizer, stack) {
 
 module.exports = baseMerge;
 
-},{"./_Stack":110,"./_assignMergeValue":124,"./_baseFor":135,"./_baseMergeDeep":153,"./isObject":270,"./keysIn":276}],153:[function(require,module,exports){
+},{"./_Stack":125,"./_assignMergeValue":139,"./_baseFor":150,"./_baseMergeDeep":168,"./isObject":285,"./keysIn":291}],168:[function(require,module,exports){
 var assignMergeValue = require('./_assignMergeValue'),
     cloneBuffer = require('./_cloneBuffer'),
     cloneTypedArray = require('./_cloneTypedArray'),
@@ -7855,7 +8579,7 @@ function baseMergeDeep(object, source, key, srcIndex, mergeFunc, customizer, sta
 
 module.exports = baseMergeDeep;
 
-},{"./_assignMergeValue":124,"./_cloneBuffer":167,"./_cloneTypedArray":173,"./_copyArray":174,"./_initCloneObject":209,"./isArguments":263,"./isArray":264,"./isArrayLikeObject":266,"./isBuffer":267,"./isFunction":268,"./isObject":270,"./isPlainObject":272,"./isTypedArray":274,"./toPlainObject":286}],154:[function(require,module,exports){
+},{"./_assignMergeValue":139,"./_cloneBuffer":182,"./_cloneTypedArray":188,"./_copyArray":189,"./_initCloneObject":224,"./isArguments":278,"./isArray":279,"./isArrayLikeObject":281,"./isBuffer":282,"./isFunction":283,"./isObject":285,"./isPlainObject":287,"./isTypedArray":289,"./toPlainObject":301}],169:[function(require,module,exports){
 /**
  * The base implementation of `_.property` without support for deep paths.
  *
@@ -7871,7 +8595,7 @@ function baseProperty(key) {
 
 module.exports = baseProperty;
 
-},{}],155:[function(require,module,exports){
+},{}],170:[function(require,module,exports){
 var baseGet = require('./_baseGet');
 
 /**
@@ -7889,7 +8613,7 @@ function basePropertyDeep(path) {
 
 module.exports = basePropertyDeep;
 
-},{"./_baseGet":137}],156:[function(require,module,exports){
+},{"./_baseGet":152}],171:[function(require,module,exports){
 var identity = require('./identity'),
     overRest = require('./_overRest'),
     setToString = require('./_setToString');
@@ -7908,7 +8632,7 @@ function baseRest(func, start) {
 
 module.exports = baseRest;
 
-},{"./_overRest":237,"./_setToString":243,"./identity":262}],157:[function(require,module,exports){
+},{"./_overRest":252,"./_setToString":258,"./identity":277}],172:[function(require,module,exports){
 var assignValue = require('./_assignValue'),
     castPath = require('./_castPath'),
     isIndex = require('./_isIndex'),
@@ -7957,7 +8681,7 @@ function baseSet(object, path, value, customizer) {
 
 module.exports = baseSet;
 
-},{"./_assignValue":125,"./_castPath":165,"./_isIndex":211,"./_toKey":251,"./isObject":270}],158:[function(require,module,exports){
+},{"./_assignValue":140,"./_castPath":180,"./_isIndex":226,"./_toKey":266,"./isObject":285}],173:[function(require,module,exports){
 var constant = require('./constant'),
     defineProperty = require('./_defineProperty'),
     identity = require('./identity');
@@ -7981,7 +8705,7 @@ var baseSetToString = !defineProperty ? identity : function(func, string) {
 
 module.exports = baseSetToString;
 
-},{"./_defineProperty":184,"./constant":255,"./identity":262}],159:[function(require,module,exports){
+},{"./_defineProperty":199,"./constant":270,"./identity":277}],174:[function(require,module,exports){
 /**
  * The base implementation of `_.slice` without an iteratee call guard.
  *
@@ -8014,7 +8738,7 @@ function baseSlice(array, start, end) {
 
 module.exports = baseSlice;
 
-},{}],160:[function(require,module,exports){
+},{}],175:[function(require,module,exports){
 /**
  * The base implementation of `_.times` without support for iteratee shorthands
  * or max array length checks.
@@ -8036,7 +8760,7 @@ function baseTimes(n, iteratee) {
 
 module.exports = baseTimes;
 
-},{}],161:[function(require,module,exports){
+},{}],176:[function(require,module,exports){
 var Symbol = require('./_Symbol'),
     arrayMap = require('./_arrayMap'),
     isArray = require('./isArray'),
@@ -8075,7 +8799,7 @@ function baseToString(value) {
 
 module.exports = baseToString;
 
-},{"./_Symbol":111,"./_arrayMap":120,"./isArray":264,"./isSymbol":273}],162:[function(require,module,exports){
+},{"./_Symbol":126,"./_arrayMap":135,"./isArray":279,"./isSymbol":288}],177:[function(require,module,exports){
 /**
  * The base implementation of `_.unary` without support for storing metadata.
  *
@@ -8091,7 +8815,7 @@ function baseUnary(func) {
 
 module.exports = baseUnary;
 
-},{}],163:[function(require,module,exports){
+},{}],178:[function(require,module,exports){
 var castPath = require('./_castPath'),
     last = require('./last'),
     parent = require('./_parent'),
@@ -8113,7 +8837,7 @@ function baseUnset(object, path) {
 
 module.exports = baseUnset;
 
-},{"./_castPath":165,"./_parent":238,"./_toKey":251,"./last":277}],164:[function(require,module,exports){
+},{"./_castPath":180,"./_parent":253,"./_toKey":266,"./last":292}],179:[function(require,module,exports){
 /**
  * Checks if a `cache` value for `key` exists.
  *
@@ -8128,7 +8852,7 @@ function cacheHas(cache, key) {
 
 module.exports = cacheHas;
 
-},{}],165:[function(require,module,exports){
+},{}],180:[function(require,module,exports){
 var isArray = require('./isArray'),
     isKey = require('./_isKey'),
     stringToPath = require('./_stringToPath'),
@@ -8151,7 +8875,7 @@ function castPath(value, object) {
 
 module.exports = castPath;
 
-},{"./_isKey":213,"./_stringToPath":250,"./isArray":264,"./toString":287}],166:[function(require,module,exports){
+},{"./_isKey":228,"./_stringToPath":265,"./isArray":279,"./toString":302}],181:[function(require,module,exports){
 var Uint8Array = require('./_Uint8Array');
 
 /**
@@ -8169,7 +8893,7 @@ function cloneArrayBuffer(arrayBuffer) {
 
 module.exports = cloneArrayBuffer;
 
-},{"./_Uint8Array":112}],167:[function(require,module,exports){
+},{"./_Uint8Array":127}],182:[function(require,module,exports){
 var root = require('./_root');
 
 /** Detect free variable `exports`. */
@@ -8206,7 +8930,7 @@ function cloneBuffer(buffer, isDeep) {
 
 module.exports = cloneBuffer;
 
-},{"./_root":239}],168:[function(require,module,exports){
+},{"./_root":254}],183:[function(require,module,exports){
 var cloneArrayBuffer = require('./_cloneArrayBuffer');
 
 /**
@@ -8224,7 +8948,7 @@ function cloneDataView(dataView, isDeep) {
 
 module.exports = cloneDataView;
 
-},{"./_cloneArrayBuffer":166}],169:[function(require,module,exports){
+},{"./_cloneArrayBuffer":181}],184:[function(require,module,exports){
 var addMapEntry = require('./_addMapEntry'),
     arrayReduce = require('./_arrayReduce'),
     mapToArray = require('./_mapToArray');
@@ -8248,7 +8972,7 @@ function cloneMap(map, isDeep, cloneFunc) {
 
 module.exports = cloneMap;
 
-},{"./_addMapEntry":114,"./_arrayReduce":122,"./_mapToArray":228}],170:[function(require,module,exports){
+},{"./_addMapEntry":129,"./_arrayReduce":137,"./_mapToArray":243}],185:[function(require,module,exports){
 /** Used to match `RegExp` flags from their coerced string values. */
 var reFlags = /\w*$/;
 
@@ -8267,7 +8991,7 @@ function cloneRegExp(regexp) {
 
 module.exports = cloneRegExp;
 
-},{}],171:[function(require,module,exports){
+},{}],186:[function(require,module,exports){
 var addSetEntry = require('./_addSetEntry'),
     arrayReduce = require('./_arrayReduce'),
     setToArray = require('./_setToArray');
@@ -8291,7 +9015,7 @@ function cloneSet(set, isDeep, cloneFunc) {
 
 module.exports = cloneSet;
 
-},{"./_addSetEntry":115,"./_arrayReduce":122,"./_setToArray":242}],172:[function(require,module,exports){
+},{"./_addSetEntry":130,"./_arrayReduce":137,"./_setToArray":257}],187:[function(require,module,exports){
 var Symbol = require('./_Symbol');
 
 /** Used to convert symbols to primitives and strings. */
@@ -8311,7 +9035,7 @@ function cloneSymbol(symbol) {
 
 module.exports = cloneSymbol;
 
-},{"./_Symbol":111}],173:[function(require,module,exports){
+},{"./_Symbol":126}],188:[function(require,module,exports){
 var cloneArrayBuffer = require('./_cloneArrayBuffer');
 
 /**
@@ -8329,7 +9053,7 @@ function cloneTypedArray(typedArray, isDeep) {
 
 module.exports = cloneTypedArray;
 
-},{"./_cloneArrayBuffer":166}],174:[function(require,module,exports){
+},{"./_cloneArrayBuffer":181}],189:[function(require,module,exports){
 /**
  * Copies the values of `source` to `array`.
  *
@@ -8351,7 +9075,7 @@ function copyArray(source, array) {
 
 module.exports = copyArray;
 
-},{}],175:[function(require,module,exports){
+},{}],190:[function(require,module,exports){
 var assignValue = require('./_assignValue'),
     baseAssignValue = require('./_baseAssignValue');
 
@@ -8393,7 +9117,7 @@ function copyObject(source, props, object, customizer) {
 
 module.exports = copyObject;
 
-},{"./_assignValue":125,"./_baseAssignValue":129}],176:[function(require,module,exports){
+},{"./_assignValue":140,"./_baseAssignValue":144}],191:[function(require,module,exports){
 var copyObject = require('./_copyObject'),
     getSymbols = require('./_getSymbols');
 
@@ -8411,7 +9135,7 @@ function copySymbols(source, object) {
 
 module.exports = copySymbols;
 
-},{"./_copyObject":175,"./_getSymbols":197}],177:[function(require,module,exports){
+},{"./_copyObject":190,"./_getSymbols":212}],192:[function(require,module,exports){
 var copyObject = require('./_copyObject'),
     getSymbolsIn = require('./_getSymbolsIn');
 
@@ -8429,7 +9153,7 @@ function copySymbolsIn(source, object) {
 
 module.exports = copySymbolsIn;
 
-},{"./_copyObject":175,"./_getSymbolsIn":198}],178:[function(require,module,exports){
+},{"./_copyObject":190,"./_getSymbolsIn":213}],193:[function(require,module,exports){
 var root = require('./_root');
 
 /** Used to detect overreaching core-js shims. */
@@ -8437,7 +9161,7 @@ var coreJsData = root['__core-js_shared__'];
 
 module.exports = coreJsData;
 
-},{"./_root":239}],179:[function(require,module,exports){
+},{"./_root":254}],194:[function(require,module,exports){
 var baseRest = require('./_baseRest'),
     isIterateeCall = require('./_isIterateeCall');
 
@@ -8476,7 +9200,7 @@ function createAssigner(assigner) {
 
 module.exports = createAssigner;
 
-},{"./_baseRest":156,"./_isIterateeCall":212}],180:[function(require,module,exports){
+},{"./_baseRest":171,"./_isIterateeCall":227}],195:[function(require,module,exports){
 var isArrayLike = require('./isArrayLike');
 
 /**
@@ -8510,7 +9234,7 @@ function createBaseEach(eachFunc, fromRight) {
 
 module.exports = createBaseEach;
 
-},{"./isArrayLike":265}],181:[function(require,module,exports){
+},{"./isArrayLike":280}],196:[function(require,module,exports){
 /**
  * Creates a base function for methods like `_.forIn` and `_.forOwn`.
  *
@@ -8537,7 +9261,7 @@ function createBaseFor(fromRight) {
 
 module.exports = createBaseFor;
 
-},{}],182:[function(require,module,exports){
+},{}],197:[function(require,module,exports){
 var baseMerge = require('./_baseMerge'),
     isObject = require('./isObject');
 
@@ -8567,7 +9291,7 @@ function customDefaultsMerge(objValue, srcValue, key, object, source, stack) {
 
 module.exports = customDefaultsMerge;
 
-},{"./_baseMerge":152,"./isObject":270}],183:[function(require,module,exports){
+},{"./_baseMerge":167,"./isObject":285}],198:[function(require,module,exports){
 var isPlainObject = require('./isPlainObject');
 
 /**
@@ -8585,7 +9309,7 @@ function customOmitClone(value) {
 
 module.exports = customOmitClone;
 
-},{"./isPlainObject":272}],184:[function(require,module,exports){
+},{"./isPlainObject":287}],199:[function(require,module,exports){
 var getNative = require('./_getNative');
 
 var defineProperty = (function() {
@@ -8598,7 +9322,7 @@ var defineProperty = (function() {
 
 module.exports = defineProperty;
 
-},{"./_getNative":194}],185:[function(require,module,exports){
+},{"./_getNative":209}],200:[function(require,module,exports){
 var SetCache = require('./_SetCache'),
     arraySome = require('./_arraySome'),
     cacheHas = require('./_cacheHas');
@@ -8683,7 +9407,7 @@ function equalArrays(array, other, bitmask, customizer, equalFunc, stack) {
 
 module.exports = equalArrays;
 
-},{"./_SetCache":109,"./_arraySome":123,"./_cacheHas":164}],186:[function(require,module,exports){
+},{"./_SetCache":124,"./_arraySome":138,"./_cacheHas":179}],201:[function(require,module,exports){
 var Symbol = require('./_Symbol'),
     Uint8Array = require('./_Uint8Array'),
     eq = require('./eq'),
@@ -8797,7 +9521,7 @@ function equalByTag(object, other, tag, bitmask, customizer, equalFunc, stack) {
 
 module.exports = equalByTag;
 
-},{"./_Symbol":111,"./_Uint8Array":112,"./_equalArrays":185,"./_mapToArray":228,"./_setToArray":242,"./eq":257}],187:[function(require,module,exports){
+},{"./_Symbol":126,"./_Uint8Array":127,"./_equalArrays":200,"./_mapToArray":243,"./_setToArray":257,"./eq":272}],202:[function(require,module,exports){
 var getAllKeys = require('./_getAllKeys');
 
 /** Used to compose bitmasks for value comparisons. */
@@ -8888,7 +9612,7 @@ function equalObjects(object, other, bitmask, customizer, equalFunc, stack) {
 
 module.exports = equalObjects;
 
-},{"./_getAllKeys":190}],188:[function(require,module,exports){
+},{"./_getAllKeys":205}],203:[function(require,module,exports){
 var flatten = require('./flatten'),
     overRest = require('./_overRest'),
     setToString = require('./_setToString');
@@ -8906,7 +9630,7 @@ function flatRest(func) {
 
 module.exports = flatRest;
 
-},{"./_overRest":237,"./_setToString":243,"./flatten":259}],189:[function(require,module,exports){
+},{"./_overRest":252,"./_setToString":258,"./flatten":274}],204:[function(require,module,exports){
 (function (global){
 /** Detect free variable `global` from Node.js. */
 var freeGlobal = typeof global == 'object' && global && global.Object === Object && global;
@@ -8914,7 +9638,7 @@ var freeGlobal = typeof global == 'object' && global && global.Object === Object
 module.exports = freeGlobal;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],190:[function(require,module,exports){
+},{}],205:[function(require,module,exports){
 var baseGetAllKeys = require('./_baseGetAllKeys'),
     getSymbols = require('./_getSymbols'),
     keys = require('./keys');
@@ -8932,7 +9656,7 @@ function getAllKeys(object) {
 
 module.exports = getAllKeys;
 
-},{"./_baseGetAllKeys":138,"./_getSymbols":197,"./keys":275}],191:[function(require,module,exports){
+},{"./_baseGetAllKeys":153,"./_getSymbols":212,"./keys":290}],206:[function(require,module,exports){
 var baseGetAllKeys = require('./_baseGetAllKeys'),
     getSymbolsIn = require('./_getSymbolsIn'),
     keysIn = require('./keysIn');
@@ -8951,7 +9675,7 @@ function getAllKeysIn(object) {
 
 module.exports = getAllKeysIn;
 
-},{"./_baseGetAllKeys":138,"./_getSymbolsIn":198,"./keysIn":276}],192:[function(require,module,exports){
+},{"./_baseGetAllKeys":153,"./_getSymbolsIn":213,"./keysIn":291}],207:[function(require,module,exports){
 var isKeyable = require('./_isKeyable');
 
 /**
@@ -8971,7 +9695,7 @@ function getMapData(map, key) {
 
 module.exports = getMapData;
 
-},{"./_isKeyable":214}],193:[function(require,module,exports){
+},{"./_isKeyable":229}],208:[function(require,module,exports){
 var isStrictComparable = require('./_isStrictComparable'),
     keys = require('./keys');
 
@@ -8997,7 +9721,7 @@ function getMatchData(object) {
 
 module.exports = getMatchData;
 
-},{"./_isStrictComparable":217,"./keys":275}],194:[function(require,module,exports){
+},{"./_isStrictComparable":232,"./keys":290}],209:[function(require,module,exports){
 var baseIsNative = require('./_baseIsNative'),
     getValue = require('./_getValue');
 
@@ -9016,7 +9740,7 @@ function getNative(object, key) {
 
 module.exports = getNative;
 
-},{"./_baseIsNative":145,"./_getValue":200}],195:[function(require,module,exports){
+},{"./_baseIsNative":160,"./_getValue":215}],210:[function(require,module,exports){
 var overArg = require('./_overArg');
 
 /** Built-in value references. */
@@ -9024,7 +9748,7 @@ var getPrototype = overArg(Object.getPrototypeOf, Object);
 
 module.exports = getPrototype;
 
-},{"./_overArg":236}],196:[function(require,module,exports){
+},{"./_overArg":251}],211:[function(require,module,exports){
 var Symbol = require('./_Symbol');
 
 /** Used for built-in method references. */
@@ -9072,7 +9796,7 @@ function getRawTag(value) {
 
 module.exports = getRawTag;
 
-},{"./_Symbol":111}],197:[function(require,module,exports){
+},{"./_Symbol":126}],212:[function(require,module,exports){
 var arrayFilter = require('./_arrayFilter'),
     stubArray = require('./stubArray');
 
@@ -9104,7 +9828,7 @@ var getSymbols = !nativeGetSymbols ? stubArray : function(object) {
 
 module.exports = getSymbols;
 
-},{"./_arrayFilter":118,"./stubArray":284}],198:[function(require,module,exports){
+},{"./_arrayFilter":133,"./stubArray":299}],213:[function(require,module,exports){
 var arrayPush = require('./_arrayPush'),
     getPrototype = require('./_getPrototype'),
     getSymbols = require('./_getSymbols'),
@@ -9131,7 +9855,7 @@ var getSymbolsIn = !nativeGetSymbols ? stubArray : function(object) {
 
 module.exports = getSymbolsIn;
 
-},{"./_arrayPush":121,"./_getPrototype":195,"./_getSymbols":197,"./stubArray":284}],199:[function(require,module,exports){
+},{"./_arrayPush":136,"./_getPrototype":210,"./_getSymbols":212,"./stubArray":299}],214:[function(require,module,exports){
 var DataView = require('./_DataView'),
     Map = require('./_Map'),
     Promise = require('./_Promise'),
@@ -9191,7 +9915,7 @@ if ((DataView && getTag(new DataView(new ArrayBuffer(1))) != dataViewTag) ||
 
 module.exports = getTag;
 
-},{"./_DataView":102,"./_Map":105,"./_Promise":107,"./_Set":108,"./_WeakMap":113,"./_baseGetTag":139,"./_toSource":252}],200:[function(require,module,exports){
+},{"./_DataView":117,"./_Map":120,"./_Promise":122,"./_Set":123,"./_WeakMap":128,"./_baseGetTag":154,"./_toSource":267}],215:[function(require,module,exports){
 /**
  * Gets the value at `key` of `object`.
  *
@@ -9206,7 +9930,7 @@ function getValue(object, key) {
 
 module.exports = getValue;
 
-},{}],201:[function(require,module,exports){
+},{}],216:[function(require,module,exports){
 var castPath = require('./_castPath'),
     isArguments = require('./isArguments'),
     isArray = require('./isArray'),
@@ -9247,7 +9971,7 @@ function hasPath(object, path, hasFunc) {
 
 module.exports = hasPath;
 
-},{"./_castPath":165,"./_isIndex":211,"./_toKey":251,"./isArguments":263,"./isArray":264,"./isLength":269}],202:[function(require,module,exports){
+},{"./_castPath":180,"./_isIndex":226,"./_toKey":266,"./isArguments":278,"./isArray":279,"./isLength":284}],217:[function(require,module,exports){
 var nativeCreate = require('./_nativeCreate');
 
 /**
@@ -9264,7 +9988,7 @@ function hashClear() {
 
 module.exports = hashClear;
 
-},{"./_nativeCreate":231}],203:[function(require,module,exports){
+},{"./_nativeCreate":246}],218:[function(require,module,exports){
 /**
  * Removes `key` and its value from the hash.
  *
@@ -9283,7 +10007,7 @@ function hashDelete(key) {
 
 module.exports = hashDelete;
 
-},{}],204:[function(require,module,exports){
+},{}],219:[function(require,module,exports){
 var nativeCreate = require('./_nativeCreate');
 
 /** Used to stand-in for `undefined` hash values. */
@@ -9315,7 +10039,7 @@ function hashGet(key) {
 
 module.exports = hashGet;
 
-},{"./_nativeCreate":231}],205:[function(require,module,exports){
+},{"./_nativeCreate":246}],220:[function(require,module,exports){
 var nativeCreate = require('./_nativeCreate');
 
 /** Used for built-in method references. */
@@ -9340,7 +10064,7 @@ function hashHas(key) {
 
 module.exports = hashHas;
 
-},{"./_nativeCreate":231}],206:[function(require,module,exports){
+},{"./_nativeCreate":246}],221:[function(require,module,exports){
 var nativeCreate = require('./_nativeCreate');
 
 /** Used to stand-in for `undefined` hash values. */
@@ -9365,7 +10089,7 @@ function hashSet(key, value) {
 
 module.exports = hashSet;
 
-},{"./_nativeCreate":231}],207:[function(require,module,exports){
+},{"./_nativeCreate":246}],222:[function(require,module,exports){
 /** Used for built-in method references. */
 var objectProto = Object.prototype;
 
@@ -9393,7 +10117,7 @@ function initCloneArray(array) {
 
 module.exports = initCloneArray;
 
-},{}],208:[function(require,module,exports){
+},{}],223:[function(require,module,exports){
 var cloneArrayBuffer = require('./_cloneArrayBuffer'),
     cloneDataView = require('./_cloneDataView'),
     cloneMap = require('./_cloneMap'),
@@ -9475,7 +10199,7 @@ function initCloneByTag(object, tag, cloneFunc, isDeep) {
 
 module.exports = initCloneByTag;
 
-},{"./_cloneArrayBuffer":166,"./_cloneDataView":168,"./_cloneMap":169,"./_cloneRegExp":170,"./_cloneSet":171,"./_cloneSymbol":172,"./_cloneTypedArray":173}],209:[function(require,module,exports){
+},{"./_cloneArrayBuffer":181,"./_cloneDataView":183,"./_cloneMap":184,"./_cloneRegExp":185,"./_cloneSet":186,"./_cloneSymbol":187,"./_cloneTypedArray":188}],224:[function(require,module,exports){
 var baseCreate = require('./_baseCreate'),
     getPrototype = require('./_getPrototype'),
     isPrototype = require('./_isPrototype');
@@ -9495,7 +10219,7 @@ function initCloneObject(object) {
 
 module.exports = initCloneObject;
 
-},{"./_baseCreate":131,"./_getPrototype":195,"./_isPrototype":216}],210:[function(require,module,exports){
+},{"./_baseCreate":146,"./_getPrototype":210,"./_isPrototype":231}],225:[function(require,module,exports){
 var Symbol = require('./_Symbol'),
     isArguments = require('./isArguments'),
     isArray = require('./isArray');
@@ -9517,7 +10241,7 @@ function isFlattenable(value) {
 
 module.exports = isFlattenable;
 
-},{"./_Symbol":111,"./isArguments":263,"./isArray":264}],211:[function(require,module,exports){
+},{"./_Symbol":126,"./isArguments":278,"./isArray":279}],226:[function(require,module,exports){
 /** Used as references for various `Number` constants. */
 var MAX_SAFE_INTEGER = 9007199254740991;
 
@@ -9541,7 +10265,7 @@ function isIndex(value, length) {
 
 module.exports = isIndex;
 
-},{}],212:[function(require,module,exports){
+},{}],227:[function(require,module,exports){
 var eq = require('./eq'),
     isArrayLike = require('./isArrayLike'),
     isIndex = require('./_isIndex'),
@@ -9573,7 +10297,7 @@ function isIterateeCall(value, index, object) {
 
 module.exports = isIterateeCall;
 
-},{"./_isIndex":211,"./eq":257,"./isArrayLike":265,"./isObject":270}],213:[function(require,module,exports){
+},{"./_isIndex":226,"./eq":272,"./isArrayLike":280,"./isObject":285}],228:[function(require,module,exports){
 var isArray = require('./isArray'),
     isSymbol = require('./isSymbol');
 
@@ -9604,7 +10328,7 @@ function isKey(value, object) {
 
 module.exports = isKey;
 
-},{"./isArray":264,"./isSymbol":273}],214:[function(require,module,exports){
+},{"./isArray":279,"./isSymbol":288}],229:[function(require,module,exports){
 /**
  * Checks if `value` is suitable for use as unique object key.
  *
@@ -9621,7 +10345,7 @@ function isKeyable(value) {
 
 module.exports = isKeyable;
 
-},{}],215:[function(require,module,exports){
+},{}],230:[function(require,module,exports){
 var coreJsData = require('./_coreJsData');
 
 /** Used to detect methods masquerading as native. */
@@ -9643,7 +10367,7 @@ function isMasked(func) {
 
 module.exports = isMasked;
 
-},{"./_coreJsData":178}],216:[function(require,module,exports){
+},{"./_coreJsData":193}],231:[function(require,module,exports){
 /** Used for built-in method references. */
 var objectProto = Object.prototype;
 
@@ -9663,7 +10387,7 @@ function isPrototype(value) {
 
 module.exports = isPrototype;
 
-},{}],217:[function(require,module,exports){
+},{}],232:[function(require,module,exports){
 var isObject = require('./isObject');
 
 /**
@@ -9680,7 +10404,7 @@ function isStrictComparable(value) {
 
 module.exports = isStrictComparable;
 
-},{"./isObject":270}],218:[function(require,module,exports){
+},{"./isObject":285}],233:[function(require,module,exports){
 /**
  * Removes all key-value entries from the list cache.
  *
@@ -9695,7 +10419,7 @@ function listCacheClear() {
 
 module.exports = listCacheClear;
 
-},{}],219:[function(require,module,exports){
+},{}],234:[function(require,module,exports){
 var assocIndexOf = require('./_assocIndexOf');
 
 /** Used for built-in method references. */
@@ -9732,7 +10456,7 @@ function listCacheDelete(key) {
 
 module.exports = listCacheDelete;
 
-},{"./_assocIndexOf":126}],220:[function(require,module,exports){
+},{"./_assocIndexOf":141}],235:[function(require,module,exports){
 var assocIndexOf = require('./_assocIndexOf');
 
 /**
@@ -9753,7 +10477,7 @@ function listCacheGet(key) {
 
 module.exports = listCacheGet;
 
-},{"./_assocIndexOf":126}],221:[function(require,module,exports){
+},{"./_assocIndexOf":141}],236:[function(require,module,exports){
 var assocIndexOf = require('./_assocIndexOf');
 
 /**
@@ -9771,7 +10495,7 @@ function listCacheHas(key) {
 
 module.exports = listCacheHas;
 
-},{"./_assocIndexOf":126}],222:[function(require,module,exports){
+},{"./_assocIndexOf":141}],237:[function(require,module,exports){
 var assocIndexOf = require('./_assocIndexOf');
 
 /**
@@ -9799,7 +10523,7 @@ function listCacheSet(key, value) {
 
 module.exports = listCacheSet;
 
-},{"./_assocIndexOf":126}],223:[function(require,module,exports){
+},{"./_assocIndexOf":141}],238:[function(require,module,exports){
 var Hash = require('./_Hash'),
     ListCache = require('./_ListCache'),
     Map = require('./_Map');
@@ -9822,7 +10546,7 @@ function mapCacheClear() {
 
 module.exports = mapCacheClear;
 
-},{"./_Hash":103,"./_ListCache":104,"./_Map":105}],224:[function(require,module,exports){
+},{"./_Hash":118,"./_ListCache":119,"./_Map":120}],239:[function(require,module,exports){
 var getMapData = require('./_getMapData');
 
 /**
@@ -9842,7 +10566,7 @@ function mapCacheDelete(key) {
 
 module.exports = mapCacheDelete;
 
-},{"./_getMapData":192}],225:[function(require,module,exports){
+},{"./_getMapData":207}],240:[function(require,module,exports){
 var getMapData = require('./_getMapData');
 
 /**
@@ -9860,7 +10584,7 @@ function mapCacheGet(key) {
 
 module.exports = mapCacheGet;
 
-},{"./_getMapData":192}],226:[function(require,module,exports){
+},{"./_getMapData":207}],241:[function(require,module,exports){
 var getMapData = require('./_getMapData');
 
 /**
@@ -9878,7 +10602,7 @@ function mapCacheHas(key) {
 
 module.exports = mapCacheHas;
 
-},{"./_getMapData":192}],227:[function(require,module,exports){
+},{"./_getMapData":207}],242:[function(require,module,exports){
 var getMapData = require('./_getMapData');
 
 /**
@@ -9902,7 +10626,7 @@ function mapCacheSet(key, value) {
 
 module.exports = mapCacheSet;
 
-},{"./_getMapData":192}],228:[function(require,module,exports){
+},{"./_getMapData":207}],243:[function(require,module,exports){
 /**
  * Converts `map` to its key-value pairs.
  *
@@ -9922,7 +10646,7 @@ function mapToArray(map) {
 
 module.exports = mapToArray;
 
-},{}],229:[function(require,module,exports){
+},{}],244:[function(require,module,exports){
 /**
  * A specialized version of `matchesProperty` for source values suitable
  * for strict equality comparisons, i.e. `===`.
@@ -9944,7 +10668,7 @@ function matchesStrictComparable(key, srcValue) {
 
 module.exports = matchesStrictComparable;
 
-},{}],230:[function(require,module,exports){
+},{}],245:[function(require,module,exports){
 var memoize = require('./memoize');
 
 /** Used as the maximum memoize cache size. */
@@ -9972,7 +10696,7 @@ function memoizeCapped(func) {
 
 module.exports = memoizeCapped;
 
-},{"./memoize":278}],231:[function(require,module,exports){
+},{"./memoize":293}],246:[function(require,module,exports){
 var getNative = require('./_getNative');
 
 /* Built-in method references that are verified to be native. */
@@ -9980,7 +10704,7 @@ var nativeCreate = getNative(Object, 'create');
 
 module.exports = nativeCreate;
 
-},{"./_getNative":194}],232:[function(require,module,exports){
+},{"./_getNative":209}],247:[function(require,module,exports){
 var overArg = require('./_overArg');
 
 /* Built-in method references for those with the same name as other `lodash` methods. */
@@ -9988,7 +10712,7 @@ var nativeKeys = overArg(Object.keys, Object);
 
 module.exports = nativeKeys;
 
-},{"./_overArg":236}],233:[function(require,module,exports){
+},{"./_overArg":251}],248:[function(require,module,exports){
 /**
  * This function is like
  * [`Object.keys`](http://ecma-international.org/ecma-262/7.0/#sec-object.keys)
@@ -10010,7 +10734,7 @@ function nativeKeysIn(object) {
 
 module.exports = nativeKeysIn;
 
-},{}],234:[function(require,module,exports){
+},{}],249:[function(require,module,exports){
 var freeGlobal = require('./_freeGlobal');
 
 /** Detect free variable `exports`. */
@@ -10034,7 +10758,7 @@ var nodeUtil = (function() {
 
 module.exports = nodeUtil;
 
-},{"./_freeGlobal":189}],235:[function(require,module,exports){
+},{"./_freeGlobal":204}],250:[function(require,module,exports){
 /** Used for built-in method references. */
 var objectProto = Object.prototype;
 
@@ -10058,7 +10782,7 @@ function objectToString(value) {
 
 module.exports = objectToString;
 
-},{}],236:[function(require,module,exports){
+},{}],251:[function(require,module,exports){
 /**
  * Creates a unary function that invokes `func` with its argument transformed.
  *
@@ -10075,7 +10799,7 @@ function overArg(func, transform) {
 
 module.exports = overArg;
 
-},{}],237:[function(require,module,exports){
+},{}],252:[function(require,module,exports){
 var apply = require('./_apply');
 
 /* Built-in method references for those with the same name as other `lodash` methods. */
@@ -10113,7 +10837,7 @@ function overRest(func, start, transform) {
 
 module.exports = overRest;
 
-},{"./_apply":116}],238:[function(require,module,exports){
+},{"./_apply":131}],253:[function(require,module,exports){
 var baseGet = require('./_baseGet'),
     baseSlice = require('./_baseSlice');
 
@@ -10131,7 +10855,7 @@ function parent(object, path) {
 
 module.exports = parent;
 
-},{"./_baseGet":137,"./_baseSlice":159}],239:[function(require,module,exports){
+},{"./_baseGet":152,"./_baseSlice":174}],254:[function(require,module,exports){
 var freeGlobal = require('./_freeGlobal');
 
 /** Detect free variable `self`. */
@@ -10142,7 +10866,7 @@ var root = freeGlobal || freeSelf || Function('return this')();
 
 module.exports = root;
 
-},{"./_freeGlobal":189}],240:[function(require,module,exports){
+},{"./_freeGlobal":204}],255:[function(require,module,exports){
 /** Used to stand-in for `undefined` hash values. */
 var HASH_UNDEFINED = '__lodash_hash_undefined__';
 
@@ -10163,7 +10887,7 @@ function setCacheAdd(value) {
 
 module.exports = setCacheAdd;
 
-},{}],241:[function(require,module,exports){
+},{}],256:[function(require,module,exports){
 /**
  * Checks if `value` is in the array cache.
  *
@@ -10179,7 +10903,7 @@ function setCacheHas(value) {
 
 module.exports = setCacheHas;
 
-},{}],242:[function(require,module,exports){
+},{}],257:[function(require,module,exports){
 /**
  * Converts `set` to an array of its values.
  *
@@ -10199,7 +10923,7 @@ function setToArray(set) {
 
 module.exports = setToArray;
 
-},{}],243:[function(require,module,exports){
+},{}],258:[function(require,module,exports){
 var baseSetToString = require('./_baseSetToString'),
     shortOut = require('./_shortOut');
 
@@ -10215,7 +10939,7 @@ var setToString = shortOut(baseSetToString);
 
 module.exports = setToString;
 
-},{"./_baseSetToString":158,"./_shortOut":244}],244:[function(require,module,exports){
+},{"./_baseSetToString":173,"./_shortOut":259}],259:[function(require,module,exports){
 /** Used to detect hot functions by number of calls within a span of milliseconds. */
 var HOT_COUNT = 800,
     HOT_SPAN = 16;
@@ -10254,7 +10978,7 @@ function shortOut(func) {
 
 module.exports = shortOut;
 
-},{}],245:[function(require,module,exports){
+},{}],260:[function(require,module,exports){
 var ListCache = require('./_ListCache');
 
 /**
@@ -10271,7 +10995,7 @@ function stackClear() {
 
 module.exports = stackClear;
 
-},{"./_ListCache":104}],246:[function(require,module,exports){
+},{"./_ListCache":119}],261:[function(require,module,exports){
 /**
  * Removes `key` and its value from the stack.
  *
@@ -10291,7 +11015,7 @@ function stackDelete(key) {
 
 module.exports = stackDelete;
 
-},{}],247:[function(require,module,exports){
+},{}],262:[function(require,module,exports){
 /**
  * Gets the stack value for `key`.
  *
@@ -10307,7 +11031,7 @@ function stackGet(key) {
 
 module.exports = stackGet;
 
-},{}],248:[function(require,module,exports){
+},{}],263:[function(require,module,exports){
 /**
  * Checks if a stack value for `key` exists.
  *
@@ -10323,7 +11047,7 @@ function stackHas(key) {
 
 module.exports = stackHas;
 
-},{}],249:[function(require,module,exports){
+},{}],264:[function(require,module,exports){
 var ListCache = require('./_ListCache'),
     Map = require('./_Map'),
     MapCache = require('./_MapCache');
@@ -10359,7 +11083,7 @@ function stackSet(key, value) {
 
 module.exports = stackSet;
 
-},{"./_ListCache":104,"./_Map":105,"./_MapCache":106}],250:[function(require,module,exports){
+},{"./_ListCache":119,"./_Map":120,"./_MapCache":121}],265:[function(require,module,exports){
 var memoizeCapped = require('./_memoizeCapped');
 
 /** Used to match property names within property paths. */
@@ -10389,7 +11113,7 @@ var stringToPath = memoizeCapped(function(string) {
 
 module.exports = stringToPath;
 
-},{"./_memoizeCapped":230}],251:[function(require,module,exports){
+},{"./_memoizeCapped":245}],266:[function(require,module,exports){
 var isSymbol = require('./isSymbol');
 
 /** Used as references for various `Number` constants. */
@@ -10412,7 +11136,7 @@ function toKey(value) {
 
 module.exports = toKey;
 
-},{"./isSymbol":273}],252:[function(require,module,exports){
+},{"./isSymbol":288}],267:[function(require,module,exports){
 /** Used for built-in method references. */
 var funcProto = Function.prototype;
 
@@ -10440,7 +11164,67 @@ function toSource(func) {
 
 module.exports = toSource;
 
-},{}],253:[function(require,module,exports){
+},{}],268:[function(require,module,exports){
+var assignValue = require('./_assignValue'),
+    copyObject = require('./_copyObject'),
+    createAssigner = require('./_createAssigner'),
+    isArrayLike = require('./isArrayLike'),
+    isPrototype = require('./_isPrototype'),
+    keys = require('./keys');
+
+/** Used for built-in method references. */
+var objectProto = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty = objectProto.hasOwnProperty;
+
+/**
+ * Assigns own enumerable string keyed properties of source objects to the
+ * destination object. Source objects are applied from left to right.
+ * Subsequent sources overwrite property assignments of previous sources.
+ *
+ * **Note:** This method mutates `object` and is loosely based on
+ * [`Object.assign`](https://mdn.io/Object/assign).
+ *
+ * @static
+ * @memberOf _
+ * @since 0.10.0
+ * @category Object
+ * @param {Object} object The destination object.
+ * @param {...Object} [sources] The source objects.
+ * @returns {Object} Returns `object`.
+ * @see _.assignIn
+ * @example
+ *
+ * function Foo() {
+ *   this.a = 1;
+ * }
+ *
+ * function Bar() {
+ *   this.c = 3;
+ * }
+ *
+ * Foo.prototype.b = 2;
+ * Bar.prototype.d = 4;
+ *
+ * _.assign({ 'a': 0 }, new Foo, new Bar);
+ * // => { 'a': 1, 'c': 3 }
+ */
+var assign = createAssigner(function(object, source) {
+  if (isPrototype(source) || isArrayLike(source)) {
+    copyObject(source, keys(source), object);
+    return;
+  }
+  for (var key in source) {
+    if (hasOwnProperty.call(source, key)) {
+      assignValue(object, key, source[key]);
+    }
+  }
+});
+
+module.exports = assign;
+
+},{"./_assignValue":140,"./_copyObject":190,"./_createAssigner":194,"./_isPrototype":231,"./isArrayLike":280,"./keys":290}],269:[function(require,module,exports){
 var baseClone = require('./_baseClone');
 
 /** Used to compose bitmasks for cloning. */
@@ -10478,38 +11262,7 @@ function clone(value) {
 
 module.exports = clone;
 
-},{"./_baseClone":130}],254:[function(require,module,exports){
-var baseClone = require('./_baseClone');
-
-/** Used to compose bitmasks for cloning. */
-var CLONE_DEEP_FLAG = 1,
-    CLONE_SYMBOLS_FLAG = 4;
-
-/**
- * This method is like `_.clone` except that it recursively clones `value`.
- *
- * @static
- * @memberOf _
- * @since 1.0.0
- * @category Lang
- * @param {*} value The value to recursively clone.
- * @returns {*} Returns the deep cloned value.
- * @see _.clone
- * @example
- *
- * var objects = [{ 'a': 1 }, { 'b': 2 }];
- *
- * var deep = _.cloneDeep(objects);
- * console.log(deep[0] === objects[0]);
- * // => false
- */
-function cloneDeep(value) {
-  return baseClone(value, CLONE_DEEP_FLAG | CLONE_SYMBOLS_FLAG);
-}
-
-module.exports = cloneDeep;
-
-},{"./_baseClone":130}],255:[function(require,module,exports){
+},{"./_baseClone":145}],270:[function(require,module,exports){
 /**
  * Creates a function that returns `value`.
  *
@@ -10537,7 +11290,7 @@ function constant(value) {
 
 module.exports = constant;
 
-},{}],256:[function(require,module,exports){
+},{}],271:[function(require,module,exports){
 var apply = require('./_apply'),
     baseRest = require('./_baseRest'),
     customDefaultsMerge = require('./_customDefaultsMerge'),
@@ -10569,7 +11322,7 @@ var defaultsDeep = baseRest(function(args) {
 
 module.exports = defaultsDeep;
 
-},{"./_apply":116,"./_baseRest":156,"./_customDefaultsMerge":182,"./mergeWith":280}],257:[function(require,module,exports){
+},{"./_apply":131,"./_baseRest":171,"./_customDefaultsMerge":197,"./mergeWith":295}],272:[function(require,module,exports){
 /**
  * Performs a
  * [`SameValueZero`](http://ecma-international.org/ecma-262/7.0/#sec-samevaluezero)
@@ -10608,7 +11361,7 @@ function eq(value, other) {
 
 module.exports = eq;
 
-},{}],258:[function(require,module,exports){
+},{}],273:[function(require,module,exports){
 var arrayFilter = require('./_arrayFilter'),
     baseFilter = require('./_baseFilter'),
     baseIteratee = require('./_baseIteratee'),
@@ -10658,7 +11411,7 @@ function filter(collection, predicate) {
 
 module.exports = filter;
 
-},{"./_arrayFilter":118,"./_baseFilter":133,"./_baseIteratee":147,"./isArray":264}],259:[function(require,module,exports){
+},{"./_arrayFilter":133,"./_baseFilter":148,"./_baseIteratee":162,"./isArray":279}],274:[function(require,module,exports){
 var baseFlatten = require('./_baseFlatten');
 
 /**
@@ -10682,7 +11435,7 @@ function flatten(array) {
 
 module.exports = flatten;
 
-},{"./_baseFlatten":134}],260:[function(require,module,exports){
+},{"./_baseFlatten":149}],275:[function(require,module,exports){
 var baseGet = require('./_baseGet');
 
 /**
@@ -10717,7 +11470,7 @@ function get(object, path, defaultValue) {
 
 module.exports = get;
 
-},{"./_baseGet":137}],261:[function(require,module,exports){
+},{"./_baseGet":152}],276:[function(require,module,exports){
 var baseHasIn = require('./_baseHasIn'),
     hasPath = require('./_hasPath');
 
@@ -10753,7 +11506,7 @@ function hasIn(object, path) {
 
 module.exports = hasIn;
 
-},{"./_baseHasIn":140,"./_hasPath":201}],262:[function(require,module,exports){
+},{"./_baseHasIn":155,"./_hasPath":216}],277:[function(require,module,exports){
 /**
  * This method returns the first argument it receives.
  *
@@ -10776,7 +11529,7 @@ function identity(value) {
 
 module.exports = identity;
 
-},{}],263:[function(require,module,exports){
+},{}],278:[function(require,module,exports){
 var baseIsArguments = require('./_baseIsArguments'),
     isObjectLike = require('./isObjectLike');
 
@@ -10814,7 +11567,7 @@ var isArguments = baseIsArguments(function() { return arguments; }()) ? baseIsAr
 
 module.exports = isArguments;
 
-},{"./_baseIsArguments":141,"./isObjectLike":271}],264:[function(require,module,exports){
+},{"./_baseIsArguments":156,"./isObjectLike":286}],279:[function(require,module,exports){
 /**
  * Checks if `value` is classified as an `Array` object.
  *
@@ -10842,7 +11595,7 @@ var isArray = Array.isArray;
 
 module.exports = isArray;
 
-},{}],265:[function(require,module,exports){
+},{}],280:[function(require,module,exports){
 var isFunction = require('./isFunction'),
     isLength = require('./isLength');
 
@@ -10877,7 +11630,7 @@ function isArrayLike(value) {
 
 module.exports = isArrayLike;
 
-},{"./isFunction":268,"./isLength":269}],266:[function(require,module,exports){
+},{"./isFunction":283,"./isLength":284}],281:[function(require,module,exports){
 var isArrayLike = require('./isArrayLike'),
     isObjectLike = require('./isObjectLike');
 
@@ -10912,7 +11665,7 @@ function isArrayLikeObject(value) {
 
 module.exports = isArrayLikeObject;
 
-},{"./isArrayLike":265,"./isObjectLike":271}],267:[function(require,module,exports){
+},{"./isArrayLike":280,"./isObjectLike":286}],282:[function(require,module,exports){
 var root = require('./_root'),
     stubFalse = require('./stubFalse');
 
@@ -10952,7 +11705,7 @@ var isBuffer = nativeIsBuffer || stubFalse;
 
 module.exports = isBuffer;
 
-},{"./_root":239,"./stubFalse":285}],268:[function(require,module,exports){
+},{"./_root":254,"./stubFalse":300}],283:[function(require,module,exports){
 var baseGetTag = require('./_baseGetTag'),
     isObject = require('./isObject');
 
@@ -10991,7 +11744,7 @@ function isFunction(value) {
 
 module.exports = isFunction;
 
-},{"./_baseGetTag":139,"./isObject":270}],269:[function(require,module,exports){
+},{"./_baseGetTag":154,"./isObject":285}],284:[function(require,module,exports){
 /** Used as references for various `Number` constants. */
 var MAX_SAFE_INTEGER = 9007199254740991;
 
@@ -11028,7 +11781,7 @@ function isLength(value) {
 
 module.exports = isLength;
 
-},{}],270:[function(require,module,exports){
+},{}],285:[function(require,module,exports){
 /**
  * Checks if `value` is the
  * [language type](http://www.ecma-international.org/ecma-262/7.0/#sec-ecmascript-language-types)
@@ -11061,7 +11814,7 @@ function isObject(value) {
 
 module.exports = isObject;
 
-},{}],271:[function(require,module,exports){
+},{}],286:[function(require,module,exports){
 /**
  * Checks if `value` is object-like. A value is object-like if it's not `null`
  * and has a `typeof` result of "object".
@@ -11092,7 +11845,7 @@ function isObjectLike(value) {
 
 module.exports = isObjectLike;
 
-},{}],272:[function(require,module,exports){
+},{}],287:[function(require,module,exports){
 var baseGetTag = require('./_baseGetTag'),
     getPrototype = require('./_getPrototype'),
     isObjectLike = require('./isObjectLike');
@@ -11156,7 +11909,7 @@ function isPlainObject(value) {
 
 module.exports = isPlainObject;
 
-},{"./_baseGetTag":139,"./_getPrototype":195,"./isObjectLike":271}],273:[function(require,module,exports){
+},{"./_baseGetTag":154,"./_getPrototype":210,"./isObjectLike":286}],288:[function(require,module,exports){
 var baseGetTag = require('./_baseGetTag'),
     isObjectLike = require('./isObjectLike');
 
@@ -11187,7 +11940,7 @@ function isSymbol(value) {
 
 module.exports = isSymbol;
 
-},{"./_baseGetTag":139,"./isObjectLike":271}],274:[function(require,module,exports){
+},{"./_baseGetTag":154,"./isObjectLike":286}],289:[function(require,module,exports){
 var baseIsTypedArray = require('./_baseIsTypedArray'),
     baseUnary = require('./_baseUnary'),
     nodeUtil = require('./_nodeUtil');
@@ -11216,7 +11969,7 @@ var isTypedArray = nodeIsTypedArray ? baseUnary(nodeIsTypedArray) : baseIsTypedA
 
 module.exports = isTypedArray;
 
-},{"./_baseIsTypedArray":146,"./_baseUnary":162,"./_nodeUtil":234}],275:[function(require,module,exports){
+},{"./_baseIsTypedArray":161,"./_baseUnary":177,"./_nodeUtil":249}],290:[function(require,module,exports){
 var arrayLikeKeys = require('./_arrayLikeKeys'),
     baseKeys = require('./_baseKeys'),
     isArrayLike = require('./isArrayLike');
@@ -11255,7 +12008,7 @@ function keys(object) {
 
 module.exports = keys;
 
-},{"./_arrayLikeKeys":119,"./_baseKeys":148,"./isArrayLike":265}],276:[function(require,module,exports){
+},{"./_arrayLikeKeys":134,"./_baseKeys":163,"./isArrayLike":280}],291:[function(require,module,exports){
 var arrayLikeKeys = require('./_arrayLikeKeys'),
     baseKeysIn = require('./_baseKeysIn'),
     isArrayLike = require('./isArrayLike');
@@ -11289,7 +12042,7 @@ function keysIn(object) {
 
 module.exports = keysIn;
 
-},{"./_arrayLikeKeys":119,"./_baseKeysIn":149,"./isArrayLike":265}],277:[function(require,module,exports){
+},{"./_arrayLikeKeys":134,"./_baseKeysIn":164,"./isArrayLike":280}],292:[function(require,module,exports){
 /**
  * Gets the last element of `array`.
  *
@@ -11311,7 +12064,7 @@ function last(array) {
 
 module.exports = last;
 
-},{}],278:[function(require,module,exports){
+},{}],293:[function(require,module,exports){
 var MapCache = require('./_MapCache');
 
 /** Error message constants. */
@@ -11386,7 +12139,7 @@ memoize.Cache = MapCache;
 
 module.exports = memoize;
 
-},{"./_MapCache":106}],279:[function(require,module,exports){
+},{"./_MapCache":121}],294:[function(require,module,exports){
 var baseMerge = require('./_baseMerge'),
     createAssigner = require('./_createAssigner');
 
@@ -11427,7 +12180,7 @@ var merge = createAssigner(function(object, source, srcIndex) {
 
 module.exports = merge;
 
-},{"./_baseMerge":152,"./_createAssigner":179}],280:[function(require,module,exports){
+},{"./_baseMerge":167,"./_createAssigner":194}],295:[function(require,module,exports){
 var baseMerge = require('./_baseMerge'),
     createAssigner = require('./_createAssigner');
 
@@ -11468,7 +12221,7 @@ var mergeWith = createAssigner(function(object, source, srcIndex, customizer) {
 
 module.exports = mergeWith;
 
-},{"./_baseMerge":152,"./_createAssigner":179}],281:[function(require,module,exports){
+},{"./_baseMerge":167,"./_createAssigner":194}],296:[function(require,module,exports){
 var arrayMap = require('./_arrayMap'),
     baseClone = require('./_baseClone'),
     baseUnset = require('./_baseUnset'),
@@ -11527,7 +12280,7 @@ var omit = flatRest(function(object, paths) {
 
 module.exports = omit;
 
-},{"./_arrayMap":120,"./_baseClone":130,"./_baseUnset":163,"./_castPath":165,"./_copyObject":175,"./_customOmitClone":183,"./_flatRest":188,"./_getAllKeysIn":191}],282:[function(require,module,exports){
+},{"./_arrayMap":135,"./_baseClone":145,"./_baseUnset":178,"./_castPath":180,"./_copyObject":190,"./_customOmitClone":198,"./_flatRest":203,"./_getAllKeysIn":206}],297:[function(require,module,exports){
 var baseProperty = require('./_baseProperty'),
     basePropertyDeep = require('./_basePropertyDeep'),
     isKey = require('./_isKey'),
@@ -11561,7 +12314,7 @@ function property(path) {
 
 module.exports = property;
 
-},{"./_baseProperty":154,"./_basePropertyDeep":155,"./_isKey":213,"./_toKey":251}],283:[function(require,module,exports){
+},{"./_baseProperty":169,"./_basePropertyDeep":170,"./_isKey":228,"./_toKey":266}],298:[function(require,module,exports){
 var baseSet = require('./_baseSet');
 
 /**
@@ -11598,7 +12351,7 @@ function set(object, path, value) {
 
 module.exports = set;
 
-},{"./_baseSet":157}],284:[function(require,module,exports){
+},{"./_baseSet":172}],299:[function(require,module,exports){
 /**
  * This method returns a new empty array.
  *
@@ -11623,7 +12376,7 @@ function stubArray() {
 
 module.exports = stubArray;
 
-},{}],285:[function(require,module,exports){
+},{}],300:[function(require,module,exports){
 /**
  * This method returns `false`.
  *
@@ -11643,7 +12396,7 @@ function stubFalse() {
 
 module.exports = stubFalse;
 
-},{}],286:[function(require,module,exports){
+},{}],301:[function(require,module,exports){
 var copyObject = require('./_copyObject'),
     keysIn = require('./keysIn');
 
@@ -11677,7 +12430,7 @@ function toPlainObject(value) {
 
 module.exports = toPlainObject;
 
-},{"./_copyObject":175,"./keysIn":276}],287:[function(require,module,exports){
+},{"./_copyObject":190,"./keysIn":291}],302:[function(require,module,exports){
 var baseToString = require('./_baseToString');
 
 /**
@@ -11707,7 +12460,7 @@ function toString(value) {
 
 module.exports = toString;
 
-},{"./_baseToString":161}],288:[function(require,module,exports){
+},{"./_baseToString":176}],303:[function(require,module,exports){
 /**
  * Helpers.
  */
@@ -11726,7 +12479,7 @@ var y = d * 365.25
  *  - `long` verbose formatting [false]
  *
  * @param {String|Number} val
- * @param {Object} options
+ * @param {Object} [options]
  * @throws {Error} throw an error if val is not a non-empty string or a number
  * @return {String|Number}
  * @api public
@@ -11858,7 +12611,7 @@ function plural(ms, n, name) {
   return Math.ceil(ms / n) + ' ' + name + 's'
 }
 
-},{}],289:[function(require,module,exports){
+},{}],304:[function(require,module,exports){
 (function (process,Buffer){
 var req = require('request')
 
@@ -11886,7 +12639,82 @@ function Nets (opts, cb) {
 }
 
 }).call(this,require('_process'),require("buffer").Buffer)
-},{"_process":86,"buffer":87,"request":351}],290:[function(require,module,exports){
+},{"_process":101,"buffer":102,"request":327}],305:[function(require,module,exports){
+(function (process){
+'use strict';
+
+var callable, byObserver;
+
+callable = function (fn) {
+	if (typeof fn !== 'function') throw new TypeError(fn + " is not a function");
+	return fn;
+};
+
+byObserver = function (Observer) {
+	var node = document.createTextNode(''), queue, currentQueue, i = 0;
+	new Observer(function () {
+		var callback;
+		if (!queue) {
+			if (!currentQueue) return;
+			queue = currentQueue;
+		} else if (currentQueue) {
+			queue = currentQueue.concat(queue);
+		}
+		currentQueue = queue;
+		queue = null;
+		if (typeof currentQueue === 'function') {
+			callback = currentQueue;
+			currentQueue = null;
+			callback();
+			return;
+		}
+		node.data = (i = ++i % 2); // Invoke other batch, to handle leftover callbacks in case of crash
+		while (currentQueue) {
+			callback = currentQueue.shift();
+			if (!currentQueue.length) currentQueue = null;
+			callback();
+		}
+	}).observe(node, { characterData: true });
+	return function (fn) {
+		callable(fn);
+		if (queue) {
+			if (typeof queue === 'function') queue = [queue, fn];
+			else queue.push(fn);
+			return;
+		}
+		queue = fn;
+		node.data = (i = ++i % 2);
+	};
+};
+
+module.exports = (function () {
+	// Node.js
+	if ((typeof process === 'object') && process && (typeof process.nextTick === 'function')) {
+		return process.nextTick;
+	}
+
+	// MutationObserver
+	if ((typeof document === 'object') && document) {
+		if (typeof MutationObserver === 'function') return byObserver(MutationObserver);
+		if (typeof WebKitMutationObserver === 'function') return byObserver(WebKitMutationObserver);
+	}
+
+	// W3C Draft
+	// http://dvcs.w3.org/hg/webperf/raw-file/tip/specs/setImmediate/Overview.html
+	if (typeof setImmediate === 'function') {
+		return function (cb) { setImmediate(callable(cb)); };
+	}
+
+	// Wide available standard
+	if ((typeof setTimeout === 'function') || (typeof setTimeout === 'object')) {
+		return function (cb) { setTimeout(callable(cb), 0); };
+	}
+
+	return null;
+}());
+
+}).call(this,require('_process'))
+},{"_process":101}],306:[function(require,module,exports){
 var trim = require('trim')
   , forEach = require('for-each')
   , isArray = function(arg) {
@@ -11918,19 +12746,19 @@ module.exports = function (headers) {
 
   return result
 }
-},{"for-each":91,"trim":349}],291:[function(require,module,exports){
+},{"for-each":106,"trim":320}],307:[function(require,module,exports){
 (function (global){
 'use strict';
 
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
+var uuidV4 = _interopDefault(require('uuid'));
 var lie = _interopDefault(require('lie'));
 var getArguments = _interopDefault(require('argsarray'));
-var debug = _interopDefault(require('debug'));
 var events = require('events');
 var inherits = _interopDefault(require('inherits'));
 var nextTick = _interopDefault(require('immediate'));
-var scopedEval = _interopDefault(require('scope-eval'));
+var debug = _interopDefault(require('debug'));
 var Md5 = _interopDefault(require('spark-md5'));
 var vuvuzela = _interopDefault(require('vuvuzela'));
 
@@ -12083,31 +12911,29 @@ function toPromise(func) {
   });
 }
 
-var log = debug('pouchdb:api');
+function logApiCall(self, name, args) {
+  /* istanbul ignore if */
+  if (self.constructor.listeners('debug').length) {
+    var logArgs = ['api', self.name, name];
+    for (var i = 0; i < args.length - 1; i++) {
+      logArgs.push(args[i]);
+    }
+    self.constructor.emit('debug', logArgs);
+
+    // override the callback itself to log the response
+    var origCallback = args[args.length - 1];
+    args[args.length - 1] = function (err, res) {
+      var responseArgs = ['api', self.name, name];
+      responseArgs = responseArgs.concat(
+        err ? ['error', err] : ['success', res]
+      );
+      self.constructor.emit('debug', responseArgs);
+      origCallback(err, res);
+    };
+  }
+}
 
 function adapterFun(name, callback) {
-  function logApiCall(self, name, args) {
-    /* istanbul ignore if */
-    if (log.enabled) {
-      var logArgs = [self.name, name];
-      for (var i = 0; i < args.length - 1; i++) {
-        logArgs.push(args[i]);
-      }
-      log.apply(null, logArgs);
-
-      // override the callback itself to log the response
-      var origCallback = args[args.length - 1];
-      args[args.length - 1] = function (err, res) {
-        var responseArgs = [self.name, name];
-        responseArgs = responseArgs.concat(
-          err ? ['error', err] : ['success', res]
-        );
-        log.apply(null, responseArgs);
-        origCallback(err, res);
-      };
-    }
-  }
-
   return toPromise(getArguments(function (args) {
     if (this._closed) {
       return PouchPromise$1.reject(new Error('database is closed'));
@@ -12396,6 +13222,18 @@ function hasLocalStorage() {
   return hasLocal;
 }
 
+// Custom nextTick() shim for browsers. In node, this will just be process.nextTick(). We
+// avoid using process.nextTick() directly because the polyfill is very large and we don't
+// need all of it (see: https://github.com/defunctzombie/node-process).
+// "immediate" 3.0.8 is used by lie, and it's a smaller version of the latest "immediate"
+// package, so it's the one we use.
+// When we use nextTick() in our codebase, we only care about not releasing Zalgo
+// (see: http://blog.izs.me/post/59142742143/designing-apis-for-asynchrony).
+// Microtask vs macrotask doesn't matter to us. So we're free to use the fastest
+// (least latency) option, which is "immediate" due to use of microtasks.
+// All of our nextTicks are isolated to this one function so we can easily swap out one
+// implementation for another.
+
 inherits(Changes, events.EventEmitter);
 
 /* istanbul ignore next */
@@ -12515,7 +13353,7 @@ function randomNumber(min, max) {
     max = max + 1;
   }
   // In order to not exceed maxTimeout, pick a random value between half of maxTimeout and maxTimeout
-  if(max > maxTimeout) {
+  if (max > maxTimeout) {
     min = maxTimeout >> 1; // divide by two
     max = maxTimeout;
   }
@@ -12752,22 +13590,35 @@ function invalidIdError(id) {
   }
 }
 
+// Checks if a PouchDB object is "remote" or not. This is
+// designed to opt-in to certain optimizations, such as
+// avoiding checks for "dependentDbs" and other things that
+// we know only apply to local databases. In general, "remote"
+// should be true for the http adapter, and for third-party
+// adapters with similar expensive boundaries to cross for
+// every API call, such as socket-pouch and worker-pouch.
+// Previously, this was handled via db.type() === 'http'
+// which is now deprecated.
+
+function isRemote(db) {
+  if (typeof db._remote === 'boolean') {
+    return db._remote;
+  }
+  /* istanbul ignore next */
+  if (typeof db.type === 'function') {
+    guardedConsole('warn',
+      'db.type() is deprecated and will be removed in ' +
+      'a future version of PouchDB');
+    return db.type() === 'http';
+  }
+  /* istanbul ignore next */
+  return false;
+}
+
 function listenerCount(ee, type) {
   return 'listenerCount' in ee ? ee.listenerCount(type) :
                                  events.EventEmitter.listenerCount(ee, type);
 }
-
-// Custom nextTick() shim for browsers. In node, this will just be process.nextTick(). We
-// avoid using process.nextTick() directly because the polyfill is very large and we don't
-// need all of it (see: https://github.com/defunctzombie/node-process).
-// "immediate" 3.0.8 is used by lie, and it's a smaller version of the latest "immediate"
-// package, so it's the one we use.
-// When we use nextTick() in our codebase, we only care about not releasing Zalgo
-// (see: http://blog.izs.me/post/59142742143/designing-apis-for-asynchrony).
-// Microtask vs macrotask doesn't matter to us. So we're free to use the fastest
-// (least latency) option, which is "immediate" due to use of microtasks.
-// All of our nextTicks are isolated to this one function so we can easily swap out one
-// implementation for another.
 
 function parseDesignDocFunctionName(s) {
   if (!s) {
@@ -12797,7 +13648,7 @@ var qName ="queryKey";
 var qParser = /(?:^|&)([^&=]*)=?([^&]*)/g;
 
 // use the "loose" parser
-/* jshint maxlen: false */
+/* eslint maxlen: 0, no-useless-escape: 0 */
 var parser = /^(?:(?![^:@]+:[^:@\/]*@)([^:\/?#.]+):)?(?:\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/;
 
 function parseUri(str) {
@@ -12820,6 +13671,23 @@ function parseUri(str) {
   });
 
   return uri;
+}
+
+// Based on https://github.com/alexdavid/scope-eval v0.0.3
+// (source: https://unpkg.com/scope-eval@0.0.3/scope_eval.js)
+// This is basically just a wrapper around new Function()
+
+function scopeEval(source, scope) {
+  var keys = [];
+  var values = [];
+  for (var key in scope) {
+    if (scope.hasOwnProperty(key)) {
+      keys.push(key);
+      values.push(scope[key]);
+    }
+  }
+  keys.push(source);
+  return Function.apply(null, keys).apply(null, values);
 }
 
 // this is essentially the "update sugar" function from daleharvey/pouchdb#1388
@@ -12870,82 +13738,11 @@ function tryAndPut(db, doc, diffFun) {
   });
 }
 
-// BEGIN Math.uuid.js
-
-/*!
-Math.uuid.js (v1.4)
-http://www.broofa.com
-mailto:robert@broofa.com
-
-Copyright (c) 2010 Robert Kieffer
-Dual licensed under the MIT and GPL licenses.
-*/
-
-/*
- * Generate a random uuid.
- *
- * USAGE: Math.uuid(length, radix)
- *   length - the desired number of characters
- *   radix  - the number of allowable values for each character.
- *
- * EXAMPLES:
- *   // No arguments  - returns RFC4122, version 4 ID
- *   >>> Math.uuid()
- *   "92329D39-6F5C-4520-ABFC-AAB64544E172"
- *
- *   // One argument - returns ID of the specified length
- *   >>> Math.uuid(15)     // 15 character ID (default base=62)
- *   "VcydxgltxrVZSTV"
- *
- *   // Two arguments - returns ID of the specified length, and radix. 
- *   // (Radix must be <= 62)
- *   >>> Math.uuid(8, 2)  // 8 character ID (base=2)
- *   "01001010"
- *   >>> Math.uuid(8, 10) // 8 character ID (base=10)
- *   "47473046"
- *   >>> Math.uuid(8, 16) // 8 character ID (base=16)
- *   "098F4D35"
- */
-var chars = (
-  '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ' +
-  'abcdefghijklmnopqrstuvwxyz'
-).split('');
-function getValue(radix) {
-  return 0 | Math.random() * radix;
+function rev() {
+  return uuidV4.v4().replace(/-/g, '').toLowerCase();
 }
-function uuid(len, radix) {
-  radix = radix || chars.length;
-  var out = '';
-  var i = -1;
 
-  if (len) {
-    // Compact form
-    while (++i < len) {
-      out += chars[getValue(radix)];
-    }
-    return out;
-  }
-    // rfc4122, version 4 form
-    // Fill in random data.  At i==19 set the high bits of clock sequence as
-    // per rfc4122, sec. 4.1.5
-  while (++i < 36) {
-    switch (i) {
-      case 8:
-      case 13:
-      case 18:
-      case 23:
-        out += '-';
-        break;
-      case 19:
-        out += chars[(getValue(16) & 0x3) | 0x8];
-        break;
-      default:
-        out += chars[getValue(16)];
-    }
-  }
-
-  return out;
-}
+var uuid = uuidV4.v4;
 
 // We fetch all leafs of the revision tree, and sort them based on tree length
 // and whether they were deleted, undeleted documents with the longest revision
@@ -13407,29 +14204,6 @@ function latest(rev, metadata) {
   throw new Error('Unable to resolve latest revision for id ' + metadata.id + ', rev ' + rev);
 }
 
-function evalFilter(input) {
-  return scopedEval('"use strict";\nreturn ' + input + ';', {});
-}
-
-function evalView(input) {
-  var code = [
-    'return function(doc) {',
-    '  "use strict";',
-    '  var emitted = false;',
-    '  var emit = function (a, b) {',
-    '    emitted = true;',
-    '  };',
-    '  var view = ' + input + ';',
-    '  view(doc);',
-    '  if (emitted) {',
-    '    return true;',
-    '  }',
-    '};'
-  ].join('\n');
-
-  return scopedEval(code, {});
-}
-
 inherits(Changes$2, events.EventEmitter);
 
 function tryCatchInChangeListener(self, change) {
@@ -13504,11 +14278,11 @@ function Changes$2(db, opts, callback) {
       } else if (self.isCancelled) {
         self.emit('cancel');
       } else {
-        self.doChanges(opts);
+        self.validateChanges(opts);
       }
     });
   } else {
-    self.doChanges(opts);
+    self.validateChanges(opts);
   }
 }
 Changes$2.prototype.cancel = function () {
@@ -13541,6 +14315,23 @@ function processChange(doc, metadata, opts) {
   return change;
 }
 
+Changes$2.prototype.validateChanges = function (opts) {
+  var callback = opts.complete;
+  var self = this;
+
+  /* istanbul ignore else */
+  if (PouchDB$3._changesFilterPlugin) {
+    PouchDB$3._changesFilterPlugin.validate(opts, function (err) {
+      if (err) {
+        return callback(err);
+      }
+      self.doChanges(opts);
+    });
+  } else {
+    self.doChanges(opts);
+  }
+};
+
 Changes$2.prototype.doChanges = function (opts) {
   var self = this;
   var callback = opts.complete;
@@ -13570,21 +14361,22 @@ Changes$2.prototype.doChanges = function (opts) {
     return;
   }
 
-
-  if (opts.view && !opts.filter) {
-    opts.filter = '_view';
-  }
-
-  if (opts.filter && typeof opts.filter === 'string') {
-    if (opts.filter === '_view') {
-      opts.view = normalizeDesignDocFunctionName(opts.view);
-    } else {
-      opts.filter = normalizeDesignDocFunctionName(opts.filter);
+  /* istanbul ignore else */
+  if (PouchDB$3._changesFilterPlugin) {
+    PouchDB$3._changesFilterPlugin.normalize(opts);
+    if (PouchDB$3._changesFilterPlugin.shouldFilter(this, opts)) {
+      return PouchDB$3._changesFilterPlugin.filter(this, opts);
     }
-
-    if (this.db.type() !== 'http' && !opts.doc_ids) {
-      return this.filterChanges(opts);
-    }
+  } else {
+    ['doc_ids', 'filter', 'selector', 'view'].forEach(function (key) {
+      if (key in opts) {
+        guardedConsole('warn',
+          'The "' + key + '" option was passed in to changes/replicate, ' +
+          'but pouchdb-changes-filter plugin is not installed, so it ' +
+          'was ignored. Please install the plugin to enable filtering.'
+        );
+      }
+    });
   }
 
   if (!('descending' in opts)) {
@@ -13605,63 +14397,6 @@ Changes$2.prototype.doChanges = function (opts) {
   }
 };
 
-Changes$2.prototype.filterChanges = function (opts) {
-  var self = this;
-  var callback = opts.complete;
-  if (opts.filter === '_view') {
-    if (!opts.view || typeof opts.view !== 'string') {
-      var err = createError(BAD_REQUEST,
-        '`view` filter parameter not found or invalid.');
-      return callback(err);
-    }
-    // fetch a view from a design doc, make it behave like a filter
-    var viewName = parseDesignDocFunctionName(opts.view);
-    this.db.get('_design/' + viewName[0], function (err, ddoc) {
-      /* istanbul ignore if */
-      if (self.isCancelled) {
-        return callback(null, {status: 'cancelled'});
-      }
-      /* istanbul ignore next */
-      if (err) {
-        return callback(generateErrorFromResponse(err));
-      }
-      var mapFun = ddoc && ddoc.views && ddoc.views[viewName[1]] &&
-        ddoc.views[viewName[1]].map;
-      if (!mapFun) {
-        return callback(createError(MISSING_DOC,
-          (ddoc.views ? 'missing json key: ' + viewName[1] :
-            'missing json key: views')));
-      }
-      opts.filter = evalView(mapFun);
-      self.doChanges(opts);
-    });
-  } else {
-    // fetch a filter from a design doc
-    var filterName = parseDesignDocFunctionName(opts.filter);
-    if (!filterName) {
-      return self.doChanges(opts);
-    }
-    this.db.get('_design/' + filterName[0], function (err, ddoc) {
-      /* istanbul ignore if */
-      if (self.isCancelled) {
-        return callback(null, {status: 'cancelled'});
-      }
-      /* istanbul ignore next */
-      if (err) {
-        return callback(generateErrorFromResponse(err));
-      }
-      var filterFun = ddoc && ddoc.filters && ddoc.filters[filterName[1]];
-      if (!filterFun) {
-        return callback(createError(MISSING_DOC,
-          ((ddoc && ddoc.filters) ? 'missing json key: ' + filterName[1]
-            : 'missing json key: filters')));
-      }
-      opts.filter = evalFilter(filterFun);
-      self.doChanges(opts);
-    });
-  }
-};
-
 /*
  * A generic pouch adapter
  */
@@ -13672,10 +14407,12 @@ function compare(left, right) {
 
 // Wrapper for functions that call the bulkdocs api with a single doc,
 // if the first result is an error, return an error
-function yankError(callback) {
+function yankError(callback, docId) {
   return function (err, results) {
     if (err || (results[0] && results[0].error)) {
-      callback(err || results[0]);
+      err = err || results[0];
+      err.docId = docId;
+      callback(err);
     } else {
       callback(null, results.length ? results[0]  : results);
     }
@@ -13717,14 +14454,14 @@ function computeHeight(revs) {
   var height = {};
   var edges = [];
   traverseRevTree(revs, function (isLeaf, pos, id, prnt) {
-    var rev = pos + "-" + id;
+    var rev$$1 = pos + "-" + id;
     if (isLeaf) {
-      height[rev] = 0;
+      height[rev$$1] = 0;
     }
     if (prnt !== undefined) {
-      edges.push({from: prnt, to: rev});
+      edges.push({from: prnt, to: rev$$1});
     }
-    return rev;
+    return rev$$1;
   });
 
   edges.reverse();
@@ -13824,7 +14561,7 @@ AbstractPouchDB.prototype.post =
   if (typeof doc !== 'object' || Array.isArray(doc)) {
     return callback(createError(NOT_AN_OBJECT));
   }
-  this.bulkDocs({docs: [doc]}, opts, yankError(callback));
+  this.bulkDocs({docs: [doc]}, opts, yankError(callback, doc._id));
 });
 
 AbstractPouchDB.prototype.put = adapterFun('put', function (doc, opts, cb) {
@@ -13843,28 +14580,56 @@ AbstractPouchDB.prototype.put = adapterFun('put', function (doc, opts, cb) {
       return this._putLocal(doc, cb);
     }
   }
-  if (typeof this._put === 'function' && opts.new_edits !== false) {
-    this._put(doc, opts, cb);
+  var self = this;
+  if (opts.force && doc._rev) {
+    transformForceOptionToNewEditsOption();
+    putDoc(function (err) {
+      var result = err ? null : {ok: true, id: doc._id, rev: doc._rev};
+      cb(err, result);
+    });
   } else {
-    this.bulkDocs({docs: [doc]}, opts, yankError(cb));
+    putDoc(cb);
+  }
+
+  function transformForceOptionToNewEditsOption() {
+    var parts = doc._rev.split('-');
+    var oldRevId = parts[1];
+    var oldRevNum = parseInt(parts[0], 10);
+
+    var newRevNum = oldRevNum + 1;
+    var newRevId = rev();
+
+    doc._revisions = {
+      start: newRevNum,
+      ids: [newRevId, oldRevId]
+    };
+    doc._rev = newRevNum + '-' + newRevId;
+    opts.new_edits = false;
+  }
+  function putDoc(next) {
+    if (typeof self._put === 'function' && opts.new_edits !== false) {
+      self._put(doc, opts, next);
+    } else {
+      self.bulkDocs({docs: [doc]}, opts, yankError(next, doc._id));
+    }
   }
 });
 
 AbstractPouchDB.prototype.putAttachment =
-  adapterFun('putAttachment', function (docId, attachmentId, rev,
+  adapterFun('putAttachment', function (docId, attachmentId, rev$$1,
                                               blob, type) {
   var api = this;
   if (typeof type === 'function') {
     type = blob;
-    blob = rev;
-    rev = null;
+    blob = rev$$1;
+    rev$$1 = null;
   }
   // Lets fix in https://github.com/pouchdb/pouchdb/issues/3267
   /* istanbul ignore if */
   if (typeof type === 'undefined') {
     type = blob;
-    blob = rev;
-    rev = null;
+    blob = rev$$1;
+    rev$$1 = null;
   }
   if (!type) {
     guardedConsole('warn', 'Attachment', attachmentId, 'on document', docId, 'is missing content_type');
@@ -13882,7 +14647,7 @@ AbstractPouchDB.prototype.putAttachment =
   }
 
   return api.get(docId).then(function (doc) {
-    if (doc._rev !== rev) {
+    if (doc._rev !== rev$$1) {
       throw createError(REV_CONFLICT);
     }
 
@@ -13899,7 +14664,7 @@ AbstractPouchDB.prototype.putAttachment =
 });
 
 AbstractPouchDB.prototype.removeAttachment =
-  adapterFun('removeAttachment', function (docId, attachmentId, rev,
+  adapterFun('removeAttachment', function (docId, attachmentId, rev$$1,
                                                  callback) {
   var self = this;
   self.get(docId, function (err, obj) {
@@ -13908,7 +14673,7 @@ AbstractPouchDB.prototype.removeAttachment =
       callback(err);
       return;
     }
-    if (obj._rev !== rev) {
+    if (obj._rev !== rev$$1) {
       callback(createError(REV_CONFLICT));
       return;
     }
@@ -13955,7 +14720,7 @@ AbstractPouchDB.prototype.remove =
   if (isLocalId(newDoc._id) && typeof this._removeLocal === 'function') {
     return this._removeLocal(doc, callback);
   }
-  this.bulkDocs({docs: [newDoc]}, opts, yankError(callback));
+  this.bulkDocs({docs: [newDoc]}, opts, yankError(callback, newDoc._id));
 });
 
 AbstractPouchDB.prototype.revsDiff =
@@ -13985,8 +14750,8 @@ AbstractPouchDB.prototype.revsDiff =
     var missingForId = req[id].slice(0);
     traverseRevTree(rev_tree, function (isLeaf, pos, revHash, ctx,
       opts) {
-        var rev = pos + '-' + revHash;
-        var idx = missingForId.indexOf(rev);
+        var rev$$1 = pos + '-' + revHash;
+        var idx = missingForId.indexOf(rev$$1);
         if (idx === -1) {
           return;
         }
@@ -13994,14 +14759,14 @@ AbstractPouchDB.prototype.revsDiff =
         missingForId.splice(idx, 1);
         /* istanbul ignore if */
         if (opts.status !== 'available') {
-          addToMissing(id, rev);
+          addToMissing(id, rev$$1);
         }
       });
 
     // Traversing the tree is synchronous, so now `missingForId` contains
     // revisions that were not found in the tree
-    missingForId.forEach(function (rev) {
-      addToMissing(id, rev);
+    missingForId.forEach(function (rev$$1) {
+      addToMissing(id, rev$$1);
     });
   }
 
@@ -14054,16 +14819,16 @@ AbstractPouchDB.prototype.compactDocument =
     var height = computeHeight(revTree);
     var candidates = [];
     var revs = [];
-    Object.keys(height).forEach(function (rev) {
-      if (height[rev] > maxHeight) {
-        candidates.push(rev);
+    Object.keys(height).forEach(function (rev$$1) {
+      if (height[rev$$1] > maxHeight) {
+        candidates.push(rev$$1);
       }
     });
 
     traverseRevTree(revTree, function (isLeaf, pos, revHash, ctx, opts) {
-      var rev = pos + '-' + revHash;
-      if (opts.status === 'available' && candidates.indexOf(rev) !== -1) {
-        revs.push(rev);
+      var rev$$1 = pos + '-' + revHash;
+      if (opts.status === 'available' && candidates.indexOf(rev$$1) !== -1) {
+        revs.push(rev$$1);
       }
     });
     self._doCompaction(docId, revs, callback);
@@ -14204,6 +14969,7 @@ AbstractPouchDB.prototype.get = adapterFun('get', function (id, opts, cb) {
 
   return this._get(id, opts, function (err, result) {
     if (err) {
+      err.docId = id;
       return cb(err);
     }
 
@@ -14250,18 +15016,18 @@ AbstractPouchDB.prototype.get = adapterFun('get', function (id, opts, cb) {
       if (opts.revs) {
         doc._revisions = {
           start: (path.pos + path.ids.length) - 1,
-          ids: path.ids.map(function (rev) {
-            return rev.id;
+          ids: path.ids.map(function (rev$$1) {
+            return rev$$1.id;
           })
         };
       }
       if (opts.revs_info) {
         var pos =  path.pos + path.ids.length;
-        doc._revs_info = path.ids.map(function (rev) {
+        doc._revs_info = path.ids.map(function (rev$$1) {
           pos--;
           return {
-            rev: pos + '-' + rev.id,
-            status: rev.opts.status
+            rev: pos + '-' + rev$$1.id,
+            status: rev$$1.opts.status
           };
         });
       }
@@ -14358,7 +15124,7 @@ AbstractPouchDB.prototype.allDocs =
       ));
       return;
     }
-    if (this.type() !== 'http') {
+    if (!isRemote(this)) {
       return allDocsKeysQuery(this, opts, callback);
     }
   }
@@ -14388,8 +15154,8 @@ AbstractPouchDB.prototype.info = adapterFun('info', function (callback) {
     }
     // assume we know better than the adapter, unless it informs us
     info.db_name = info.db_name || self.name;
-    info.auto_compaction = !!(self.auto_compaction && self.type() !== 'http');
-    info.adapter = self.type();
+    info.auto_compaction = !!(self.auto_compaction && !isRemote(self));
+    info.adapter = self.adapter;
     callback(null, info);
   });
 });
@@ -14453,7 +15219,7 @@ AbstractPouchDB.prototype.bulkDocs =
   }
 
   var adapter = this;
-  if (!opts.new_edits && adapter.type() !== 'http') {
+  if (!opts.new_edits && !isRemote(adapter)) {
     // ensure revisions of the same doc are sorted, so that
     // the local adapter processes them correctly (#2935)
     req.docs.sort(compareByIdThenRev);
@@ -14479,7 +15245,7 @@ AbstractPouchDB.prototype.bulkDocs =
       });
     }
     // add ids for error/conflict responses (not required for CouchDB)
-    if (adapter.type() !== 'http') {
+    if (!isRemote(adapter)) {
       for (var i = 0, l = res.length; i < l; i++) {
         res[i].id = res[i].id || ids[i];
       }
@@ -14531,7 +15297,7 @@ AbstractPouchDB.prototype.destroy =
     });
   }
 
-  if (self.type() === 'http') {
+  if (isRemote(self)) {
     // no need to check for dependent DBs if it's a remote DB
     return destroyDb();
   }
@@ -14596,7 +15362,7 @@ TaskQueue$1.prototype.addTask = function (fun) {
 };
 
 function parseAdapter(name, opts) {
-  var match = name.match(/([a-z\-]*):\/\/(.*)/);
+  var match = name.match(/([a-z-]*):\/\/(.*)/);
   if (match) {
     // the http adapter expects the fully qualified name
     return {
@@ -14650,32 +15416,21 @@ function parseAdapter(name, opts) {
 // that may have been created with the same name.
 function prepareForDestruction(self) {
 
-  var destructionListeners = self.constructor._destructionListeners;
-
-  function onDestroyed() {
+  function onDestroyed(from_constructor) {
     self.removeListener('closed', onClosed);
-    self.constructor.emit('destroyed', self.name);
-  }
-
-  function onConstructorDestroyed() {
-    self.removeListener('destroyed', onDestroyed);
-    self.removeListener('closed', onClosed);
-    self.emit('destroyed');
+    if (!from_constructor) {
+      self.constructor.emit('destroyed', self.name);
+    }
   }
 
   function onClosed() {
     self.removeListener('destroyed', onDestroyed);
-    destructionListeners.delete(self.name);
+    self.constructor.emit('unref', self);
   }
 
   self.once('destroyed', onDestroyed);
   self.once('closed', onClosed);
-
-  // in setup.js, the constructor is primed to listen for destroy events
-  if (!destructionListeners.has(self.name)) {
-    destructionListeners.set(self.name, []);
-  }
-  destructionListeners.get(self.name).push(onConstructorDestroyed);
+  self.constructor.emit('ref', self);
 }
 
 inherits(PouchDB$3, AbstractPouchDB);
@@ -14712,7 +15467,7 @@ function PouchDB$3(name, opts) {
 
   self.name = name;
   self._adapter = opts.adapter;
-  debug('pouchdb:adapter')('Picked adapter: ' + opts.adapter);
+  PouchDB$3.emit('debug', ['adapter', 'Picked adapter: ', opts.adapter]);
 
   if (!PouchDB$3.adapters[opts.adapter] ||
       !PouchDB$3.adapters[opts.adapter].valid()) {
@@ -14737,8 +15492,6 @@ function PouchDB$3(name, opts) {
 
 }
 
-PouchDB$3.debug = debug;
-
 PouchDB$3.adapters = {};
 PouchDB$3.preferredAdapters = [];
 
@@ -14756,11 +15509,42 @@ function setUpEventEmitter(Pouch) {
   // these are created in constructor.js, and allow us to notify each DB with
   // the same name that it was destroyed, via the constructor object
   var destructListeners = Pouch._destructionListeners = new ExportedMap();
+
+  Pouch.on('ref', function onConstructorRef(db) {
+    if (!destructListeners.has(db.name)) {
+      destructListeners.set(db.name, []);
+    }
+    destructListeners.get(db.name).push(db);
+  });
+
+  Pouch.on('unref', function onConstructorUnref(db) {
+    if (!destructListeners.has(db.name)) {
+      return;
+    }
+    var dbList = destructListeners.get(db.name);
+    var pos = dbList.indexOf(db);
+    if (pos < 0) {
+      /* istanbul ignore next */
+      return;
+    }
+    dbList.splice(pos, 1);
+    if (dbList.length > 1) {
+      /* istanbul ignore next */
+      destructListeners.set(db.name, dbList);
+    } else {
+      destructListeners.delete(db.name);
+    }
+  });
+
   Pouch.on('destroyed', function onConstructorDestroyed(name) {
-    destructListeners.get(name).forEach(function (callback) {
-      callback();
-    });
+    if (!destructListeners.has(name)) {
+      return;
+    }
+    var dbList = destructListeners.get(name);
     destructListeners.delete(name);
+    dbList.forEach(function (db) {
+      db.emit('destroyed',true);
+    });
   });
 }
 
@@ -14779,8 +15563,8 @@ PouchDB$3.adapter = function (id, obj, addToPreferredAdapters) {
 PouchDB$3.plugin = function (obj) {
   if (typeof obj === 'function') { // function style for plugins
     obj(PouchDB$3);
-  } else if (typeof obj !== 'object' || Object.keys(obj).length === 0){
-    throw new Error('Invalid plugin: got \"' + obj + '\", expected an object or a function');
+  } else if (typeof obj !== 'object' || Object.keys(obj).length === 0) {
+    throw new Error('Invalid plugin: got "' + obj + '", expected an object or a function');
   } else {
     Object.keys(obj).forEach(function (id) { // object style for plugins
       PouchDB$3.prototype[id] = obj[id];
@@ -14827,7 +15611,1070 @@ PouchDB$3.defaults = function (defaultOpts) {
 };
 
 // managed automatically by set-version.js
-var version = "6.1.2";
+var version = "6.3.4";
+
+function debugPouch(PouchDB) {
+  PouchDB.debug = debug;
+  var logs = {};
+  /* istanbul ignore next */
+  PouchDB.on('debug', function (args) {
+    // first argument is log identifier
+    var logId = args[0];
+    // rest should be passed verbatim to debug module
+    var logArgs = args.slice(1);
+    if (!logs[logId]) {
+      logs[logId] = debug('pouchdb:' + logId);
+    }
+    logs[logId].apply(null, logArgs);
+  });
+}
+
+// this would just be "return doc[field]", but fields
+// can be "deep" due to dot notation
+function getFieldFromDoc(doc, parsedField) {
+  var value = doc;
+  for (var i = 0, len = parsedField.length; i < len; i++) {
+    var key = parsedField[i];
+    value = value[key];
+    if (!value) {
+      break;
+    }
+  }
+  return value;
+}
+
+function compare$1(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+// Converts a string in dot notation to an array of its components, with backslash escaping
+function parseField(fieldName) {
+  // fields may be deep (e.g. "foo.bar.baz"), so parse
+  var fields = [];
+  var current = '';
+  for (var i = 0, len = fieldName.length; i < len; i++) {
+    var ch = fieldName[i];
+    if (ch === '.') {
+      if (i > 0 && fieldName[i - 1] === '\\') { // escaped delimiter
+        current = current.substring(0, current.length - 1) + '.';
+      } else { // not escaped, so delimiter
+        fields.push(current);
+        current = '';
+      }
+    } else { // normal character
+      current += ch;
+    }
+  }
+  fields.push(current);
+  return fields;
+}
+
+var combinationFields = ['$or', '$nor', '$not'];
+function isCombinationalField(field) {
+  return combinationFields.indexOf(field) > -1;
+}
+
+function getKey(obj) {
+  return Object.keys(obj)[0];
+}
+
+function getValue(obj) {
+  return obj[getKey(obj)];
+}
+
+
+// flatten an array of selectors joined by an $and operator
+function mergeAndedSelectors(selectors) {
+
+  // sort to ensure that e.g. if the user specified
+  // $and: [{$gt: 'a'}, {$gt: 'b'}], then it's collapsed into
+  // just {$gt: 'b'}
+  var res = {};
+
+  selectors.forEach(function (selector) {
+    Object.keys(selector).forEach(function (field) {
+      var matcher = selector[field];
+      if (typeof matcher !== 'object') {
+        matcher = {$eq: matcher};
+      }
+
+      if (isCombinationalField(field)) {
+        if (matcher instanceof Array) {
+          res[field] = matcher.map(function (m) {
+            return mergeAndedSelectors([m]);
+          });
+        } else {
+          res[field] = mergeAndedSelectors([matcher]);
+        }
+      } else {
+        var fieldMatchers = res[field] = res[field] || {};
+        Object.keys(matcher).forEach(function (operator) {
+          var value = matcher[operator];
+
+          if (operator === '$gt' || operator === '$gte') {
+            return mergeGtGte(operator, value, fieldMatchers);
+          } else if (operator === '$lt' || operator === '$lte') {
+            return mergeLtLte(operator, value, fieldMatchers);
+          } else if (operator === '$ne') {
+            return mergeNe(value, fieldMatchers);
+          } else if (operator === '$eq') {
+            return mergeEq(value, fieldMatchers);
+          }
+          fieldMatchers[operator] = value;
+        });
+      }
+    });
+  });
+
+  return res;
+}
+
+
+
+// collapse logically equivalent gt/gte values
+function mergeGtGte(operator, value, fieldMatchers) {
+  if (typeof fieldMatchers.$eq !== 'undefined') {
+    return; // do nothing
+  }
+  if (typeof fieldMatchers.$gte !== 'undefined') {
+    if (operator === '$gte') {
+      if (value > fieldMatchers.$gte) { // more specificity
+        fieldMatchers.$gte = value;
+      }
+    } else { // operator === '$gt'
+      if (value >= fieldMatchers.$gte) { // more specificity
+        delete fieldMatchers.$gte;
+        fieldMatchers.$gt = value;
+      }
+    }
+  } else if (typeof fieldMatchers.$gt !== 'undefined') {
+    if (operator === '$gte') {
+      if (value > fieldMatchers.$gt) { // more specificity
+        delete fieldMatchers.$gt;
+        fieldMatchers.$gte = value;
+      }
+    } else { // operator === '$gt'
+      if (value > fieldMatchers.$gt) { // more specificity
+        fieldMatchers.$gt = value;
+      }
+    }
+  } else {
+    fieldMatchers[operator] = value;
+  }
+}
+
+// collapse logically equivalent lt/lte values
+function mergeLtLte(operator, value, fieldMatchers) {
+  if (typeof fieldMatchers.$eq !== 'undefined') {
+    return; // do nothing
+  }
+  if (typeof fieldMatchers.$lte !== 'undefined') {
+    if (operator === '$lte') {
+      if (value < fieldMatchers.$lte) { // more specificity
+        fieldMatchers.$lte = value;
+      }
+    } else { // operator === '$gt'
+      if (value <= fieldMatchers.$lte) { // more specificity
+        delete fieldMatchers.$lte;
+        fieldMatchers.$lt = value;
+      }
+    }
+  } else if (typeof fieldMatchers.$lt !== 'undefined') {
+    if (operator === '$lte') {
+      if (value < fieldMatchers.$lt) { // more specificity
+        delete fieldMatchers.$lt;
+        fieldMatchers.$lte = value;
+      }
+    } else { // operator === '$gt'
+      if (value < fieldMatchers.$lt) { // more specificity
+        fieldMatchers.$lt = value;
+      }
+    }
+  } else {
+    fieldMatchers[operator] = value;
+  }
+}
+
+// combine $ne values into one array
+function mergeNe(value, fieldMatchers) {
+  if ('$ne' in fieldMatchers) {
+    // there are many things this could "not" be
+    fieldMatchers.$ne.push(value);
+  } else { // doesn't exist yet
+    fieldMatchers.$ne = [value];
+  }
+}
+
+// add $eq into the mix
+function mergeEq(value, fieldMatchers) {
+  // these all have less specificity than the $eq
+  // TODO: check for user errors here
+  delete fieldMatchers.$gt;
+  delete fieldMatchers.$gte;
+  delete fieldMatchers.$lt;
+  delete fieldMatchers.$lte;
+  delete fieldMatchers.$ne;
+  fieldMatchers.$eq = value;
+}
+
+
+//
+// normalize the selector
+//
+function massageSelector(input) {
+  var result = clone(input);
+  var wasAnded = false;
+  if ('$and' in result) {
+    result = mergeAndedSelectors(result['$and']);
+    wasAnded = true;
+  }
+
+  ['$or', '$nor'].forEach(function (orOrNor) {
+    if (orOrNor in result) {
+      // message each individual selector
+      // e.g. {foo: 'bar'} becomes {foo: {$eq: 'bar'}}
+      result[orOrNor].forEach(function (subSelector) {
+        var fields = Object.keys(subSelector);
+        for (var i = 0; i < fields.length; i++) {
+          var field = fields[i];
+          var matcher = subSelector[field];
+          if (typeof matcher !== 'object' || matcher === null) {
+            subSelector[field] = {$eq: matcher};
+          }
+        }
+      });
+    }
+  });
+
+  if ('$not' in result) {
+    //This feels a little like forcing, but it will work for now,
+    //I would like to come back to this and make the merging of selectors a little more generic
+    result['$not'] = mergeAndedSelectors([result['$not']]);
+  }
+
+  var fields = Object.keys(result);
+
+  for (var i = 0; i < fields.length; i++) {
+    var field = fields[i];
+    var matcher = result[field];
+
+    if (typeof matcher !== 'object' || matcher === null) {
+      matcher = {$eq: matcher};
+    } else if ('$ne' in matcher && !wasAnded) {
+      // I put these in an array, since there may be more than one
+      // but in the "mergeAnded" operation, I already take care of that
+      matcher.$ne = [matcher.$ne];
+    }
+    result[field] = matcher;
+  }
+
+  return result;
+}
+
+function pad(str, padWith, upToLength) {
+  var padding = '';
+  var targetLength = upToLength - str.length;
+  /* istanbul ignore next */
+  while (padding.length < targetLength) {
+    padding += padWith;
+  }
+  return padding;
+}
+
+function padLeft(str, padWith, upToLength) {
+  var padding = pad(str, padWith, upToLength);
+  return padding + str;
+}
+
+var MIN_MAGNITUDE = -324; // verified by -Number.MIN_VALUE
+var MAGNITUDE_DIGITS = 3; // ditto
+var SEP = ''; // set to '_' for easier debugging 
+
+function collate(a, b) {
+
+  if (a === b) {
+    return 0;
+  }
+
+  a = normalizeKey(a);
+  b = normalizeKey(b);
+
+  var ai = collationIndex(a);
+  var bi = collationIndex(b);
+  if ((ai - bi) !== 0) {
+    return ai - bi;
+  }
+  switch (typeof a) {
+    case 'number':
+      return a - b;
+    case 'boolean':
+      return a < b ? -1 : 1;
+    case 'string':
+      return stringCollate(a, b);
+  }
+  return Array.isArray(a) ? arrayCollate(a, b) : objectCollate(a, b);
+}
+
+// couch considers null/NaN/Infinity/-Infinity === undefined,
+// for the purposes of mapreduce indexes. also, dates get stringified.
+function normalizeKey(key) {
+  switch (typeof key) {
+    case 'undefined':
+      return null;
+    case 'number':
+      if (key === Infinity || key === -Infinity || isNaN(key)) {
+        return null;
+      }
+      return key;
+    case 'object':
+      var origKey = key;
+      if (Array.isArray(key)) {
+        var len = key.length;
+        key = new Array(len);
+        for (var i = 0; i < len; i++) {
+          key[i] = normalizeKey(origKey[i]);
+        }
+      /* istanbul ignore next */
+      } else if (key instanceof Date) {
+        return key.toJSON();
+      } else if (key !== null) { // generic object
+        key = {};
+        for (var k in origKey) {
+          if (origKey.hasOwnProperty(k)) {
+            var val = origKey[k];
+            if (typeof val !== 'undefined') {
+              key[k] = normalizeKey(val);
+            }
+          }
+        }
+      }
+  }
+  return key;
+}
+
+function indexify(key) {
+  if (key !== null) {
+    switch (typeof key) {
+      case 'boolean':
+        return key ? 1 : 0;
+      case 'number':
+        return numToIndexableString(key);
+      case 'string':
+        // We've to be sure that key does not contain \u0000
+        // Do order-preserving replacements:
+        // 0 -> 1, 1
+        // 1 -> 1, 2
+        // 2 -> 2, 2
+        return key
+          .replace(/\u0002/g, '\u0002\u0002')
+          .replace(/\u0001/g, '\u0001\u0002')
+          .replace(/\u0000/g, '\u0001\u0001');
+      case 'object':
+        var isArray = Array.isArray(key);
+        var arr = isArray ? key : Object.keys(key);
+        var i = -1;
+        var len = arr.length;
+        var result = '';
+        if (isArray) {
+          while (++i < len) {
+            result += toIndexableString(arr[i]);
+          }
+        } else {
+          while (++i < len) {
+            var objKey = arr[i];
+            result += toIndexableString(objKey) +
+                toIndexableString(key[objKey]);
+          }
+        }
+        return result;
+    }
+  }
+  return '';
+}
+
+// convert the given key to a string that would be appropriate
+// for lexical sorting, e.g. within a database, where the
+// sorting is the same given by the collate() function.
+function toIndexableString(key) {
+  var zero = '\u0000';
+  key = normalizeKey(key);
+  return collationIndex(key) + SEP + indexify(key) + zero;
+}
+
+function parseNumber(str, i) {
+  var originalIdx = i;
+  var num;
+  var zero = str[i] === '1';
+  if (zero) {
+    num = 0;
+    i++;
+  } else {
+    var neg = str[i] === '0';
+    i++;
+    var numAsString = '';
+    var magAsString = str.substring(i, i + MAGNITUDE_DIGITS);
+    var magnitude = parseInt(magAsString, 10) + MIN_MAGNITUDE;
+    /* istanbul ignore next */
+    if (neg) {
+      magnitude = -magnitude;
+    }
+    i += MAGNITUDE_DIGITS;
+    while (true) {
+      var ch = str[i];
+      if (ch === '\u0000') {
+        break;
+      } else {
+        numAsString += ch;
+      }
+      i++;
+    }
+    numAsString = numAsString.split('.');
+    if (numAsString.length === 1) {
+      num = parseInt(numAsString, 10);
+    } else {
+      /* istanbul ignore next */
+      num = parseFloat(numAsString[0] + '.' + numAsString[1]);
+    }
+    /* istanbul ignore next */
+    if (neg) {
+      num = num - 10;
+    }
+    /* istanbul ignore next */
+    if (magnitude !== 0) {
+      // parseFloat is more reliable than pow due to rounding errors
+      // e.g. Number.MAX_VALUE would return Infinity if we did
+      // num * Math.pow(10, magnitude);
+      num = parseFloat(num + 'e' + magnitude);
+    }
+  }
+  return {num: num, length : i - originalIdx};
+}
+
+// move up the stack while parsing
+// this function moved outside of parseIndexableString for performance
+function pop(stack, metaStack) {
+  var obj = stack.pop();
+
+  if (metaStack.length) {
+    var lastMetaElement = metaStack[metaStack.length - 1];
+    if (obj === lastMetaElement.element) {
+      // popping a meta-element, e.g. an object whose value is another object
+      metaStack.pop();
+      lastMetaElement = metaStack[metaStack.length - 1];
+    }
+    var element = lastMetaElement.element;
+    var lastElementIndex = lastMetaElement.index;
+    if (Array.isArray(element)) {
+      element.push(obj);
+    } else if (lastElementIndex === stack.length - 2) { // obj with key+value
+      var key = stack.pop();
+      element[key] = obj;
+    } else {
+      stack.push(obj); // obj with key only
+    }
+  }
+}
+
+function parseIndexableString(str) {
+  var stack = [];
+  var metaStack = []; // stack for arrays and objects
+  var i = 0;
+
+  /*eslint no-constant-condition: ["error", { "checkLoops": false }]*/
+  while (true) {
+    var collationIndex = str[i++];
+    if (collationIndex === '\u0000') {
+      if (stack.length === 1) {
+        return stack.pop();
+      } else {
+        pop(stack, metaStack);
+        continue;
+      }
+    }
+    switch (collationIndex) {
+      case '1':
+        stack.push(null);
+        break;
+      case '2':
+        stack.push(str[i] === '1');
+        i++;
+        break;
+      case '3':
+        var parsedNum = parseNumber(str, i);
+        stack.push(parsedNum.num);
+        i += parsedNum.length;
+        break;
+      case '4':
+        var parsedStr = '';
+        /*eslint no-constant-condition: ["error", { "checkLoops": false }]*/
+        while (true) {
+          var ch = str[i];
+          if (ch === '\u0000') {
+            break;
+          }
+          parsedStr += ch;
+          i++;
+        }
+        // perform the reverse of the order-preserving replacement
+        // algorithm (see above)
+        parsedStr = parsedStr.replace(/\u0001\u0001/g, '\u0000')
+          .replace(/\u0001\u0002/g, '\u0001')
+          .replace(/\u0002\u0002/g, '\u0002');
+        stack.push(parsedStr);
+        break;
+      case '5':
+        var arrayElement = { element: [], index: stack.length };
+        stack.push(arrayElement.element);
+        metaStack.push(arrayElement);
+        break;
+      case '6':
+        var objElement = { element: {}, index: stack.length };
+        stack.push(objElement.element);
+        metaStack.push(objElement);
+        break;
+      /* istanbul ignore next */
+      default:
+        throw new Error(
+          'bad collationIndex or unexpectedly reached end of input: ' +
+            collationIndex);
+    }
+  }
+}
+
+function arrayCollate(a, b) {
+  var len = Math.min(a.length, b.length);
+  for (var i = 0; i < len; i++) {
+    var sort = collate(a[i], b[i]);
+    if (sort !== 0) {
+      return sort;
+    }
+  }
+  return (a.length === b.length) ? 0 :
+    (a.length > b.length) ? 1 : -1;
+}
+function stringCollate(a, b) {
+  // See: https://github.com/daleharvey/pouchdb/issues/40
+  // This is incompatible with the CouchDB implementation, but its the
+  // best we can do for now
+  return (a === b) ? 0 : ((a > b) ? 1 : -1);
+}
+function objectCollate(a, b) {
+  var ak = Object.keys(a), bk = Object.keys(b);
+  var len = Math.min(ak.length, bk.length);
+  for (var i = 0; i < len; i++) {
+    // First sort the keys
+    var sort = collate(ak[i], bk[i]);
+    if (sort !== 0) {
+      return sort;
+    }
+    // if the keys are equal sort the values
+    sort = collate(a[ak[i]], b[bk[i]]);
+    if (sort !== 0) {
+      return sort;
+    }
+
+  }
+  return (ak.length === bk.length) ? 0 :
+    (ak.length > bk.length) ? 1 : -1;
+}
+// The collation is defined by erlangs ordered terms
+// the atoms null, true, false come first, then numbers, strings,
+// arrays, then objects
+// null/undefined/NaN/Infinity/-Infinity are all considered null
+function collationIndex(x) {
+  var id = ['boolean', 'number', 'string', 'object'];
+  var idx = id.indexOf(typeof x);
+  //false if -1 otherwise true, but fast!!!!1
+  if (~idx) {
+    if (x === null) {
+      return 1;
+    }
+    if (Array.isArray(x)) {
+      return 5;
+    }
+    return idx < 3 ? (idx + 2) : (idx + 3);
+  }
+  /* istanbul ignore next */
+  if (Array.isArray(x)) {
+    return 5;
+  }
+}
+
+// conversion:
+// x yyy zz...zz
+// x = 0 for negative, 1 for 0, 2 for positive
+// y = exponent (for negative numbers negated) moved so that it's >= 0
+// z = mantisse
+function numToIndexableString(num) {
+
+  if (num === 0) {
+    return '1';
+  }
+
+  // convert number to exponential format for easier and
+  // more succinct string sorting
+  var expFormat = num.toExponential().split(/e\+?/);
+  var magnitude = parseInt(expFormat[1], 10);
+
+  var neg = num < 0;
+
+  var result = neg ? '0' : '2';
+
+  // first sort by magnitude
+  // it's easier if all magnitudes are positive
+  var magForComparison = ((neg ? -magnitude : magnitude) - MIN_MAGNITUDE);
+  var magString = padLeft((magForComparison).toString(), '0', MAGNITUDE_DIGITS);
+
+  result += SEP + magString;
+
+  // then sort by the factor
+  var factor = Math.abs(parseFloat(expFormat[0])); // [1..10)
+  /* istanbul ignore next */
+  if (neg) { // for negative reverse ordering
+    factor = 10 - factor;
+  }
+
+  var factorStr = factor.toFixed(20);
+
+  // strip zeros from the end
+  factorStr = factorStr.replace(/\.?0+$/, '');
+
+  result += SEP + factorStr;
+
+  return result;
+}
+
+// create a comparator based on the sort object
+function createFieldSorter(sort) {
+
+  function getFieldValuesAsArray(doc) {
+    return sort.map(function (sorting) {
+      var fieldName = getKey(sorting);
+      var parsedField = parseField(fieldName);
+      var docFieldValue = getFieldFromDoc(doc, parsedField);
+      return docFieldValue;
+    });
+  }
+
+  return function (aRow, bRow) {
+    var aFieldValues = getFieldValuesAsArray(aRow.doc);
+    var bFieldValues = getFieldValuesAsArray(bRow.doc);
+    var collation = collate(aFieldValues, bFieldValues);
+    if (collation !== 0) {
+      return collation;
+    }
+    // this is what mango seems to do
+    return compare$1(aRow.doc._id, bRow.doc._id);
+  };
+}
+
+function filterInMemoryFields(rows, requestDef, inMemoryFields) {
+  rows = rows.filter(function (row) {
+    return rowFilter(row.doc, requestDef.selector, inMemoryFields);
+  });
+
+  if (requestDef.sort) {
+    // in-memory sort
+    var fieldSorter = createFieldSorter(requestDef.sort);
+    rows = rows.sort(fieldSorter);
+    if (typeof requestDef.sort[0] !== 'string' &&
+        getValue(requestDef.sort[0]) === 'desc') {
+      rows = rows.reverse();
+    }
+  }
+
+  if ('limit' in requestDef || 'skip' in requestDef) {
+    // have to do the limit in-memory
+    var skip = requestDef.skip || 0;
+    var limit = ('limit' in requestDef ? requestDef.limit : rows.length) + skip;
+    rows = rows.slice(skip, limit);
+  }
+  return rows;
+}
+
+function rowFilter(doc, selector, inMemoryFields) {
+  return inMemoryFields.every(function (field) {
+    var matcher = selector[field];
+    var parsedField = parseField(field);
+    var docFieldValue = getFieldFromDoc(doc, parsedField);
+    if (isCombinationalField(field)) {
+      return matchCominationalSelector(field, matcher, doc);
+    }
+
+    return matchSelector(matcher, doc, parsedField, docFieldValue);
+  });
+}
+
+function matchSelector(matcher, doc, parsedField, docFieldValue) {
+  if (!matcher) {
+    // no filtering necessary; this field is just needed for sorting
+    return true;
+  }
+
+  return Object.keys(matcher).every(function (userOperator) {
+    var userValue = matcher[userOperator];
+    return match(userOperator, doc, userValue, parsedField, docFieldValue);
+  });
+}
+
+function matchCominationalSelector(field, matcher, doc) {
+
+  if (field === '$or') {
+    return matcher.some(function (orMatchers) {
+      return rowFilter(doc, orMatchers, Object.keys(orMatchers));
+    });
+  }
+
+  if (field === '$not') {
+    return !rowFilter(doc, matcher, Object.keys(matcher));
+  }
+
+  //`$nor`
+  return !matcher.find(function (orMatchers) {
+    return rowFilter(doc, orMatchers, Object.keys(orMatchers));
+  });
+
+}
+
+function match(userOperator, doc, userValue, parsedField, docFieldValue) {
+  if (!matchers[userOperator]) {
+    throw new Error('unknown operator "' + userOperator +
+      '" - should be one of $eq, $lte, $lt, $gt, $gte, $exists, $ne, $in, ' +
+      '$nin, $size, $mod, $regex, $elemMatch, $type, $allMatch or $all');
+  }
+  return matchers[userOperator](doc, userValue, parsedField, docFieldValue);
+}
+
+function fieldExists(docFieldValue) {
+  return typeof docFieldValue !== 'undefined' && docFieldValue !== null;
+}
+
+function fieldIsNotUndefined(docFieldValue) {
+  return typeof docFieldValue !== 'undefined';
+}
+
+function modField(docFieldValue, userValue) {
+  var divisor = userValue[0];
+  var mod = userValue[1];
+  if (divisor === 0) {
+    throw new Error('Bad divisor, cannot divide by zero');
+  }
+
+  if (parseInt(divisor, 10) !== divisor ) {
+    throw new Error('Divisor is not an integer');
+  }
+
+  if (parseInt(mod, 10) !== mod ) {
+    throw new Error('Modulus is not an integer');
+  }
+
+  if (parseInt(docFieldValue, 10) !== docFieldValue) {
+    return false;
+  }
+
+  return docFieldValue % divisor === mod;
+}
+
+function arrayContainsValue(docFieldValue, userValue) {
+  return userValue.some(function (val) {
+    if (docFieldValue instanceof Array) {
+      return docFieldValue.indexOf(val) > -1;
+    }
+
+    return docFieldValue === val;
+  });
+}
+
+function arrayContainsAllValues(docFieldValue, userValue) {
+  return userValue.every(function (val) {
+    return docFieldValue.indexOf(val) > -1;
+  });
+}
+
+function arraySize(docFieldValue, userValue) {
+  return docFieldValue.length === userValue;
+}
+
+function regexMatch(docFieldValue, userValue) {
+  var re = new RegExp(userValue);
+
+  return re.test(docFieldValue);
+}
+
+function typeMatch(docFieldValue, userValue) {
+
+  switch (userValue) {
+    case 'null':
+      return docFieldValue === null;
+    case 'boolean':
+      return typeof (docFieldValue) === 'boolean';
+    case 'number':
+      return typeof (docFieldValue) === 'number';
+    case 'string':
+      return typeof (docFieldValue) === 'string';
+    case 'array':
+      return docFieldValue instanceof Array;
+    case 'object':
+      return ({}).toString.call(docFieldValue) === '[object Object]';
+  }
+
+  throw new Error(userValue + ' not supported as a type.' +
+                  'Please use one of object, string, array, number, boolean or null.');
+
+}
+
+var matchers = {
+
+  '$elemMatch': function (doc, userValue, parsedField, docFieldValue) {
+    if (!Array.isArray(docFieldValue)) {
+      return false;
+    }
+
+    if (docFieldValue.length === 0) {
+      return false;
+    }
+
+    if (typeof docFieldValue[0] === 'object') {
+      return docFieldValue.some(function (val) {
+        return rowFilter(val, userValue, Object.keys(userValue));
+      });
+    }
+
+    return docFieldValue.some(function (val) {
+      return matchSelector(userValue, doc, parsedField, val);
+    });
+  },
+
+  '$allMatch': function (doc, userValue, parsedField, docFieldValue) {
+    if (!Array.isArray(docFieldValue)) {
+      return false;
+    }
+
+    /* istanbul ignore next */
+    if (docFieldValue.length === 0) {
+      return false;
+    }
+
+    if (typeof docFieldValue[0] === 'object') {
+      return docFieldValue.every(function (val) {
+        return rowFilter(val, userValue, Object.keys(userValue));
+      });
+    }
+
+    return docFieldValue.every(function (val) {
+      return matchSelector(userValue, doc, parsedField, val);
+    });
+  },
+
+  '$eq': function (doc, userValue, parsedField, docFieldValue) {
+    return fieldIsNotUndefined(docFieldValue) && collate(docFieldValue, userValue) === 0;
+  },
+
+  '$gte': function (doc, userValue, parsedField, docFieldValue) {
+    return fieldIsNotUndefined(docFieldValue) && collate(docFieldValue, userValue) >= 0;
+  },
+
+  '$gt': function (doc, userValue, parsedField, docFieldValue) {
+    return fieldIsNotUndefined(docFieldValue) && collate(docFieldValue, userValue) > 0;
+  },
+
+  '$lte': function (doc, userValue, parsedField, docFieldValue) {
+    return fieldIsNotUndefined(docFieldValue) && collate(docFieldValue, userValue) <= 0;
+  },
+
+  '$lt': function (doc, userValue, parsedField, docFieldValue) {
+    return fieldIsNotUndefined(docFieldValue) && collate(docFieldValue, userValue) < 0;
+  },
+
+  '$exists': function (doc, userValue, parsedField, docFieldValue) {
+    //a field that is null is still considered to exist
+    if (userValue) {
+      return fieldIsNotUndefined(docFieldValue);
+    }
+
+    return !fieldIsNotUndefined(docFieldValue);
+  },
+
+  '$mod': function (doc, userValue, parsedField, docFieldValue) {
+    return fieldExists(docFieldValue) && modField(docFieldValue, userValue);
+  },
+
+  '$ne': function (doc, userValue, parsedField, docFieldValue) {
+    return userValue.every(function (neValue) {
+      return collate(docFieldValue, neValue) !== 0;
+    });
+  },
+  '$in': function (doc, userValue, parsedField, docFieldValue) {
+    return fieldExists(docFieldValue) && arrayContainsValue(docFieldValue, userValue);
+  },
+
+  '$nin': function (doc, userValue, parsedField, docFieldValue) {
+    return fieldExists(docFieldValue) && !arrayContainsValue(docFieldValue, userValue);
+  },
+
+  '$size': function (doc, userValue, parsedField, docFieldValue) {
+    return fieldExists(docFieldValue) && arraySize(docFieldValue, userValue);
+  },
+
+  '$all': function (doc, userValue, parsedField, docFieldValue) {
+    return Array.isArray(docFieldValue) && arrayContainsAllValues(docFieldValue, userValue);
+  },
+
+  '$regex': function (doc, userValue, parsedField, docFieldValue) {
+    return fieldExists(docFieldValue) && regexMatch(docFieldValue, userValue);
+  },
+
+  '$type': function (doc, userValue, parsedField, docFieldValue) {
+    return typeMatch(docFieldValue, userValue);
+  }
+};
+
+// return true if the given doc matches the supplied selector
+function matchesSelector(doc, selector) {
+  /* istanbul ignore if */
+  if (typeof selector !== 'object') {
+    // match the CouchDB error message
+    throw new Error('Selector error: expected a JSON object');
+  }
+
+  selector = massageSelector(selector);
+  var row = {
+    'doc': doc
+  };
+
+  var rowsMatched = filterInMemoryFields([row], { 'selector': selector }, Object.keys(selector));
+  return rowsMatched && rowsMatched.length === 1;
+}
+
+function evalFilter(input) {
+  return scopeEval('"use strict";\nreturn ' + input + ';', {});
+}
+
+function evalView(input) {
+  var code = [
+    'return function(doc) {',
+    '  "use strict";',
+    '  var emitted = false;',
+    '  var emit = function (a, b) {',
+    '    emitted = true;',
+    '  };',
+    '  var view = ' + input + ';',
+    '  view(doc);',
+    '  if (emitted) {',
+    '    return true;',
+    '  }',
+    '};'
+  ].join('\n');
+
+  return scopeEval(code, {});
+}
+
+function validate(opts, callback) {
+  if (opts.selector) {
+    if (opts.filter && opts.filter !== '_selector') {
+      var filterName = typeof opts.filter === 'string' ?
+        opts.filter : 'function';
+      return callback(new Error('selector invalid for filter "' + filterName + '"'));
+    }
+  }
+  callback();
+}
+
+function normalize(opts) {
+  if (opts.view && !opts.filter) {
+    opts.filter = '_view';
+  }
+
+  if (opts.selector && !opts.filter) {
+    opts.filter = '_selector';
+  }
+
+  if (opts.filter && typeof opts.filter === 'string') {
+    if (opts.filter === '_view') {
+      opts.view = normalizeDesignDocFunctionName(opts.view);
+    } else {
+      opts.filter = normalizeDesignDocFunctionName(opts.filter);
+    }
+  }
+}
+
+function shouldFilter(changesHandler, opts) {
+  return opts.filter && typeof opts.filter === 'string' &&
+    !opts.doc_ids && !isRemote(changesHandler.db);
+}
+
+function filter(changesHandler, opts) {
+  var callback = opts.complete;
+  if (opts.filter === '_view') {
+    if (!opts.view || typeof opts.view !== 'string') {
+      var err = createError(BAD_REQUEST,
+        '`view` filter parameter not found or invalid.');
+      return callback(err);
+    }
+    // fetch a view from a design doc, make it behave like a filter
+    var viewName = parseDesignDocFunctionName(opts.view);
+    changesHandler.db.get('_design/' + viewName[0], function (err, ddoc) {
+      /* istanbul ignore if */
+      if (changesHandler.isCancelled) {
+        return callback(null, {status: 'cancelled'});
+      }
+      /* istanbul ignore next */
+      if (err) {
+        return callback(generateErrorFromResponse(err));
+      }
+      var mapFun = ddoc && ddoc.views && ddoc.views[viewName[1]] &&
+        ddoc.views[viewName[1]].map;
+      if (!mapFun) {
+        return callback(createError(MISSING_DOC,
+          (ddoc.views ? 'missing json key: ' + viewName[1] :
+            'missing json key: views')));
+      }
+      opts.filter = evalView(mapFun);
+      changesHandler.doChanges(opts);
+    });
+  } else if (opts.selector) {
+    opts.filter = function (doc) {
+      return matchesSelector(doc, opts.selector);
+    };
+    changesHandler.doChanges(opts);
+  } else {
+    // fetch a filter from a design doc
+    var filterName = parseDesignDocFunctionName(opts.filter);
+    changesHandler.db.get('_design/' + filterName[0], function (err, ddoc) {
+      /* istanbul ignore if */
+      if (changesHandler.isCancelled) {
+        return callback(null, {status: 'cancelled'});
+      }
+      /* istanbul ignore next */
+      if (err) {
+        return callback(generateErrorFromResponse(err));
+      }
+      var filterFun = ddoc && ddoc.filters && ddoc.filters[filterName[1]];
+      if (!filterFun) {
+        return callback(createError(MISSING_DOC,
+          ((ddoc && ddoc.filters) ? 'missing json key: ' + filterName[1]
+            : 'missing json key: filters')));
+      }
+      opts.filter = evalFilter(filterFun);
+      changesHandler.doChanges(opts);
+    });
+  }
+}
+
+function applyChangesFilterPlugin(PouchDB) {
+  PouchDB._changesFilterPlugin = {
+    validate: validate,
+    normalize: normalize,
+    shouldFilter: shouldFilter,
+    filter: filter
+  };
+}
+
+// TODO: remove from pouchdb-core (breaking)
+PouchDB$3.plugin(debugPouch);
+
+// TODO: remove from pouchdb-core (breaking)
+PouchDB$3.plugin(applyChangesFilterPlugin);
 
 PouchDB$3.version = version;
 
@@ -14870,13 +16717,13 @@ var dataWords = toObject([
   '_replication_stats'
 ]);
 
-function parseRevisionInfo(rev) {
-  if (!/^\d+\-./.test(rev)) {
+function parseRevisionInfo(rev$$1) {
+  if (!/^\d+-./.test(rev$$1)) {
     return createError(INVALID_REV);
   }
-  var idx = rev.indexOf('-');
-  var left = rev.substring(0, idx);
-  var right = rev.substring(idx + 1);
+  var idx = rev$$1.indexOf('-');
+  var left = rev$$1.substring(0, idx);
+  var right = rev$$1.substring(idx + 1);
   return {
     prefix: parseInt(left, 10),
     id: right
@@ -14915,7 +16762,7 @@ function parseDoc(doc, newEdits) {
     if (!doc._id) {
       doc._id = uuid();
     }
-    newRevId = uuid(32, 16).toLowerCase();
+    newRevId = rev();
     if (doc._rev) {
       revInfo = parseRevisionInfo(doc._rev);
       if (revInfo.error) {
@@ -15104,19 +16951,19 @@ function rawToBase64(raw) {
   return thisBtoa(raw);
 }
 
-function sliceBlob(blob$$1, start, end) {
-  if (blob$$1.webkitSlice) {
-    return blob$$1.webkitSlice(start, end);
+function sliceBlob(blob, start, end) {
+  if (blob.webkitSlice) {
+    return blob.webkitSlice(start, end);
   }
-  return blob$$1.slice(start, end);
+  return blob.slice(start, end);
 }
 
-function appendBlob(buffer, blob$$1, start, end, callback) {
-  if (start > 0 || end < blob$$1.size) {
+function appendBlob(buffer, blob, start, end, callback) {
+  if (start > 0 || end < blob.size) {
     // only slice blob if we really need to
-    blob$$1 = sliceBlob(blob$$1, start, end);
+    blob = sliceBlob(blob, start, end);
   }
-  readAsArrayBuffer(blob$$1, function (arrayBuffer) {
+  readAsArrayBuffer(blob, function (arrayBuffer) {
     buffer.append(arrayBuffer);
     callback();
   });
@@ -15658,9 +17505,9 @@ function compactRevs(revs, docId, txn) {
     });
   }
 
-  revs.forEach(function (rev) {
+  revs.forEach(function (rev$$1) {
     var index = seqStore.index('_doc_id_rev');
-    var key = docId + "::" + rev;
+    var key = docId + "::" + rev$$1;
     index.getKey(key).onsuccess = function (e) {
       var seq = e.target.result;
       if (typeof seq !== 'number') {
@@ -15698,7 +17545,7 @@ function openTransactionSafely(idb, stores, mode) {
   }
 }
 
-var changesHandler$$1 = new Changes();
+var changesHandler = new Changes();
 
 function idbBulkDocs(dbOpts, req, opts, api, idb, callback) {
   var docInfos = req.docs;
@@ -15835,7 +17682,7 @@ function idbBulkDocs(dbOpts, req, opts, api, idb, callback) {
       return;
     }
 
-    changesHandler$$1.notify(api._meta.name);
+    changesHandler.notify(api._meta.name);
     callback(null, results);
   }
 
@@ -16362,8 +18209,8 @@ function idbAllDocs(opts, idb, callback) {
 //
 function checkBlobSupport(txn) {
   return new PouchPromise$1(function (resolve) {
-    var blob$$1 = createBlob(['']);
-    var req = txn.objectStore(DETECT_BLOB_SUPPORT_STORE).put(blob$$1, 'key');
+    var blob = createBlob(['']);
+    var req = txn.objectStore(DETECT_BLOB_SUPPORT_STORE).put(blob, 'key');
 
     req.onsuccess = function () {
       var matchedChrome = navigator.userAgent.match(/Chrome\/(\d+)/);
@@ -16437,11 +18284,11 @@ function changes(opts, api, dbName, idb) {
 
   if (opts.continuous) {
     var id = dbName + ':' + uuid();
-    changesHandler$$1.addListener(dbName, id, api, opts);
-    changesHandler$$1.notify(dbName);
+    changesHandler.addListener(dbName, id, api, opts);
+    changesHandler.notify(dbName);
     return {
       cancel: function () {
-        changesHandler$$1.removeListener(dbName, id);
+        changesHandler.removeListener(dbName, id);
       }
     };
   }
@@ -16702,9 +18549,9 @@ function init(api, opts, callback) {
         var metadata = cursor.value;
         var docId = metadata.id;
         var local = isLocalId(docId);
-        var rev = winningRev(metadata);
+        var rev$$1 = winningRev(metadata);
         if (local) {
-          var docIdRev = docId + "::" + rev;
+          var docIdRev = docId + "::" + rev$$1;
           // remove all seq entries
           // associated with this docId
           var start = docId + "::";
@@ -16860,6 +18707,7 @@ function init(api, opts, callback) {
 
   }
 
+  api._remote = false;
   api.type = function () {
     return 'idb';
   };
@@ -16904,20 +18752,20 @@ function init(api, opts, callback) {
         return finish();
       }
 
-      var rev;
-      if(!opts.rev) {
-        rev = metadata.winningRev;
+      var rev$$1;
+      if (!opts.rev) {
+        rev$$1 = metadata.winningRev;
         var deleted = isDeleted(metadata);
         if (deleted) {
           err = createError(MISSING_DOC, "deleted");
           return finish();
         }
       } else {
-        rev = opts.latest ? latest(opts.rev, metadata) : opts.rev;
+        rev$$1 = opts.latest ? latest(opts.rev, metadata) : opts.rev;
       }
 
       var objectStore = txn.objectStore(BY_SEQ_STORE);
-      var key = metadata.id + '::' + rev;
+      var key = metadata.id + '::' + rev$$1;
 
       objectStore.index('_doc_id_rev').get(key).onsuccess = function (e) {
         doc = e.target.result;
@@ -16988,7 +18836,7 @@ function init(api, opts, callback) {
   };
 
   api._changes = function idbChanges(opts) {
-    changes(opts, api, dbName, idb);
+    return changes(opts, api, dbName, idb);
   };
 
   api._close = function (callback) {
@@ -17038,8 +18886,8 @@ function init(api, opts, callback) {
       var metadata = decodeMetadata(event.target.result);
       traverseRevTree(metadata.rev_tree, function (isLeaf, pos,
                                                          revHash, ctx, opts) {
-        var rev = pos + '-' + revHash;
-        if (revs.indexOf(rev) !== -1) {
+        var rev$$1 = pos + '-' + revHash;
+        if (revs.indexOf(rev$$1) !== -1) {
           opts.status = 'missing';
         }
       });
@@ -17180,7 +19028,7 @@ function init(api, opts, callback) {
   };
 
   api._destroy = function (opts, callback) {
-    changesHandler$$1.removeAllListeners(dbName);
+    changesHandler.removeAllListeners(dbName);
 
     //Close open request for "dbName" database to fix ie delay.
     var openReq = openReqList.get(dbName);
@@ -17389,7 +19237,7 @@ function tryStorageOption(dbName, storage) {
       version: ADAPTER_VERSION,
       storage: storage
     });
-  } catch(err) {
+  } catch (err) {
       return indexedDB.open(dbName, ADAPTER_VERSION);
   }
 }
@@ -17509,10 +19357,10 @@ function stringifyDoc(doc) {
   return JSON.stringify(doc);
 }
 
-function unstringifyDoc(doc, id, rev) {
+function unstringifyDoc(doc, id, rev$$1) {
   doc = JSON.parse(doc);
   doc._id = id;
-  doc._rev = rev;
+  doc._rev = rev$$1;
   return doc;
 }
 
@@ -17603,11 +19451,11 @@ function compactRevs$1(revs, docId, tx) {
   }
 
   // update by-seq and attach stores in parallel
-  revs.forEach(function (rev) {
+  revs.forEach(function (rev$$1) {
     var sql = 'SELECT seq FROM ' + BY_SEQ_STORE$1 +
       ' WHERE doc_id=? AND rev=?';
 
-    tx.executeSql(sql, [docId, rev], function (tx, res) {
+    tx.executeSql(sql, [docId, rev$$1], function (tx, res) {
       if (!res.rows.length) { // already deleted
         return checkDone();
       }
@@ -17625,7 +19473,7 @@ function websqlError(callback) {
     guardedConsole('error', 'WebSQL threw an error', event);
     // event may actually be a SQLError object, so report is as such
     var errorNameMatch = event && event.constructor.toString()
-        .match(/function ([^\(]+)/);
+        .match(/function ([^(]+)/);
     var errorName = (errorNameMatch && errorNameMatch[1]) || event.type;
     var errorReason = event.target || event.message;
     callback(createError(WSQ_ERROR, errorReason, errorName));
@@ -18148,10 +19996,10 @@ function WebSqlPouch$1(opts, callback) {
             return callback(tx);
           }
           var row = rows.shift();
-          var rev = JSON.parse(row.data)._rev;
+          var rev$$1 = JSON.parse(row.data)._rev;
           tx.executeSql('INSERT INTO ' + LOCAL_STORE$1 +
               ' (id, rev, json) VALUES (?,?,?)',
-              [row.id, rev, row.data], function (tx) {
+              [row.id, rev$$1, row.data], function (tx) {
             tx.executeSql('DELETE FROM ' + DOC_STORE$1 + ' WHERE id=?',
                 [row.id], function (tx) {
               tx.executeSql('DELETE FROM ' + BY_SEQ_STORE$1 + ' WHERE seq=?',
@@ -18178,10 +20026,10 @@ function WebSqlPouch$1(opts, callback) {
         var doc_id_rev = parseHexString(row.hex, encoding);
         var idx = doc_id_rev.lastIndexOf('::');
         var doc_id = doc_id_rev.substring(0, idx);
-        var rev = doc_id_rev.substring(idx + 2);
+        var rev$$1 = doc_id_rev.substring(idx + 2);
         var sql = 'UPDATE ' + BY_SEQ_STORE$1 +
           ' SET doc_id=?, rev=? WHERE doc_id_rev=?';
-        tx.executeSql(sql, [doc_id, rev, doc_id_rev], function () {
+        tx.executeSql(sql, [doc_id, rev$$1, doc_id_rev], function () {
           doNext();
         });
       }
@@ -18475,6 +20323,7 @@ function WebSqlPouch$1(opts, callback) {
     });
   }
 
+  api._remote = false;
   api.type = function () {
     return 'websql';
   };
@@ -18506,7 +20355,7 @@ function WebSqlPouch$1(opts, callback) {
     websqlBulkDocs(opts, req, reqOpts, api, db, websqlChanges, callback);
   };
 
-  function latest$$1(tx, id, rev, callback, finish) {
+  function latest$$1(tx, id, rev$$1, callback, finish) {
     var sql = select(
         SELECT_DOCS,
         [DOC_STORE$1, BY_SEQ_STORE$1],
@@ -18521,7 +20370,7 @@ function WebSqlPouch$1(opts, callback) {
       }
       var item = results.rows.item(0);
       var metadata = safeJsonParse(item.metadata);
-      callback(latest(rev, metadata));
+      callback(latest(rev$$1, metadata));
     });
   }
 
@@ -18542,7 +20391,7 @@ function WebSqlPouch$1(opts, callback) {
     var sql;
     var sqlArgs;
 
-    if(!opts.rev) {
+    if (!opts.rev) {
       sql = select(
         SELECT_DOCS,
         [DOC_STORE$1, BY_SEQ_STORE$1],
@@ -18864,8 +20713,8 @@ function WebSqlPouch$1(opts, callback) {
         var metadata = safeJsonParse(result.rows.item(0).metadata);
         traverseRevTree(metadata.rev_tree, function (isLeaf, pos,
                                                            revHash, ctx, opts) {
-          var rev = pos + '-' + revHash;
-          if (revs.indexOf(rev) !== -1) {
+          var rev$$1 = pos + '-' + revHash;
+          if (revs.indexOf(rev$$1) !== -1) {
             opts.status = 'missing';
           }
         });
@@ -19256,7 +21105,7 @@ function xhRequest(options, callback) {
     timer = setTimeout(timeoutReq, options.timeout);
     xhr.onprogress = function () {
       clearTimeout(timer);
-      if(xhr.readyState !== 4) {
+      if (xhr.readyState !== 4) {
         timer = setTimeout(timeoutReq, options.timeout);
       }
     };
@@ -19292,7 +21141,7 @@ function xhRequest(options, callback) {
       } else if (typeof xhr.response === 'string') {
         try {
           err = JSON.parse(xhr.response);
-        } catch(e) {}
+        } catch (e) {}
       }
       err.status = xhr.status;
       callback(err);
@@ -19508,10 +21357,10 @@ function pool(promiseFactories, limit) {
 
 var CHANGES_BATCH_SIZE = 25;
 var MAX_SIMULTANEOUS_REVS = 50;
+var CHANGES_TIMEOUT_BUFFER = 5000;
+var DEFAULT_HEARTBEAT = 10000;
 
 var supportsBulkGetMap = {};
-
-var log$1 = debug('pouchdb:http');
 
 function readAttachmentsAsBlobOrBuffer(row) {
   var atts = row.doc && row.doc._attachments;
@@ -19652,7 +21501,10 @@ function HttpPouch(opts, callback) {
     var defaultHeaders = clone(ajaxOpts.headers || {});
     reqOpts.headers = $inject_Object_assign(defaultHeaders, reqAjax.headers,
       options.headers || {});
-    log$1(reqOpts.method + ' ' + reqOpts.url);
+    /* istanbul ignore if */
+    if (api.constructor.listeners('debug').length) {
+      api.constructor.emit('debug', ['http', reqOpts.method, reqOpts.url]);
+    }
     return api._ajax(reqOpts, callback);
   }
 
@@ -19724,6 +21576,8 @@ function HttpPouch(opts, callback) {
     callback(null, api);
   });
 
+  api._remote = true;
+  /* istanbul ignore next */
   api.type = function () {
     return 'http';
   };
@@ -19755,6 +21609,9 @@ function HttpPouch(opts, callback) {
     }, function () {
       function ping() {
         api.info(function (err, res) {
+          // CouchDB may send a "compact_running:true" if it's
+          // already compacting. PouchDB Server doesn't.
+          /* istanbul ignore else */
           if (res && !res.compact_running) {
             callback(null, {ok: true});
           } else {
@@ -19789,6 +21646,7 @@ function HttpPouch(opts, callback) {
       }, cb);
     }
 
+    /* istanbul ignore next */
     function doBulkGetShim() {
       // avoid "url too long error" by splitting up into multiple requests
       var batchSize = MAX_SIMULTANEOUS_REVS;
@@ -19819,10 +21677,10 @@ function HttpPouch(opts, callback) {
     var dbUrl = genUrl(host, '');
     var supportsBulkGet = supportsBulkGetMap[dbUrl];
 
+    /* istanbul ignore next */
     if (typeof supportsBulkGet !== 'boolean') {
       // check if this database supports _bulk_get
       doBulkGet(function (err, res) {
-        /* istanbul ignore else */
         if (err) {
           supportsBulkGetMap[dbUrl] = false;
           explainError(
@@ -19837,7 +21695,6 @@ function HttpPouch(opts, callback) {
         }
       });
     } else if (supportsBulkGet) {
-      /* istanbul ignore next */
       doBulkGet(callback);
     } else {
       doBulkGetShim();
@@ -19930,12 +21787,12 @@ function HttpPouch(opts, callback) {
           method: 'GET',
           url: genDBUrl(host, path),
           binary: true
-        }).then(function (blob$$1) {
+        }).then(function (blob) {
           if (opts.binary) {
-            return blob$$1;
+            return blob;
           }
           return new PouchPromise$1(function (resolve) {
-            blobToBase64(blob$$1, resolve);
+            blobToBase64(blob, resolve);
           });
         }).then(function (data) {
           delete att.stub;
@@ -19974,7 +21831,10 @@ function HttpPouch(opts, callback) {
       }).then(function () {
         callback(null, res);
       });
-    }).catch(callback);
+    }).catch(function (e) {
+      e.docId = id;
+      callback(e);
+    });
   });
 
   // Delete the document given by doc from the database given by host.
@@ -20003,12 +21863,12 @@ function HttpPouch(opts, callback) {
       }
     }
 
-    var rev = (doc._rev || opts.rev);
+    var rev$$1 = (doc._rev || opts.rev);
 
     // Delete the document
     ajax$$1(opts, {
       method: 'DELETE',
-      url: genDBUrl(host, encodeDocId(doc._id)) + '?rev=' + rev
+      url: genDBUrl(host, encodeDocId(doc._id)) + '?rev=' + rev$$1
     }, callback);
   });
 
@@ -20036,11 +21896,11 @@ function HttpPouch(opts, callback) {
 
   // Remove the attachment given by the id and rev
   api.removeAttachment =
-    adapterFun$$1('removeAttachment', function (docId, attachmentId, rev,
+    adapterFun$$1('removeAttachment', function (docId, attachmentId, rev$$1,
                                                    callback) {
 
     var url = genDBUrl(host, encodeDocId(docId) + '/' +
-      encodeAttachmentId(attachmentId)) + '?rev=' + rev;
+      encodeAttachmentId(attachmentId)) + '?rev=' + rev$$1;
 
     ajax$$1({}, {
       method: 'DELETE',
@@ -20052,30 +21912,30 @@ function HttpPouch(opts, callback) {
   // to the document with the given id, the revision given by rev, and
   // add it to the database given by host.
   api.putAttachment =
-    adapterFun$$1('putAttachment', function (docId, attachmentId, rev, blob$$1,
+    adapterFun$$1('putAttachment', function (docId, attachmentId, rev$$1, blob,
                                                 type, callback) {
     if (typeof type === 'function') {
       callback = type;
-      type = blob$$1;
-      blob$$1 = rev;
-      rev = null;
+      type = blob;
+      blob = rev$$1;
+      rev$$1 = null;
     }
     var id = encodeDocId(docId) + '/' + encodeAttachmentId(attachmentId);
     var url = genDBUrl(host, id);
-    if (rev) {
-      url += '?rev=' + rev;
+    if (rev$$1) {
+      url += '?rev=' + rev$$1;
     }
 
-    if (typeof blob$$1 === 'string') {
+    if (typeof blob === 'string') {
       // input is assumed to be a base64 string
       var binary;
       try {
-        binary = thisAtob(blob$$1);
+        binary = thisAtob(blob);
       } catch (err) {
         return callback(createError(BAD_ARG,
                         'Attachment is not a valid base64 string'));
       }
-      blob$$1 = binary ? binStringToBluffer(binary, type) : '';
+      blob = binary ? binStringToBluffer(binary, type) : '';
     }
 
     var opts = {
@@ -20083,7 +21943,7 @@ function HttpPouch(opts, callback) {
       method: 'PUT',
       url: url,
       processData: false,
-      body: blob$$1,
+      body: blob,
       timeout: ajaxOpts.timeout || 60000
     };
     // Add the attachment
@@ -20132,6 +21992,7 @@ function HttpPouch(opts, callback) {
         body: doc
       }, function (err, result) {
         if (err) {
+          err.docId = doc && doc._id;
           return callback(err);
         }
         callback(null, result);
@@ -20235,13 +22096,31 @@ function HttpPouch(opts, callback) {
     var batchSize = 'batch_size' in opts ? opts.batch_size : CHANGES_BATCH_SIZE;
 
     opts = clone(opts);
-    opts.timeout = ('timeout' in opts) ? opts.timeout :
+
+    if (opts.continuous && !('heartbeat' in opts)) {
+      opts.heartbeat = DEFAULT_HEARTBEAT;
+    }
+
+    var requestTimeout = ('timeout' in opts) ? opts.timeout :
       ('timeout' in ajaxOpts) ? ajaxOpts.timeout :
       30 * 1000;
 
-    // We give a 5 second buffer for CouchDB changes to respond with
-    // an ok timeout (if a timeout it set)
-    var params = opts.timeout ? {timeout: opts.timeout - (5 * 1000)} : {};
+    // ensure CHANGES_TIMEOUT_BUFFER applies
+    if ('timeout' in opts && opts.timeout &&
+      (requestTimeout - opts.timeout) < CHANGES_TIMEOUT_BUFFER) {
+        requestTimeout = opts.timeout + CHANGES_TIMEOUT_BUFFER;
+    }
+
+    if ('heartbeat' in opts && opts.heartbeat &&
+       (requestTimeout - opts.heartbeat) < CHANGES_TIMEOUT_BUFFER) {
+        requestTimeout = opts.heartbeat + CHANGES_TIMEOUT_BUFFER;
+    }
+
+    var params = {};
+    if ('timeout' in opts && opts.timeout) {
+      params.timeout = opts.timeout;
+    }
+
     var limit = (typeof opts.limit !== 'undefined') ? opts.limit : false;
     var returnDocs;
     if ('return_docs' in opts) {
@@ -20284,9 +22163,6 @@ function HttpPouch(opts, callback) {
       if (opts.heartbeat) {
         params.heartbeat = opts.heartbeat;
       }
-    } else if (opts.continuous) {
-      // Default heartbeat to 10 seconds
-      params.heartbeat = 10000;
     }
 
     if (opts.filter && typeof opts.filter === 'string') {
@@ -20319,6 +22195,13 @@ function HttpPouch(opts, callback) {
       method = 'POST';
       body = {doc_ids: opts.doc_ids };
     }
+    /* istanbul ignore next */
+    else if (opts.selector) {
+      // set this automagically for the user, similar to above
+      params.filter = '_selector';
+      method = 'POST';
+      body = {selector: opts.selector };
+    }
 
     var xhr;
     var lastFetchedSeq;
@@ -20349,7 +22232,7 @@ function HttpPouch(opts, callback) {
       var xhrOpts = {
         method: method,
         url: genDBUrl(host, '_changes' + paramsToStr(params)),
-        timeout: opts.timeout,
+        timeout: requestTimeout,
         body: body
       };
       lastFetchedSeq = since;
@@ -20624,394 +22507,21 @@ function sum(values) {
   return result;
 }
 
-var log$2 = guardedConsole.bind(null, 'log');
+var log = guardedConsole.bind(null, 'log');
 var isArray = Array.isArray;
 var toJSON = JSON.parse;
 
 function evalFunctionWithEval(func, emit) {
-  return scopedEval(
+  return scopeEval(
     "return (" + func.replace(/;\s*$/, "") + ");",
     {
       emit: emit,
       sum: sum,
-      log: log$2,
+      log: log,
       isArray: isArray,
       toJSON: toJSON
     }
   );
-}
-
-function pad(str, padWith, upToLength) {
-  var padding = '';
-  var targetLength = upToLength - str.length;
-  /* istanbul ignore next */
-  while (padding.length < targetLength) {
-    padding += padWith;
-  }
-  return padding;
-}
-
-function padLeft(str, padWith, upToLength) {
-  var padding = pad(str, padWith, upToLength);
-  return padding + str;
-}
-
-var MIN_MAGNITUDE = -324; // verified by -Number.MIN_VALUE
-var MAGNITUDE_DIGITS = 3; // ditto
-var SEP = ''; // set to '_' for easier debugging 
-
-function collate(a, b) {
-
-  if (a === b) {
-    return 0;
-  }
-
-  a = normalizeKey(a);
-  b = normalizeKey(b);
-
-  var ai = collationIndex(a);
-  var bi = collationIndex(b);
-  if ((ai - bi) !== 0) {
-    return ai - bi;
-  }
-  switch (typeof a) {
-    case 'number':
-      return a - b;
-    case 'boolean':
-      return a < b ? -1 : 1;
-    case 'string':
-      return stringCollate(a, b);
-  }
-  return Array.isArray(a) ? arrayCollate(a, b) : objectCollate(a, b);
-}
-
-// couch considers null/NaN/Infinity/-Infinity === undefined,
-// for the purposes of mapreduce indexes. also, dates get stringified.
-function normalizeKey(key) {
-  switch (typeof key) {
-    case 'undefined':
-      return null;
-    case 'number':
-      if (key === Infinity || key === -Infinity || isNaN(key)) {
-        return null;
-      }
-      return key;
-    case 'object':
-      var origKey = key;
-      if (Array.isArray(key)) {
-        var len = key.length;
-        key = new Array(len);
-        for (var i = 0; i < len; i++) {
-          key[i] = normalizeKey(origKey[i]);
-        }
-      /* istanbul ignore next */
-      } else if (key instanceof Date) {
-        return key.toJSON();
-      } else if (key !== null) { // generic object
-        key = {};
-        for (var k in origKey) {
-          if (origKey.hasOwnProperty(k)) {
-            var val = origKey[k];
-            if (typeof val !== 'undefined') {
-              key[k] = normalizeKey(val);
-            }
-          }
-        }
-      }
-  }
-  return key;
-}
-
-function indexify(key) {
-  if (key !== null) {
-    switch (typeof key) {
-      case 'boolean':
-        return key ? 1 : 0;
-      case 'number':
-        return numToIndexableString(key);
-      case 'string':
-        // We've to be sure that key does not contain \u0000
-        // Do order-preserving replacements:
-        // 0 -> 1, 1
-        // 1 -> 1, 2
-        // 2 -> 2, 2
-        return key
-          .replace(/\u0002/g, '\u0002\u0002')
-          .replace(/\u0001/g, '\u0001\u0002')
-          .replace(/\u0000/g, '\u0001\u0001');
-      case 'object':
-        var isArray = Array.isArray(key);
-        var arr = isArray ? key : Object.keys(key);
-        var i = -1;
-        var len = arr.length;
-        var result = '';
-        if (isArray) {
-          while (++i < len) {
-            result += toIndexableString(arr[i]);
-          }
-        } else {
-          while (++i < len) {
-            var objKey = arr[i];
-            result += toIndexableString(objKey) +
-                toIndexableString(key[objKey]);
-          }
-        }
-        return result;
-    }
-  }
-  return '';
-}
-
-// convert the given key to a string that would be appropriate
-// for lexical sorting, e.g. within a database, where the
-// sorting is the same given by the collate() function.
-function toIndexableString(key) {
-  var zero = '\u0000';
-  key = normalizeKey(key);
-  return collationIndex(key) + SEP + indexify(key) + zero;
-}
-
-function parseNumber(str, i) {
-  var originalIdx = i;
-  var num;
-  var zero = str[i] === '1';
-  if (zero) {
-    num = 0;
-    i++;
-  } else {
-    var neg = str[i] === '0';
-    i++;
-    var numAsString = '';
-    var magAsString = str.substring(i, i + MAGNITUDE_DIGITS);
-    var magnitude = parseInt(magAsString, 10) + MIN_MAGNITUDE;
-    /* istanbul ignore next */
-    if (neg) {
-      magnitude = -magnitude;
-    }
-    i += MAGNITUDE_DIGITS;
-    while (true) {
-      var ch = str[i];
-      if (ch === '\u0000') {
-        break;
-      } else {
-        numAsString += ch;
-      }
-      i++;
-    }
-    numAsString = numAsString.split('.');
-    if (numAsString.length === 1) {
-      num = parseInt(numAsString, 10);
-    } else {
-      /* istanbul ignore next */
-      num = parseFloat(numAsString[0] + '.' + numAsString[1]);
-    }
-    /* istanbul ignore next */
-    if (neg) {
-      num = num - 10;
-    }
-    /* istanbul ignore next */
-    if (magnitude !== 0) {
-      // parseFloat is more reliable than pow due to rounding errors
-      // e.g. Number.MAX_VALUE would return Infinity if we did
-      // num * Math.pow(10, magnitude);
-      num = parseFloat(num + 'e' + magnitude);
-    }
-  }
-  return {num: num, length : i - originalIdx};
-}
-
-// move up the stack while parsing
-// this function moved outside of parseIndexableString for performance
-function pop(stack, metaStack) {
-  var obj = stack.pop();
-
-  if (metaStack.length) {
-    var lastMetaElement = metaStack[metaStack.length - 1];
-    if (obj === lastMetaElement.element) {
-      // popping a meta-element, e.g. an object whose value is another object
-      metaStack.pop();
-      lastMetaElement = metaStack[metaStack.length - 1];
-    }
-    var element = lastMetaElement.element;
-    var lastElementIndex = lastMetaElement.index;
-    if (Array.isArray(element)) {
-      element.push(obj);
-    } else if (lastElementIndex === stack.length - 2) { // obj with key+value
-      var key = stack.pop();
-      element[key] = obj;
-    } else {
-      stack.push(obj); // obj with key only
-    }
-  }
-}
-
-function parseIndexableString(str) {
-  var stack = [];
-  var metaStack = []; // stack for arrays and objects
-  var i = 0;
-
-  /*eslint no-constant-condition: ["error", { "checkLoops": false }]*/
-  while (true) {
-    var collationIndex = str[i++];
-    if (collationIndex === '\u0000') {
-      if (stack.length === 1) {
-        return stack.pop();
-      } else {
-        pop(stack, metaStack);
-        continue;
-      }
-    }
-    switch (collationIndex) {
-      case '1':
-        stack.push(null);
-        break;
-      case '2':
-        stack.push(str[i] === '1');
-        i++;
-        break;
-      case '3':
-        var parsedNum = parseNumber(str, i);
-        stack.push(parsedNum.num);
-        i += parsedNum.length;
-        break;
-      case '4':
-        var parsedStr = '';
-        /*eslint no-constant-condition: ["error", { "checkLoops": false }]*/
-        while (true) {
-          var ch = str[i];
-          if (ch === '\u0000') {
-            break;
-          }
-          parsedStr += ch;
-          i++;
-        }
-        // perform the reverse of the order-preserving replacement
-        // algorithm (see above)
-        parsedStr = parsedStr.replace(/\u0001\u0001/g, '\u0000')
-          .replace(/\u0001\u0002/g, '\u0001')
-          .replace(/\u0002\u0002/g, '\u0002');
-        stack.push(parsedStr);
-        break;
-      case '5':
-        var arrayElement = { element: [], index: stack.length };
-        stack.push(arrayElement.element);
-        metaStack.push(arrayElement);
-        break;
-      case '6':
-        var objElement = { element: {}, index: stack.length };
-        stack.push(objElement.element);
-        metaStack.push(objElement);
-        break;
-      /* istanbul ignore next */
-      default:
-        throw new Error(
-          'bad collationIndex or unexpectedly reached end of input: ' +
-            collationIndex);
-    }
-  }
-}
-
-function arrayCollate(a, b) {
-  var len = Math.min(a.length, b.length);
-  for (var i = 0; i < len; i++) {
-    var sort = collate(a[i], b[i]);
-    if (sort !== 0) {
-      return sort;
-    }
-  }
-  return (a.length === b.length) ? 0 :
-    (a.length > b.length) ? 1 : -1;
-}
-function stringCollate(a, b) {
-  // See: https://github.com/daleharvey/pouchdb/issues/40
-  // This is incompatible with the CouchDB implementation, but its the
-  // best we can do for now
-  return (a === b) ? 0 : ((a > b) ? 1 : -1);
-}
-function objectCollate(a, b) {
-  var ak = Object.keys(a), bk = Object.keys(b);
-  var len = Math.min(ak.length, bk.length);
-  for (var i = 0; i < len; i++) {
-    // First sort the keys
-    var sort = collate(ak[i], bk[i]);
-    if (sort !== 0) {
-      return sort;
-    }
-    // if the keys are equal sort the values
-    sort = collate(a[ak[i]], b[bk[i]]);
-    if (sort !== 0) {
-      return sort;
-    }
-
-  }
-  return (ak.length === bk.length) ? 0 :
-    (ak.length > bk.length) ? 1 : -1;
-}
-// The collation is defined by erlangs ordered terms
-// the atoms null, true, false come first, then numbers, strings,
-// arrays, then objects
-// null/undefined/NaN/Infinity/-Infinity are all considered null
-function collationIndex(x) {
-  var id = ['boolean', 'number', 'string', 'object'];
-  var idx = id.indexOf(typeof x);
-  //false if -1 otherwise true, but fast!!!!1
-  if (~idx) {
-    if (x === null) {
-      return 1;
-    }
-    if (Array.isArray(x)) {
-      return 5;
-    }
-    return idx < 3 ? (idx + 2) : (idx + 3);
-  }
-  /* istanbul ignore next */
-  if (Array.isArray(x)) {
-    return 5;
-  }
-}
-
-// conversion:
-// x yyy zz...zz
-// x = 0 for negative, 1 for 0, 2 for positive
-// y = exponent (for negative numbers negated) moved so that it's >= 0
-// z = mantisse
-function numToIndexableString(num) {
-
-  if (num === 0) {
-    return '1';
-  }
-
-  // convert number to exponential format for easier and
-  // more succinct string sorting
-  var expFormat = num.toExponential().split(/e\+?/);
-  var magnitude = parseInt(expFormat[1], 10);
-
-  var neg = num < 0;
-
-  var result = neg ? '0' : '2';
-
-  // first sort by magnitude
-  // it's easier if all magnitudes are positive
-  var magForComparison = ((neg ? -magnitude : magnitude) - MIN_MAGNITUDE);
-  var magString = padLeft((magForComparison).toString(), '0', MAGNITUDE_DIGITS);
-
-  result += SEP + magString;
-
-  // then sort by the factor
-  var factor = Math.abs(parseFloat(expFormat[0])); // [1..10)
-  /* istanbul ignore next */
-  if (neg) { // for negative reverse ordering
-    factor = 10 - factor;
-  }
-
-  var factorStr = factor.toFixed(20);
-
-  // strip zeros from the end
-  factorStr = factorStr.replace(/\.?0+$/, '');
-
-  result += SEP + factorStr;
-
-  return result;
 }
 
 /*
@@ -21035,10 +22545,33 @@ TaskQueue$2.prototype.finish = function () {
   return this.promise;
 };
 
-function createView(sourceDB, viewName, mapFun, reduceFun, temporary, localDocName) {
+function stringify(input) {
+  if (!input) {
+    return 'undefined'; // backwards compat for empty reduce
+  }
+  // for backwards compat with mapreduce, functions/strings are stringified
+  // as-is. everything else is JSON-stringified.
+  switch (typeof input) {
+    case 'function':
+      // e.g. a mapreduce map
+      return input.toString();
+    case 'string':
+      // e.g. a mapreduce built-in _reduce function
+      return input.toString();
+    default:
+      // e.g. a JSON object in the case of mango queries
+      return JSON.stringify(input);
+  }
+}
+
+/* create a string signature for a view so we can cache it and uniq it */
+function createViewSignature(mapFun, reduceFun) {
   // the "undefined" part is for backwards compatibility
-  var viewSignature = mapFun.toString() + (reduceFun && reduceFun.toString()) +
-    'undefined';
+  return stringify(mapFun) + stringify(reduceFun) + 'undefined';
+}
+
+function createView(sourceDB, viewName, mapFun, reduceFun, temporary, localDocName) {
+  var viewSignature = createViewSignature(mapFun, reduceFun);
 
   var cachedViews;
   if (!temporary) {
@@ -21361,7 +22894,19 @@ function createAbstractMapReduce(localDocName, mapper, reducer, ddocValidator) {
         method: method,
         url: '_design/' + parts[0] + '/_view/' + parts[1] + params,
         body: body
-      }).then(postprocessAttachments(opts));
+      }).then(
+        /* istanbul ignore next */
+        function (result) {
+          // fail the entire request if the result contains an error
+          result.rows.forEach(function (row) {
+            if (row.value && row.value.error && row.value.error === "builtin_reduce_error") {
+              throw new Error(row.reason);
+            }
+          });
+
+          return result;
+      })
+      .then(postprocessAttachments(opts));
     }
 
     // We are using a temporary view, terrible for performance, good for testing
@@ -21777,25 +23322,33 @@ function createAbstractMapReduce(localDocName, mapper, reducer, ddocValidator) {
       var viewOpts = {
         descending : opts.descending
       };
-      if (opts.start_key) {
-        opts.startkey = opts.start_key;
+      var startkey;
+      var endkey;
+      if ('start_key' in opts) {
+        startkey = opts.start_key;
       }
-      if (opts.end_key) {
-        opts.endkey = opts.end_key;
+      if ('startkey' in opts) {
+        startkey = opts.startkey;
       }
-      if (typeof opts.startkey !== 'undefined') {
+      if ('end_key' in opts) {
+        endkey = opts.end_key;
+      }
+      if ('endkey' in opts) {
+        endkey = opts.endkey;
+      }
+      if (typeof startkey !== 'undefined') {
         viewOpts.startkey = opts.descending ?
-          toIndexableString([opts.startkey, {}]) :
-          toIndexableString([opts.startkey]);
+          toIndexableString([startkey, {}]) :
+          toIndexableString([startkey]);
       }
-      if (typeof opts.endkey !== 'undefined') {
+      if (typeof endkey !== 'undefined') {
         var inclusiveEnd = opts.inclusive_end !== false;
         if (opts.descending) {
           inclusiveEnd = !inclusiveEnd;
         }
 
         viewOpts.endkey = toIndexableString(
-          inclusiveEnd ? [opts.endkey, {}] : [opts.endkey]);
+          inclusiveEnd ? [endkey, {}] : [endkey]);
       }
       if (typeof opts.key !== 'undefined') {
         var keyStart = toIndexableString([opts.key]);
@@ -21880,13 +23433,12 @@ function createAbstractMapReduce(localDocName, mapper, reducer, ddocValidator) {
   }
 
   function queryPromised(db, fun, opts) {
-    if (db.type() === 'http') {
-      return httpQuery(db, fun, opts);
-    }
-
     /* istanbul ignore next */
     if (typeof db._query === 'function') {
       return customQuery(db, fun, opts);
+    }
+    if (isRemote(db)) {
+      return httpQuery(db, fun, opts);
     }
 
     if (typeof fun !== 'string') {
@@ -21974,12 +23526,12 @@ function createAbstractMapReduce(localDocName, mapper, reducer, ddocValidator) {
 
   var abstractViewCleanup = callbackify(function () {
     var db = this;
-    if (db.type() === 'http') {
-      return httpViewCleanup(db);
-    }
     /* istanbul ignore next */
     if (typeof db._viewCleanup === 'function') {
       return customViewCleanup(db);
+    }
+    if (isRemote(db)) {
+      return httpViewCleanup(db);
     }
     return localViewCleanup(db);
   });
@@ -22020,6 +23572,18 @@ var builtInReduce = {
   }
 };
 
+function getBuiltIn(reduceFunString) {
+  if (/^_sum/.test(reduceFunString)) {
+    return builtInReduce._sum;
+  } else if (/^_count/.test(reduceFunString)) {
+    return builtInReduce._count;
+  } else if (/^_stats/.test(reduceFunString)) {
+    return builtInReduce._stats;
+  } else if (/^_/.test(reduceFunString)) {
+    throw new Error(reduceFunString + ' is not a supported reduce function.');
+  }
+}
+
 function mapper(mapFun, emit) {
   // for temp_views one can use emit(doc, emit), see #38
   if (typeof mapFun === "function" && mapFun.length === 2) {
@@ -22033,10 +23597,12 @@ function mapper(mapFun, emit) {
 }
 
 function reducer(reduceFun) {
-  if (builtInReduce[reduceFun]) {
-    return builtInReduce[reduceFun];
+  var reduceFunString = reduceFun.toString();
+  var builtIn = getBuiltIn(reduceFunString);
+  if (builtIn) {
+    return builtIn;
   } else {
-    return evalFunctionWithEval(reduceFun.toString());
+    return evalFunctionWithEval(reduceFunString);
   }
 }
 
@@ -22064,8 +23630,8 @@ var mapreduce = {
   viewCleanup: viewCleanup
 };
 
-function isGenOne$1(rev) {
-  return /^1-/.test(rev);
+function isGenOne$1(rev$$1) {
+  return /^1-/.test(rev$$1);
 }
 
 function fileHasChanged(localDoc, remoteDoc, filename) {
@@ -22082,7 +23648,7 @@ function getDocAttachments(db, doc) {
 }
 
 function getDocAttachmentsFromTargetOrSource(target, src, doc) {
-  var doCheckForLocalAttachments = src.type() === 'http' && target.type() !== 'http';
+  var doCheckForLocalAttachments = isRemote(src) && !isRemote(target);
   var filenames = Object.keys(doc._attachments);
 
   if (!doCheckForLocalAttachments) {
@@ -22165,17 +23731,19 @@ function getDocs(src, target, diffs, state) {
             return remoteDoc;
           }
 
-          return getDocAttachmentsFromTargetOrSource(target, src, remoteDoc).then(function (attachments) {
-            var filenames = Object.keys(remoteDoc._attachments);
-            attachments.forEach(function (attachment, i) {
-              var att = remoteDoc._attachments[filenames[i]];
-              delete att.stub;
-              delete att.length;
-              att.data = attachment;
-            });
+          return getDocAttachmentsFromTargetOrSource(target, src, remoteDoc)
+                   .then(function (attachments) {
+                           var filenames = Object.keys(remoteDoc._attachments);
+                           attachments
+                             .forEach(function (attachment, i) {
+                                        var att = remoteDoc._attachments[filenames[i]];
+                                        delete att.stub;
+                                        delete att.length;
+                                        att.data = attachment;
+                                      });
 
-            return remoteDoc;
-          });
+                                      return remoteDoc;
+                                    });
         }));
       }))
 
@@ -22261,7 +23829,7 @@ var LOWEST_SEQ = 0;
 function updateCheckpoint(db, id, checkpoint, session, returnValue) {
   return db.get(id).catch(function (err) {
     if (err.status === 404) {
-      if (db.type() === 'http') {
+      if (db.adapter === 'http' || db.adapter === 'https') {
         explainError(
           404, 'PouchDB is just checking if a remote checkpoint exists.'
         );
@@ -22317,11 +23885,12 @@ function updateCheckpoint(db, id, checkpoint, session, returnValue) {
   });
 }
 
-function Checkpointer(src, target, id, returnValue) {
+function Checkpointer(src, target, id, returnValue, opts) {
   this.src = src;
   this.target = target;
   this.id = id;
   this.returnValue = returnValue;
+  this.opts = opts;
 }
 
 Checkpointer.prototype.writeCheckpoint = function (checkpoint, session) {
@@ -22332,24 +23901,32 @@ Checkpointer.prototype.writeCheckpoint = function (checkpoint, session) {
 };
 
 Checkpointer.prototype.updateTarget = function (checkpoint, session) {
-  return updateCheckpoint(this.target, this.id, checkpoint,
-    session, this.returnValue);
+  if (this.opts.writeTargetCheckpoint) {
+    return updateCheckpoint(this.target, this.id, checkpoint,
+      session, this.returnValue);
+  } else {
+    return PouchPromise$1.resolve(true);
+  }
 };
 
 Checkpointer.prototype.updateSource = function (checkpoint, session) {
-  var self = this;
-  if (this.readOnlySource) {
+  if (this.opts.writeSourceCheckpoint) {
+    var self = this;
+    if (this.readOnlySource) {
+      return PouchPromise$1.resolve(true);
+    }
+    return updateCheckpoint(this.src, this.id, checkpoint,
+      session, this.returnValue)
+      .catch(function (err) {
+        if (isForbiddenError(err)) {
+          self.readOnlySource = true;
+          return true;
+        }
+        throw err;
+      });
+  } else {
     return PouchPromise$1.resolve(true);
   }
-  return updateCheckpoint(this.src, this.id, checkpoint,
-    session, this.returnValue)
-    .catch(function (err) {
-      if (isForbiddenError(err)) {
-        self.readOnlySource = true;
-        return true;
-      }
-      throw err;
-    });
 };
 
 var comparisons = {
@@ -22532,6 +24109,14 @@ function generateReplicationId(src, target, opts) {
   var filterFun = opts.filter ? opts.filter.toString() : '';
   var queryParams = '';
   var filterViewName =  '';
+  var selector = '';
+
+  // possibility for checkpoints to be lost here as behaviour of
+  // JSON.stringify is not stable (see #6226)
+  /* istanbul ignore if */
+  if (opts.selector) {
+    selector = JSON.stringify(opts.selector);
+  }
 
   if (opts.filter && opts.query_params) {
     queryParams = JSON.stringify(sortObjectPropertiesByKey(opts.query_params));
@@ -22543,7 +24128,7 @@ function generateReplicationId(src, target, opts) {
 
   return PouchPromise$1.all([src.id(), target.id()]).then(function (res) {
     var queryData = res[0] + res[1] + filterFun + filterViewName +
-      queryParams + docIds;
+      queryParams + docIds + selector;
     return new PouchPromise$1(function (resolve) {
       binaryMd5(queryData, resolve);
     });
@@ -22573,6 +24158,7 @@ function replicate(src, target, opts, returnValue, result) {
   var batches_limit = opts.batches_limit || 10;
   var changesPending = false;     // true while src.changes is running
   var doc_ids = opts.doc_ids;
+  var selector = opts.selector;
   var repId;
   var checkpointer;
   var changedDocs = [];
@@ -22597,7 +24183,19 @@ function replicate(src, target, opts, returnValue, result) {
     }
     return generateReplicationId(src, target, opts).then(function (res) {
       repId = res;
-      checkpointer = new Checkpointer(src, target, repId, returnValue);
+
+      var checkpointOpts = {};
+      if (opts.checkpoint === false) {
+        checkpointOpts = { writeSourceCheckpoint: false, writeTargetCheckpoint: false };
+      } else if (opts.checkpoint === 'source') {
+        checkpointOpts = { writeSourceCheckpoint: true, writeTargetCheckpoint: false };
+      } else if (opts.checkpoint === 'target') {
+        checkpointOpts = { writeSourceCheckpoint: false, writeTargetCheckpoint: true };
+      } else {
+        checkpointOpts = { writeSourceCheckpoint: true, writeTargetCheckpoint: true };
+      }
+
+      checkpointer = new Checkpointer(src, target, repId, returnValue, checkpointOpts);
     });
   }
 
@@ -22799,6 +24397,8 @@ function replicate(src, target, opts, returnValue, result) {
     replicationCompleted = true;
 
     if (fatalError) {
+      // need to extend the error because Firefox considers ".result" read-only
+      fatalError = createError(fatalError);
       fatalError.result = result;
 
       if (fatalError.name === 'unauthorized' || fatalError.name === 'forbidden') {
@@ -22934,6 +24534,7 @@ function replicate(src, target, opts, returnValue, result) {
           batch_size: batch_size,
           style: 'all_docs',
           doc_ids: doc_ids,
+          selector: selector,
           return_docs: true // required so we know when we're done
         };
         if (opts.filter) {
@@ -23332,262 +24933,107 @@ PouchDB$3.plugin(IDBPouch)
 module.exports = PouchDB$3;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"argsarray":76,"debug":88,"events":90,"immediate":97,"inherits":98,"lie":292,"scope-eval":347,"spark-md5":348,"vuvuzela":350}],292:[function(require,module,exports){
+},{"argsarray":91,"debug":103,"events":105,"immediate":112,"inherits":113,"lie":115,"spark-md5":319,"uuid":321,"vuvuzela":326}],308:[function(require,module,exports){
 'use strict';
-var immediate = require('immediate');
 
-/* istanbul ignore next */
-function INTERNAL() {}
+Object.defineProperty(exports, '__esModule', { value: true });
 
-var handlers = {};
-
-var REJECTED = ['REJECTED'];
-var FULFILLED = ['FULFILLED'];
-var PENDING = ['PENDING'];
-
-module.exports = Promise;
-
-function Promise(resolver) {
-  if (typeof resolver !== 'function') {
-    throw new TypeError('resolver must be a function');
+function mangle(key) {
+  return '$' + key;
+}
+function unmangle(key) {
+  return key.substring(1);
+}
+function Map$1() {
+  this._store = {};
+}
+Map$1.prototype.get = function (key) {
+  var mangled = mangle(key);
+  return this._store[mangled];
+};
+Map$1.prototype.set = function (key, value) {
+  var mangled = mangle(key);
+  this._store[mangled] = value;
+  return true;
+};
+Map$1.prototype.has = function (key) {
+  var mangled = mangle(key);
+  return mangled in this._store;
+};
+Map$1.prototype.delete = function (key) {
+  var mangled = mangle(key);
+  var res = mangled in this._store;
+  delete this._store[mangled];
+  return res;
+};
+Map$1.prototype.forEach = function (cb) {
+  var keys = Object.keys(this._store);
+  for (var i = 0, len = keys.length; i < len; i++) {
+    var key = keys[i];
+    var value = this._store[key];
+    key = unmangle(key);
+    cb(value, key);
   }
-  this.state = PENDING;
-  this.queue = [];
-  this.outcome = void 0;
-  if (resolver !== INTERNAL) {
-    safelyResolveThenable(this, resolver);
+};
+Object.defineProperty(Map$1.prototype, 'size', {
+  get: function () {
+    return Object.keys(this._store).length;
+  }
+});
+
+function Set$1(array) {
+  this._store = new Map$1();
+
+  // init with an array
+  if (array && Array.isArray(array)) {
+    for (var i = 0, len = array.length; i < len; i++) {
+      this.add(array[i]);
+    }
   }
 }
-
-Promise.prototype["catch"] = function (onRejected) {
-  return this.then(null, onRejected);
+Set$1.prototype.add = function (key) {
+  return this._store.set(key, true);
 };
-Promise.prototype.then = function (onFulfilled, onRejected) {
-  if (typeof onFulfilled !== 'function' && this.state === FULFILLED ||
-    typeof onRejected !== 'function' && this.state === REJECTED) {
-    return this;
-  }
-  var promise = new this.constructor(INTERNAL);
-  if (this.state !== PENDING) {
-    var resolver = this.state === FULFILLED ? onFulfilled : onRejected;
-    unwrap(promise, resolver, this.outcome);
-  } else {
-    this.queue.push(new QueueItem(promise, onFulfilled, onRejected));
-  }
-
-  return promise;
+Set$1.prototype.has = function (key) {
+  return this._store.has(key);
 };
-function QueueItem(promise, onFulfilled, onRejected) {
-  this.promise = promise;
-  if (typeof onFulfilled === 'function') {
-    this.onFulfilled = onFulfilled;
-    this.callFulfilled = this.otherCallFulfilled;
-  }
-  if (typeof onRejected === 'function') {
-    this.onRejected = onRejected;
-    this.callRejected = this.otherCallRejected;
-  }
-}
-QueueItem.prototype.callFulfilled = function (value) {
-  handlers.resolve(this.promise, value);
-};
-QueueItem.prototype.otherCallFulfilled = function (value) {
-  unwrap(this.promise, this.onFulfilled, value);
-};
-QueueItem.prototype.callRejected = function (value) {
-  handlers.reject(this.promise, value);
-};
-QueueItem.prototype.otherCallRejected = function (value) {
-  unwrap(this.promise, this.onRejected, value);
-};
-
-function unwrap(promise, func, value) {
-  immediate(function () {
-    var returnValue;
-    try {
-      returnValue = func(value);
-    } catch (e) {
-      return handlers.reject(promise, e);
-    }
-    if (returnValue === promise) {
-      handlers.reject(promise, new TypeError('Cannot resolve promise with itself'));
-    } else {
-      handlers.resolve(promise, returnValue);
-    }
+Set$1.prototype.forEach = function (cb) {
+  this._store.forEach(function (value, key) {
+    cb(key);
   });
-}
-
-handlers.resolve = function (self, value) {
-  var result = tryCatch(getThen, value);
-  if (result.status === 'error') {
-    return handlers.reject(self, result.value);
-  }
-  var thenable = result.value;
-
-  if (thenable) {
-    safelyResolveThenable(self, thenable);
-  } else {
-    self.state = FULFILLED;
-    self.outcome = value;
-    var i = -1;
-    var len = self.queue.length;
-    while (++i < len) {
-      self.queue[i].callFulfilled(value);
-    }
-  }
-  return self;
 };
-handlers.reject = function (self, error) {
-  self.state = REJECTED;
-  self.outcome = error;
-  var i = -1;
-  var len = self.queue.length;
-  while (++i < len) {
-    self.queue[i].callRejected(error);
+Object.defineProperty(Set$1.prototype, 'size', {
+  get: function () {
+    return this._store.size;
   }
-  return self;
-};
+});
 
-function getThen(obj) {
-  // Make sure we only access the accessor once as required by the spec
-  var then = obj && obj.then;
-  if (obj && typeof obj === 'object' && typeof then === 'function') {
-    return function appyThen() {
-      then.apply(obj, arguments);
-    };
+/* global Map,Set,Symbol */
+// Based on https://kangax.github.io/compat-table/es6/ we can sniff out
+// incomplete Map/Set implementations which would otherwise cause our tests to fail.
+// Notably they fail in IE11 and iOS 8.4, which this prevents.
+function supportsMapAndSet() {
+  if (typeof Symbol === 'undefined' || typeof Map === 'undefined' || typeof Set === 'undefined') {
+    return false;
+  }
+  var prop = Object.getOwnPropertyDescriptor(Map, Symbol.species);
+  return prop && 'get' in prop && Map[Symbol.species] === Map;
+}
+
+// based on https://github.com/montagejs/collections
+/* global Map,Set */
+
+{
+  if (supportsMapAndSet()) { // prefer built-in Map/Set
+    exports.Set = Set;
+    exports.Map = Map;
+  } else { // fall back to our polyfill
+    exports.Set = Set$1;
+    exports.Map = Map$1;
   }
 }
 
-function safelyResolveThenable(self, thenable) {
-  // Either fulfill, reject or reject with error
-  var called = false;
-  function onError(value) {
-    if (called) {
-      return;
-    }
-    called = true;
-    handlers.reject(self, value);
-  }
-
-  function onSuccess(value) {
-    if (called) {
-      return;
-    }
-    called = true;
-    handlers.resolve(self, value);
-  }
-
-  function tryToUnwrap() {
-    thenable(onSuccess, onError);
-  }
-
-  var result = tryCatch(tryToUnwrap);
-  if (result.status === 'error') {
-    onError(result.value);
-  }
-}
-
-function tryCatch(func, value) {
-  var out = {};
-  try {
-    out.value = func(value);
-    out.status = 'success';
-  } catch (e) {
-    out.status = 'error';
-    out.value = e;
-  }
-  return out;
-}
-
-Promise.resolve = resolve;
-function resolve(value) {
-  if (value instanceof this) {
-    return value;
-  }
-  return handlers.resolve(new this(INTERNAL), value);
-}
-
-Promise.reject = reject;
-function reject(reason) {
-  var promise = new this(INTERNAL);
-  return handlers.reject(promise, reason);
-}
-
-Promise.all = all;
-function all(iterable) {
-  var self = this;
-  if (Object.prototype.toString.call(iterable) !== '[object Array]') {
-    return this.reject(new TypeError('must be an array'));
-  }
-
-  var len = iterable.length;
-  var called = false;
-  if (!len) {
-    return this.resolve([]);
-  }
-
-  var values = new Array(len);
-  var resolved = 0;
-  var i = -1;
-  var promise = new this(INTERNAL);
-
-  while (++i < len) {
-    allResolver(iterable[i], i);
-  }
-  return promise;
-  function allResolver(value, i) {
-    self.resolve(value).then(resolveFromAll, function (error) {
-      if (!called) {
-        called = true;
-        handlers.reject(promise, error);
-      }
-    });
-    function resolveFromAll(outValue) {
-      values[i] = outValue;
-      if (++resolved === len && !called) {
-        called = true;
-        handlers.resolve(promise, values);
-      }
-    }
-  }
-}
-
-Promise.race = race;
-function race(iterable) {
-  var self = this;
-  if (Object.prototype.toString.call(iterable) !== '[object Array]') {
-    return this.reject(new TypeError('must be an array'));
-  }
-
-  var len = iterable.length;
-  var called = false;
-  if (!len) {
-    return this.resolve([]);
-  }
-
-  var i = -1;
-  var promise = new this(INTERNAL);
-
-  while (++i < len) {
-    resolver(iterable[i]);
-  }
-  return promise;
-  function resolver(value) {
-    self.resolve(value).then(function (response) {
-      if (!called) {
-        called = true;
-        handlers.resolve(promise, response);
-      }
-    }, function (error) {
-      if (!called) {
-        called = true;
-        handlers.reject(promise, error);
-      }
-    });
-  }
-}
-
-},{"immediate":97}],293:[function(require,module,exports){
+},{}],309:[function(require,module,exports){
 module.exports = {
   doc: docApi
 }
@@ -23614,7 +25060,7 @@ function docApi (id) {
   }
 }
 
-},{"./lib/get":294,"./lib/set":295,"./lib/unset":296}],294:[function(require,module,exports){
+},{"./lib/get":310,"./lib/set":311,"./lib/unset":312}],310:[function(require,module,exports){
 module.exports = get
 
 var toProperties = require('./utils/to-properties')
@@ -23638,7 +25084,7 @@ function get (state) {
   })
 }
 
-},{"./utils/to-properties":299}],295:[function(require,module,exports){
+},{"./utils/to-properties":315}],311:[function(require,module,exports){
 module.exports = set
 
 var toDoc = require('./utils/to-doc')
@@ -23673,7 +25119,7 @@ function set (state, properties) {
   })
 }
 
-},{"./utils/to-doc":298}],296:[function(require,module,exports){
+},{"./utils/to-doc":314}],312:[function(require,module,exports){
 module.exports = unset
 
 function unset (state) {
@@ -23707,14 +25153,14 @@ function unset (state) {
   })
 }
 
-},{}],297:[function(require,module,exports){
+},{}],313:[function(require,module,exports){
 module.exports = isntProtectedProperty
 
 function isntProtectedProperty (property) {
   return property !== '_id' && property !== '_rev'
 }
 
-},{}],298:[function(require,module,exports){
+},{}],314:[function(require,module,exports){
 module.exports = toDoc
 
 function toDoc (properties, options) {
@@ -23729,7 +25175,7 @@ function toDoc (properties, options) {
   return doc
 }
 
-},{}],299:[function(require,module,exports){
+},{}],315:[function(require,module,exports){
 module.exports = toProperties
 
 var isntProtectedProperty = require('./isnt-protected-property')
@@ -23743,7 +25189,7 @@ function toProperties (doc) {
     }, {})
 }
 
-},{"./isnt-protected-property":297}],300:[function(require,module,exports){
+},{"./isnt-protected-property":313}],316:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', { value: true });
@@ -23870,1509 +25316,862 @@ exports.INVALID_URL = INVALID_URL;
 exports.createError = createError;
 exports.generateErrorFromResponse = generateErrorFromResponse;
 
-},{"inherits":98}],301:[function(require,module,exports){
-"use strict";
+},{"inherits":113}],317:[function(require,module,exports){
+'use strict';
 
-// Extends method
-// (taken from http://code.jquery.com/jquery-1.9.0.js)
-// Populate the class2type map
-var class2type = {};
+function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
-var types = [
-  "Boolean", "Number", "String", "Function", "Array",
-  "Date", "RegExp", "Object", "Error"
-];
-for (var i = 0; i < types.length; i++) {
-  var typename = types[i];
-  class2type["[object " + typename + "]"] = typename.toLowerCase();
+var lie = _interopDefault(require('lie'));
+
+/* istanbul ignore next */
+var PouchPromise = typeof Promise === 'function' ? Promise : lie;
+
+module.exports = PouchPromise;
+
+},{"lie":115}],318:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
+
+var uuidV4 = _interopDefault(require('uuid'));
+var Promise = _interopDefault(require('pouchdb-promise'));
+var getArguments = _interopDefault(require('argsarray'));
+var pouchdbCollections = require('pouchdb-collections');
+var events = require('events');
+var inherits = _interopDefault(require('inherits'));
+var immediate = _interopDefault(require('immediate'));
+var pouchdbErrors = require('pouchdb-errors');
+
+function isBinaryObject(object) {
+  return (typeof ArrayBuffer !== 'undefined' && object instanceof ArrayBuffer) ||
+    (typeof Blob !== 'undefined' && object instanceof Blob);
 }
 
-var core_toString = class2type.toString;
-var core_hasOwn = class2type.hasOwnProperty;
-
-function type(obj) {
-  if (obj === null) {
-    return String(obj);
+function cloneArrayBuffer(buff) {
+  if (typeof buff.slice === 'function') {
+    return buff.slice(0);
   }
-  return typeof obj === "object" || typeof obj === "function" ?
-    class2type[core_toString.call(obj)] || "object" :
-    typeof obj;
+  // IE10-11 slice() polyfill
+  var target = new ArrayBuffer(buff.byteLength);
+  var targetArray = new Uint8Array(target);
+  var sourceArray = new Uint8Array(buff);
+  targetArray.set(sourceArray);
+  return target;
 }
 
-function isWindow(obj) {
-  return obj !== null && obj === obj.window;
+function cloneBinaryObject(object) {
+  if (object instanceof ArrayBuffer) {
+    return cloneArrayBuffer(object);
+  }
+  var size = object.size;
+  var type = object.type;
+  // Blob
+  if (typeof object.slice === 'function') {
+    return object.slice(0, size, type);
+  }
+  // PhantomJS slice() replacement
+  return object.webkitSlice(0, size, type);
 }
 
-function isPlainObject(obj) {
-  // Must be an Object.
-  // Because of IE, we also have to check the presence of
-  // the constructor property.
-  // Make sure that DOM nodes and window objects don't pass through, as well
-  if (!obj || type(obj) !== "object" || obj.nodeType || isWindow(obj)) {
-    return false;
+// most of this is borrowed from lodash.isPlainObject:
+// https://github.com/fis-components/lodash.isplainobject/
+// blob/29c358140a74f252aeb08c9eb28bef86f2217d4a/index.js
+
+var funcToString = Function.prototype.toString;
+var objectCtorString = funcToString.call(Object);
+
+function isPlainObject(value) {
+  var proto = Object.getPrototypeOf(value);
+  /* istanbul ignore if */
+  if (proto === null) { // not sure when this happens, but I guess it can
+    return true;
+  }
+  var Ctor = proto.constructor;
+  return (typeof Ctor == 'function' &&
+    Ctor instanceof Ctor && funcToString.call(Ctor) == objectCtorString);
+}
+
+function clone(object) {
+  var newObject;
+  var i;
+  var len;
+
+  if (!object || typeof object !== 'object') {
+    return object;
   }
 
-  try {
-    // Not own constructor property must be Object
-    if (obj.constructor &&
-      !core_hasOwn.call(obj, "constructor") &&
-      !core_hasOwn.call(obj.constructor.prototype, "isPrototypeOf")) {
-      return false;
+  if (Array.isArray(object)) {
+    newObject = [];
+    for (i = 0, len = object.length; i < len; i++) {
+      newObject[i] = clone(object[i]);
     }
-  } catch ( e ) {
-    // IE8,9 Will throw exceptions on certain host objects #9897
-    return false;
+    return newObject;
   }
 
-  // Own properties are enumerated firstly, so to speed up,
-  // if last one is own, then all properties are own.
-  var key;
-  for (key in obj) {}
+  // special case: to avoid inconsistencies between IndexedDB
+  // and other backends, we automatically stringify Dates
+  if (object instanceof Date) {
+    return object.toISOString();
+  }
 
-  return key === undefined || core_hasOwn.call(obj, key);
+  if (isBinaryObject(object)) {
+    return cloneBinaryObject(object);
+  }
+
+  if (!isPlainObject(object)) {
+    return object; // don't clone objects like Workers
+  }
+
+  newObject = {};
+  for (i in object) {
+    /* istanbul ignore else */
+    if (Object.prototype.hasOwnProperty.call(object, i)) {
+      var value = clone(object[i]);
+      if (typeof value !== 'undefined') {
+        newObject[i] = value;
+      }
+    }
+  }
+  return newObject;
 }
 
-
-function isFunction(obj) {
-  return type(obj) === "function";
+function once(fun) {
+  var called = false;
+  return getArguments(function (args) {
+    /* istanbul ignore if */
+    if (called) {
+      // this is a smoke test and should never actually happen
+      throw new Error('once called more than once');
+    } else {
+      called = true;
+      fun.apply(this, args);
+    }
+  });
 }
 
-var isArray = Array.isArray || function (obj) {
-  return type(obj) === "array";
+function toPromise(func) {
+  //create the function we will be returning
+  return getArguments(function (args) {
+    // Clone arguments
+    args = clone(args);
+    var self = this;
+    // if the last argument is a function, assume its a callback
+    var usedCB = (typeof args[args.length - 1] === 'function') ? args.pop() : false;
+    var promise = new Promise(function (fulfill, reject) {
+      var resp;
+      try {
+        var callback = once(function (err, mesg) {
+          if (err) {
+            reject(err);
+          } else {
+            fulfill(mesg);
+          }
+        });
+        // create a callback for this invocation
+        // apply the function in the orig context
+        args.push(callback);
+        resp = func.apply(self, args);
+        if (resp && typeof resp.then === 'function') {
+          fulfill(resp);
+        }
+      } catch (e) {
+        reject(e);
+      }
+    });
+    // if there is a callback, call it back
+    if (usedCB) {
+      promise.then(function (result) {
+        usedCB(null, result);
+      }, usedCB);
+    }
+    return promise;
+  });
+}
+
+function logApiCall(self, name, args) {
+  /* istanbul ignore if */
+  if (self.constructor.listeners('debug').length) {
+    var logArgs = ['api', self.name, name];
+    for (var i = 0; i < args.length - 1; i++) {
+      logArgs.push(args[i]);
+    }
+    self.constructor.emit('debug', logArgs);
+
+    // override the callback itself to log the response
+    var origCallback = args[args.length - 1];
+    args[args.length - 1] = function (err, res) {
+      var responseArgs = ['api', self.name, name];
+      responseArgs = responseArgs.concat(
+        err ? ['error', err] : ['success', res]
+      );
+      self.constructor.emit('debug', responseArgs);
+      origCallback(err, res);
+    };
+  }
+}
+
+function adapterFun(name, callback) {
+  return toPromise(getArguments(function (args) {
+    if (this._closed) {
+      return Promise.reject(new Error('database is closed'));
+    }
+    if (this._destroyed) {
+      return Promise.reject(new Error('database is destroyed'));
+    }
+    var self = this;
+    logApiCall(self, name, args);
+    if (!this.taskqueue.isReady) {
+      return new Promise(function (fulfill, reject) {
+        self.taskqueue.addTask(function (failed) {
+          if (failed) {
+            reject(failed);
+          } else {
+            fulfill(self[name].apply(self, args));
+          }
+        });
+      });
+    }
+    return callback.apply(this, args);
+  }));
+}
+
+// like underscore/lodash _.pick()
+function pick(obj, arr) {
+  var res = {};
+  for (var i = 0, len = arr.length; i < len; i++) {
+    var prop = arr[i];
+    if (prop in obj) {
+      res[prop] = obj[prop];
+    }
+  }
+  return res;
+}
+
+// Most browsers throttle concurrent requests at 6, so it's silly
+// to shim _bulk_get by trying to launch potentially hundreds of requests
+// and then letting the majority time out. We can handle this ourselves.
+var MAX_NUM_CONCURRENT_REQUESTS = 6;
+
+function identityFunction(x) {
+  return x;
+}
+
+function formatResultForOpenRevsGet(result) {
+  return [{
+    ok: result
+  }];
+}
+
+// shim for P/CouchDB adapters that don't directly implement _bulk_get
+function bulkGet(db, opts, callback) {
+  var requests = opts.docs;
+
+  // consolidate into one request per doc if possible
+  var requestsById = new pouchdbCollections.Map();
+  requests.forEach(function (request) {
+    if (requestsById.has(request.id)) {
+      requestsById.get(request.id).push(request);
+    } else {
+      requestsById.set(request.id, [request]);
+    }
+  });
+
+  var numDocs = requestsById.size;
+  var numDone = 0;
+  var perDocResults = new Array(numDocs);
+
+  function collapseResultsAndFinish() {
+    var results = [];
+    perDocResults.forEach(function (res) {
+      res.docs.forEach(function (info) {
+        results.push({
+          id: res.id,
+          docs: [info]
+        });
+      });
+    });
+    callback(null, {results: results});
+  }
+
+  function checkDone() {
+    if (++numDone === numDocs) {
+      collapseResultsAndFinish();
+    }
+  }
+
+  function gotResult(docIndex, id, docs) {
+    perDocResults[docIndex] = {id: id, docs: docs};
+    checkDone();
+  }
+
+  var allRequests = [];
+  requestsById.forEach(function (value, key) {
+    allRequests.push(key);
+  });
+
+  var i = 0;
+
+  function nextBatch() {
+
+    if (i >= allRequests.length) {
+      return;
+    }
+
+    var upTo = Math.min(i + MAX_NUM_CONCURRENT_REQUESTS, allRequests.length);
+    var batch = allRequests.slice(i, upTo);
+    processBatch(batch, i);
+    i += batch.length;
+  }
+
+  function processBatch(batch, offset) {
+    batch.forEach(function (docId, j) {
+      var docIdx = offset + j;
+      var docRequests = requestsById.get(docId);
+
+      // just use the first request as the "template"
+      // TODO: The _bulk_get API allows for more subtle use cases than this,
+      // but for now it is unlikely that there will be a mix of different
+      // "atts_since" or "attachments" in the same request, since it's just
+      // replicate.js that is using this for the moment.
+      // Also, atts_since is aspirational, since we don't support it yet.
+      var docOpts = pick(docRequests[0], ['atts_since', 'attachments']);
+      docOpts.open_revs = docRequests.map(function (request) {
+        // rev is optional, open_revs disallowed
+        return request.rev;
+      });
+
+      // remove falsey / undefined revisions
+      docOpts.open_revs = docOpts.open_revs.filter(identityFunction);
+
+      var formatResult = identityFunction;
+
+      if (docOpts.open_revs.length === 0) {
+        delete docOpts.open_revs;
+
+        // when fetching only the "winning" leaf,
+        // transform the result so it looks like an open_revs
+        // request
+        formatResult = formatResultForOpenRevsGet;
+      }
+
+      // globally-supplied options
+      ['revs', 'attachments', 'binary', 'ajax', 'latest'].forEach(function (param) {
+        if (param in opts) {
+          docOpts[param] = opts[param];
+        }
+      });
+      db.get(docId, docOpts, function (err, res) {
+        var result;
+        /* istanbul ignore if */
+        if (err) {
+          result = [{error: err}];
+        } else {
+          result = formatResult(res);
+        }
+        gotResult(docIdx, docId, result);
+        nextBatch();
+      });
+    });
+  }
+
+  nextBatch();
+
+}
+
+function isChromeApp() {
+  return (typeof chrome !== "undefined" &&
+    typeof chrome.storage !== "undefined" &&
+    typeof chrome.storage.local !== "undefined");
+}
+
+var hasLocal;
+
+if (isChromeApp()) {
+  hasLocal = false;
+} else {
+  try {
+    localStorage.setItem('_pouch_check_localstorage', 1);
+    hasLocal = !!localStorage.getItem('_pouch_check_localstorage');
+  } catch (e) {
+    hasLocal = false;
+  }
+}
+
+function hasLocalStorage() {
+  return hasLocal;
+}
+
+// Custom nextTick() shim for browsers. In node, this will just be process.nextTick(). We
+// avoid using process.nextTick() directly because the polyfill is very large and we don't
+// need all of it (see: https://github.com/defunctzombie/node-process).
+// "immediate" 3.0.8 is used by lie, and it's a smaller version of the latest "immediate"
+// package, so it's the one we use.
+// When we use nextTick() in our codebase, we only care about not releasing Zalgo
+// (see: http://blog.izs.me/post/59142742143/designing-apis-for-asynchrony).
+// Microtask vs macrotask doesn't matter to us. So we're free to use the fastest
+// (least latency) option, which is "immediate" due to use of microtasks.
+// All of our nextTicks are isolated to this one function so we can easily swap out one
+// implementation for another.
+
+inherits(Changes, events.EventEmitter);
+
+/* istanbul ignore next */
+function attachBrowserEvents(self) {
+  if (isChromeApp()) {
+    chrome.storage.onChanged.addListener(function (e) {
+      // make sure it's event addressed to us
+      if (e.db_name != null) {
+        //object only has oldValue, newValue members
+        self.emit(e.dbName.newValue);
+      }
+    });
+  } else if (hasLocalStorage()) {
+    if (typeof addEventListener !== 'undefined') {
+      addEventListener("storage", function (e) {
+        self.emit(e.key);
+      });
+    } else { // old IE
+      window.attachEvent("storage", function (e) {
+        self.emit(e.key);
+      });
+    }
+  }
+}
+
+function Changes() {
+  events.EventEmitter.call(this);
+  this._listeners = {};
+
+  attachBrowserEvents(this);
+}
+Changes.prototype.addListener = function (dbName, id, db, opts) {
+  /* istanbul ignore if */
+  if (this._listeners[id]) {
+    return;
+  }
+  var self = this;
+  var inprogress = false;
+  function eventFunction() {
+    /* istanbul ignore if */
+    if (!self._listeners[id]) {
+      return;
+    }
+    if (inprogress) {
+      inprogress = 'waiting';
+      return;
+    }
+    inprogress = true;
+    var changesOpts = pick(opts, [
+      'style', 'include_docs', 'attachments', 'conflicts', 'filter',
+      'doc_ids', 'view', 'since', 'query_params', 'binary'
+    ]);
+
+    /* istanbul ignore next */
+    function onError() {
+      inprogress = false;
+    }
+
+    db.changes(changesOpts).on('change', function (c) {
+      if (c.seq > opts.since && !opts.cancelled) {
+        opts.since = c.seq;
+        opts.onChange(c);
+      }
+    }).on('complete', function () {
+      if (inprogress === 'waiting') {
+        immediate(eventFunction);
+      }
+      inprogress = false;
+    }).on('error', onError);
+  }
+  this._listeners[id] = eventFunction;
+  this.on(dbName, eventFunction);
 };
 
-function extend() {
-  // originally extend() was recursive, but this ended up giving us
-  // "call stack exceeded", so it's been unrolled to use a literal stack
-  // (see https://github.com/pouchdb/pouchdb/issues/2543)
-  var stack = [];
-  var i = -1;
-  var len = arguments.length;
-  var args = new Array(len);
-  while (++i < len) {
-    args[i] = arguments[i];
+Changes.prototype.removeListener = function (dbName, id) {
+  /* istanbul ignore if */
+  if (!(id in this._listeners)) {
+    return;
   }
-  var container = {};
-  stack.push({args: args, result: {container: container, key: 'key'}});
-  var next;
-  while ((next = stack.pop())) {
-    extendInner(stack, next.args, next.result);
+  events.EventEmitter.prototype.removeListener.call(this, dbName,
+    this._listeners[id]);
+  delete this._listeners[id];
+};
+
+
+/* istanbul ignore next */
+Changes.prototype.notifyLocalWindows = function (dbName) {
+  //do a useless change on a storage thing
+  //in order to get other windows's listeners to activate
+  if (isChromeApp()) {
+    chrome.storage.local.set({dbName: dbName});
+  } else if (hasLocalStorage()) {
+    localStorage[dbName] = (localStorage[dbName] === "a") ? "b" : "a";
   }
-  return container.key;
+};
+
+Changes.prototype.notify = function (dbName) {
+  this.emit(dbName);
+  this.notifyLocalWindows(dbName);
+};
+
+function guardedConsole(method) {
+  /* istanbul ignore else */
+  if (console !== 'undefined' && method in console) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    console[method].apply(console, args);
+  }
 }
 
-function extendInner(stack, args, result) {
-  var options, name, src, copy, copyIsArray, clone,
-    target = args[0] || {},
-    i = 1,
-    length = args.length,
-    deep = false,
-    numericStringRegex = /\d+/,
-    optionsIsArray;
-
-  // Handle a deep copy situation
-  if (typeof target === "boolean") {
-    deep = target;
-    target = args[1] || {};
-    // skip the boolean and the target
-    i = 2;
+function randomNumber(min, max) {
+  var maxTimeout = 600000; // Hard-coded default of 10 minutes
+  min = parseInt(min, 10) || 0;
+  max = parseInt(max, 10);
+  if (max !== max || max <= min) {
+    max = (min || 1) << 1; //doubling
+  } else {
+    max = max + 1;
   }
-
-  // Handle case when target is a string or something (possible in deep copy)
-  if (typeof target !== "object" && !isFunction(target)) {
-    target = {};
+  // In order to not exceed maxTimeout, pick a random value between half of maxTimeout and maxTimeout
+  if (max > maxTimeout) {
+    min = maxTimeout >> 1; // divide by two
+    max = maxTimeout;
   }
+  var ratio = Math.random();
+  var range = max - min;
 
-  // extend jQuery itself if only one argument is passed
-  if (length === i) {
-    /* jshint validthis: true */
-    target = this;
-    --i;
+  return ~~(range * ratio + min); // ~~ coerces to an int, but fast.
+}
+
+function defaultBackOff(min) {
+  var max = 0;
+  if (!min) {
+    max = 2000;
   }
+  return randomNumber(min, max);
+}
 
-  for (; i < length; i++) {
-    // Only deal with non-null/undefined values
-    if ((options = args[i]) != null) {
-      optionsIsArray = isArray(options);
-      // Extend the base object
-      for (name in options) {
-        //if (options.hasOwnProperty(name)) {
-        if (!(name in Object.prototype)) {
-          if (optionsIsArray && !numericStringRegex.test(name)) {
-            continue;
-          }
+// designed to give info to browser users, who are disturbed
+// when they see http errors in the console
+function explainError(status, str) {
+  guardedConsole('info', 'The above ' + status + ' is totally normal. ' + str);
+}
 
-          src = target[name];
-          copy = options[name];
+var assign;
+{
+  if (typeof Object.assign === 'function') {
+    assign = Object.assign;
+  } else {
+    // lite Object.assign polyfill based on
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+    assign = function (target) {
+      var to = Object(target);
 
-          // Prevent never-ending loop
-          if (target === copy) {
-            continue;
-          }
+      for (var index = 1; index < arguments.length; index++) {
+        var nextSource = arguments[index];
 
-          // Recurse if we're merging plain objects or arrays
-          if (deep && copy && (isPlainObject(copy) ||
-              (copyIsArray = isArray(copy)))) {
-            if (copyIsArray) {
-              copyIsArray = false;
-              clone = src && isArray(src) ? src : [];
-
-            } else {
-              clone = src && isPlainObject(src) ? src : {};
-            }
-
-            // Never move original objects, clone them
-            stack.push({
-              args: [deep, clone, copy],
-              result: {
-                container: target,
-                key: name
-              }
-            });
-
-          // Don't bring in undefined values
-          } else if (copy !== undefined) {
-            if (!(isArray(options) && isFunction(copy))) {
-              target[name] = copy;
+        if (nextSource != null) { // Skip over if undefined or null
+          for (var nextKey in nextSource) {
+            // Avoid bugs when hasOwnProperty is shadowed
+            if (Object.prototype.hasOwnProperty.call(nextSource, nextKey)) {
+              to[nextKey] = nextSource[nextKey];
             }
           }
         }
       }
-    }
+      return to;
+    };
   }
-
-  // "Return" the modified object by setting the key
-  // on the given container
-  result.container[result.key] = target;
 }
 
+var assign$1 = assign;
 
-module.exports = extend;
-
-
-
-},{}],302:[function(require,module,exports){
-'use strict'
-
-var addOne = require('./helpers/add-one')
-var addMany = require('./helpers/add-many')
-
-module.exports = add
-
-/**
- * adds one or multiple objects to local database
- *
- * @param  {Object|Object[]} properties   Properties of one or
- *                                        multiple objects
- * @return {Promise}
- */
-function add (objects) {
-  return Array.isArray(objects)
-    ? addMany.call(this, objects)
-    : addOne.call(this, objects)
+function tryFilter(filter, doc, req) {
+  try {
+    return !filter(doc, req);
+  } catch (err) {
+    var msg = 'Filter function threw: ' + err.toString();
+    return pouchdbErrors.createError(pouchdbErrors.BAD_REQUEST, msg);
+  }
 }
 
-},{"./helpers/add-many":306,"./helpers/add-one":307}],303:[function(require,module,exports){
-'use strict'
+function filterChange(opts) {
+  var req = {};
+  var hasFilter = opts.filter && typeof opts.filter === 'function';
+  req.query = opts.query_params;
 
-module.exports = clear
+  return function filter(change) {
+    if (!change.doc) {
+      // CSG sends events on the changes feed that don't have documents,
+      // this hack makes a whole lot of existing code robust.
+      change.doc = {};
+    }
 
-/**
- * destroys db
- */
-function clear (state) {
-  var db = this
+    var filterReturn = hasFilter && tryFilter(opts.filter, change.doc, req);
 
-  return db.destroy()
-    .then(function () {
-      state.emitter.emit('clear')
-    })
-}
+    if (typeof filterReturn === 'object') {
+      return filterReturn;
+    }
 
-},{}],304:[function(require,module,exports){
-'use strict'
+    if (filterReturn) {
+      return false;
+    }
 
-var toObject = require('./utils/to-object')
-var isntDesignDoc = require('./utils/isnt-design-doc')
-
-module.exports = findAll
-
-/**
- * finds all existing objects in local database.
- *
- * @param  {Function} [filter]   Function returning `true` for any object
- *                               to be returned.
- * @return {Promise}
- */
-function findAll (filter) {
-  return this.allDocs({
-    include_docs: true
-  })
-
-  .then(function (res) {
-    var objects = res.rows
-      .filter(isntDesignDoc)
-      .map(function (row) {
-        return toObject(row.doc)
-      })
-
-    return typeof filter === 'function'
-      ? objects.filter(filter)
-      : objects
-  })
-}
-
-},{"./utils/isnt-design-doc":329,"./utils/to-object":334}],305:[function(require,module,exports){
-'use strict'
-
-var findOne = require('./helpers/find-one')
-var findMany = require('./helpers/find-many')
-
-module.exports = find
-
-/**
- * finds existing object in local database
- *
- * @param  {String|Object} idOrObject   Id of object or object with
- *                                      `.id` property
- * @return {Promise}
- */
-function find (objectsOrIds) {
-  return Array.isArray(objectsOrIds)
-    ? findMany.call(this, objectsOrIds)
-    : findOne.call(this, objectsOrIds)
-}
-
-},{"./helpers/find-many":309,"./helpers/find-one":310}],306:[function(require,module,exports){
-'use strict'
-
-var toDoc = require('../utils/to-doc')
-var addTimestamps = require('../utils/add-timestamps')
-
-module.exports = function addMany (objects) {
-  objects.forEach(addTimestamps)
-  return this.bulkDocs(objects.map(toDoc))
-
-  .then(function (responses) {
-    return responses.map(function (response, i) {
-      if (response instanceof Error) {
-        if (response.status === 409) {
-          var conflict = new Error('Object with id "' + objects[i].id + '" already exists')
-          conflict.name = 'Conflict'
-          conflict.status = 409
-          return conflict
-        } else {
-          return response
+    if (!opts.include_docs) {
+      delete change.doc;
+    } else if (!opts.attachments) {
+      for (var att in change.doc._attachments) {
+        /* istanbul ignore else */
+        if (change.doc._attachments.hasOwnProperty(att)) {
+          change.doc._attachments[att].stub = true;
         }
       }
-
-      objects[i].id = response.id
-      objects[i]._rev = response.rev
-      return objects[i]
-    })
-  })
-}
-
-},{"../utils/add-timestamps":327,"../utils/to-doc":332}],307:[function(require,module,exports){
-'use strict'
-
-var PouchDBErrors = require('pouchdb-errors')
-var Promise = require('lie')
-
-var toDoc = require('../utils/to-doc')
-var addTimestamps = require('../utils/add-timestamps')
-
-module.exports = function addOne (object) {
-  if (typeof object !== 'object') {
-    return Promise.reject(PouchDBErrors.NOT_AN_OBJECT)
-  }
-
-  var method = object.id ? 'put' : 'post'
-
-  return this[method](toDoc(addTimestamps(object)))
-
-  .then(function (response) {
-    object.id = response.id
-    object._rev = response.rev
-    return object
-  })
-
-  .catch(function (error) {
-    if (error.status === 409) {
-      var conflict = new Error('Object with id "' + object.id + '" already exists')
-      conflict.name = 'Conflict'
-      conflict.status = 409
-      throw conflict
-    } else {
-      throw error
     }
-  })
-}
-
-},{"../utils/add-timestamps":327,"../utils/to-doc":332,"lie":100,"pouchdb-errors":300}],308:[function(require,module,exports){
-module.exports = eventify
-
-/**
- * runs a method from the API and triggers events on each object.
- *
- * Note that we didn't implement this pased on PouchDB's .changes()
- * API on purpose, because of the timeing the events would get triggered.
- * See https://github.com/hoodiehq/pouchdb-hoodie-api/issues/54
- **/
-function eventify (db, state, method, eventName) {
-  return function () {
-    return method.apply(db, arguments).then(function (result) {
-      if (Array.isArray(result)) {
-        result.forEach(triggerEvent.bind(null, state, eventName))
-      } else {
-        triggerEvent(state, eventName, result)
-      }
-
-      return result
-    })
-  }
-}
-
-function triggerEvent (state, eventName, object) {
-  if (!eventName) {
-    eventName = parseInt(object._rev, 10) > 1 ? 'update' : 'add'
-  }
-
-  state.emitter.emit(eventName, object)
-  state.emitter.emit('change', eventName, object)
-}
-
-},{}],309:[function(require,module,exports){
-'use strict'
-
-var toId = require('../utils/to-id')
-var toObject = require('../utils/to-object')
-
-module.exports = function findMany (idsOrObjects) {
-  var ids = idsOrObjects.map(toId)
-
-  return this.allDocs({keys: ids, include_docs: true})
-
-  .then(function (response) {
-    var foundMap = response.rows.reduce(function (map, row) {
-      map[row.id] = row.doc
-      return map
-    }, {})
-    var docs = ids.map(function (id) {
-      var doc = foundMap[id]
-      if (doc) {
-        return doc
-      }
-
-      var missing = new Error('Object with id "' + id + '" is missing')
-      missing.name = 'Not found'
-      missing.status = 404
-      return missing
-    })
-
-    return docs.map(toObject)
-  })
-}
-
-},{"../utils/to-id":333,"../utils/to-object":334}],310:[function(require,module,exports){
-'use strict'
-
-var toId = require('../utils/to-id')
-var toObject = require('../utils/to-object')
-
-module.exports = function findOne (idOrObject) {
-  var id = toId(idOrObject)
-  return this.get(id)
-
-  .then(toObject)
-
-  .catch(function (error) {
-    if (error.status === 404) {
-      var missing = new Error('Object with id "' + id + '" is missing')
-      missing.name = 'Not found'
-      missing.status = 404
-      throw missing
-    } else {
-      throw error
-    }
-  })
-}
-
-},{"../utils/to-id":333,"../utils/to-object":334}],311:[function(require,module,exports){
-var toId = require('../utils/to-id')
-var findMany = require('./find-many')
-var addMany = require('./add-many')
-var eventify = require('./eventify')
-
-module.exports = function findOrAddMany (state, passedObjects) {
-  var self = this
-  var foundObjects
-  var passedObjectIds = passedObjects.map(toId)
-
-  return findMany.call(this, passedObjectIds)
-
-  .then(function (_foundObjects) {
-    foundObjects = _foundObjects
-
-    var foundObjectIds = foundObjects.map(toId)
-    var notFoundObjects = passedObjects.reduce(function (notFoundObjects, passedObject) {
-      if (foundObjectIds.indexOf(passedObject.id) === -1) {
-        notFoundObjects.push(passedObject)
-      }
-      return notFoundObjects
-    }, [])
-
-    if (state) {
-      return eventify(self, state, addMany)(notFoundObjects)
-    }
-
-    return addMany.call(self, notFoundObjects)
-  })
-
-  .then(function (addedObjects) {
-    var objects = []
-
-    foundObjects.concat(addedObjects).forEach(function (object) {
-      var index = passedObjectIds.indexOf(object.id)
-      objects[index] = object
-    })
-
-    return objects
-  })
-}
-
-},{"../utils/to-id":333,"./add-many":306,"./eventify":308,"./find-many":309}],312:[function(require,module,exports){
-module.exports = findOrAddOne
-
-var PouchDBErrors = require('pouchdb-errors')
-var Promise = require('lie')
-
-var toId = require('../utils/to-id')
-var findOne = require('./find-one')
-var addOne = require('./add-one')
-var eventify = require('./eventify')
-
-function findOrAddOne (state, idOrObject, newObject) {
-  var self = this
-  var id = toId(idOrObject)
-
-  if (!id) {
-    return Promise.reject(PouchDBErrors.MISSING_ID)
-  }
-
-  if (idOrObject === id && !newObject) {
-    return Promise.reject(PouchDBErrors.MISSING_ID)
-  }
-
-  return findOne.call(this, id)
-
-  .catch(function (/* error */) {
-    if (typeof newObject === 'object') {
-      newObject.id = id
-    } else {
-      newObject = idOrObject
-    }
-
-    if (state) {
-      return eventify(self, state, addOne)(newObject)
-    }
-
-    return addOne.call(self, newObject)
-  })
-}
-
-},{"../utils/to-id":333,"./add-one":307,"./eventify":308,"./find-one":310,"lie":100,"pouchdb-errors":300}],313:[function(require,module,exports){
-'use strict'
-
-var extend = require('pouchdb-extend')
-var PouchDBErrors = require('pouchdb-errors')
-
-var changeObject = require('../utils/change-object')
-var toDoc = require('../utils/to-doc')
-var addTimestamps = require('../utils/add-timestamps')
-var toId = require('../utils/to-id')
-
-var findMany = require('./find-many')
-
-module.exports = function updateMany (array, change) {
-  var self = this
-  var objects
-  var ids = array.map(toId)
-
-  return findMany.call(this, array)
-
-  .then(function (objects) {
-    if (change) {
-      return objects.map(function (object) {
-        if (object instanceof Error) {
-          return object
-        }
-        return changeObject(change, object)
-      })
-    }
-
-    return objects.map(function (object, index) {
-      var passedObject = array[index]
-      if (object instanceof Error) {
-        return object
-      }
-      if (typeof passedObject !== 'object') {
-        return PouchDBErrors.NOT_AN_OBJECT
-      }
-      return extend(object, passedObject)
-    })
-  })
-
-  .then(function (_objects) {
-    objects = _objects
-    var validObjects = objects.filter(function (object) {
-      return !(object instanceof Error)
-    })
-    validObjects.forEach(addTimestamps)
-    return self.bulkDocs(validObjects.map(toDoc))
-  })
-
-  .then(function (responses) {
-    responses.forEach(function (response) {
-      var index = ids.indexOf(response.id)
-      objects[index]._rev = response.rev
-    })
-
-    return objects
-  })
-}
-
-},{"../utils/add-timestamps":327,"../utils/change-object":328,"../utils/to-doc":332,"../utils/to-id":333,"./find-many":309,"pouchdb-errors":300,"pouchdb-extend":301}],314:[function(require,module,exports){
-'use strict'
-
-var extend = require('pouchdb-extend')
-var PouchDBErrors = require('pouchdb-errors')
-var Promise = require('lie')
-
-var changeObject = require('../utils/change-object')
-var toDoc = require('../utils/to-doc')
-var addTimestamps = require('../utils/add-timestamps')
-
-var findOne = require('./find-one')
-
-module.exports = function updateOne (idOrObject, change) {
-  var self = this
-  var object
-
-  if (typeof idOrObject === 'string' && !change) {
-    return Promise.reject(PouchDBErrors.NOT_AN_OBJECT)
-  }
-
-  return findOne.call(this, idOrObject)
-
-  .then(function (object) {
-    if (!change) {
-      return extend(object, idOrObject)
-    }
-    return changeObject(change, object)
-  })
-
-  .then(function (_object) {
-    object = _object
-    return self.put(toDoc(addTimestamps(object)))
-  })
-
-  .then(function (response) {
-    object._rev = response.rev
-    return object
-  })
-}
-
-},{"../utils/add-timestamps":327,"../utils/change-object":328,"../utils/to-doc":332,"./find-one":310,"lie":100,"pouchdb-errors":300,"pouchdb-extend":301}],315:[function(require,module,exports){
-var toId = require('../utils/to-id')
-var addMany = require('./add-many')
-var updateMany = require('./update-many')
-
-module.exports = function updateOrAddMany (passedObjects) {
-  var self = this
-  var addedObjects
-  var passedObjectIds = passedObjects.map(toId)
-
-  return addMany.call(this, passedObjects)
-
-  .then(function (_addedObjectsAndErrors) {
-    addedObjects = _addedObjectsAndErrors
-    var conflicting = passedObjects.reduce(function (array, passedObject, i) {
-      var objectOrError = _addedObjectsAndErrors[i]
-      var isConflictError = objectOrError instanceof Error && objectOrError.status === 409
-
-      if (isConflictError) {
-        array.push(passedObject)
-      }
-      return array
-    }, [])
-
-    return updateMany.call(self, conflicting)
-  })
-
-  .then(function (updatedObjects) {
-    var objects = []
-
-    updatedObjects.concat(addedObjects).forEach(function (object) {
-      var index = passedObjectIds.indexOf(object.id)
-      if (index !== -1) {
-        objects[index] = object
-      }
-    })
-
-    return objects
-  })
-}
-
-},{"../utils/to-id":333,"./add-many":306,"./update-many":313}],316:[function(require,module,exports){
-var toId = require('../utils/to-id')
-var addOne = require('./add-one')
-var updateOne = require('./update-one')
-
-module.exports = function updateOrAddOne (idOrObject, newObject) {
-  var self = this
-  return updateOne.call(this, idOrObject, newObject)
-
-  .catch(function (error) {
-    if (error.status !== 404) {
-      throw error
-    }
-
-    if (newObject) {
-      newObject.id = toId(idOrObject)
-      return addOne.call(self, newObject)
-    }
-
-    return addOne.call(self, idOrObject)
-  })
-}
-
-},{"../utils/to-id":333,"./add-one":307,"./update-one":314}],317:[function(require,module,exports){
-'use strict'
-
-var exports = module.exports = { hoodieApi: hoodieApi }
-
-var EventEmitter = require('events').EventEmitter
-
-var eventify = require('./helpers/eventify')
-
-function hoodieApi (options) {
-  var state = {
-    emitter: options && options.emitter || new EventEmitter()
-  }
-
-  return {
-    db: this,
-    add: eventify(this, state, require('./add')),
-    find: require('./find').bind(this),
-    findAll: require('./find-all').bind(this),
-    findOrAdd: require('./lib/find-or-add-with-events').bind(this, state),
-    update: eventify(this, state, require('./update')),
-    updateOrAdd: eventify(this, state, require('./update-or-add')),
-    updateAll: eventify(this, state, require('./update-all')),
-    remove: eventify(this, state, require('./remove'), 'remove'),
-    removeAll: eventify(this, state, require('./remove-all'), 'remove'),
-    on: require('./lib/on').bind(this, state),
-    one: require('./lib/one').bind(this, state),
-    off: require('./lib/off').bind(this, state),
-    clear: require('./clear').bind(this, state)
-  }
-}
-
-/* istanbul ignore next */
-if (typeof window !== 'undefined' && window.PouchDB) {
-  window.PouchDB.plugin(exports)
-}
-
-},{"./add":302,"./clear":303,"./find":305,"./find-all":304,"./helpers/eventify":308,"./lib/find-or-add-with-events":318,"./lib/off":319,"./lib/on":320,"./lib/one":321,"./remove":323,"./remove-all":322,"./update":326,"./update-all":324,"./update-or-add":325,"events":90}],318:[function(require,module,exports){
-'use strict'
-
-var findOrAddOne = require('../helpers/find-or-add-one')
-var findOrAddMany = require('../helpers/find-or-add-many')
-
-module.exports = findOrAdd
-
-/**
- * tries to find object in local database, otherwise creates new one
- * with passed properties. Triggers `add` even if new object created
- *
- * @param  {String|Object} idOrObject   id or object with `.id` property
- * @param  {Object}        [properties] Optional properties if id passed as first option
- * @return {Promise}
- */
-function findOrAdd (state, idOrObjectOrArray, newObject) {
-  return Array.isArray(idOrObjectOrArray)
-    ? findOrAddMany.call(this, state, idOrObjectOrArray)
-    : findOrAddOne.call(this, state, idOrObjectOrArray, newObject)
-}
-
-},{"../helpers/find-or-add-many":311,"../helpers/find-or-add-one":312}],319:[function(require,module,exports){
-'use strict'
-
-module.exports = off
-
-/**
- * removes a listener for the specified event
- *
- * It will unsubscribe at most, one instance of a listener for a particular event.
- * If any single listener has subcribed multiple times to the same event,
- * then `off` must be called multiple times.
- *
- * Supported events:
- *
- * - `add`
- * - `update`
- * - `remove`
- * - `change`
- *
- * @param  {String} eventName   Name of event, one of listed above
- * @param  {Function} handler   callback for event
- */
-function off (state, eventName, handler) {
-  state.emitter.removeListener(eventName, handler)
-
-  return this
-}
-
-},{}],320:[function(require,module,exports){
-'use strict'
-
-module.exports = on
-
-/**
- * add a listener to an event
- *
- * Supported events:
- *
- * - `add`    → (object, options)
- * - `update` → (object, options)
- * - `remove` → (object, options)
- * - `change` → (eventName, object, options)
- *
- * @param  {String} eventName   Name of event, one of listed above
- * @param  {Function} handler   callback for event
- */
-function on (state, eventName, handler) {
-  state.emitter.on(eventName, handler)
-
-  return this
-}
-
-},{}],321:[function(require,module,exports){
-'use strict'
-
-module.exports = one
-
-/**
- * adds a one time listener to an event
- *
- * Supported events:
- *
- * - `add`    → (object, options)
- * - `update` → (object, options)
- * - `remove` → (object, options)
- * - `change` → (eventName, object, options)
- *
- * @param  {String} eventName   Name of event, one of listed above
- * @param  {Function} handler   callback for event
- */
-function one (state, eventName, handler) {
-  state.emitter.once(eventName, handler)
-
-  return this
-}
-
-},{}],322:[function(require,module,exports){
-'use strict'
-
-var toObject = require('./utils/to-object')
-var toDoc = require('./utils/to-doc')
-var isntDesignDoc = require('./utils/isnt-design-doc')
-var addTimestamps = require('./utils/add-timestamps')
-
-module.exports = removeAll
-
-/**
- * removes all existing objects
- *
- * @param  {Function} [filter]   Function returning `true` for any object
- *                               to be removed.
- * @return {Promise}
- */
-function removeAll (filter) {
-  var objects
-
-  return this.allDocs({
-    include_docs: true
-  })
-
-  .then(function (res) {
-    objects = res.rows
-      .filter(isntDesignDoc)
-      .map(function (row) {
-        return toObject(row.doc)
-      })
-
-    if (typeof filter === 'function') {
-      objects = objects.filter(filter)
-    }
-
-    return objects.map(function (object) {
-      object._deleted = true
-      return toDoc(addTimestamps(object))
-    })
-  })
-
-  .then(this.bulkDocs.bind(this))
-
-  .then(function (results) {
-    return results.map(function (result, i) {
-      objects[i]._rev = result.rev
-      return objects[i]
-    })
-  })
-}
-
-},{"./utils/add-timestamps":327,"./utils/isnt-design-doc":329,"./utils/to-doc":332,"./utils/to-object":334}],323:[function(require,module,exports){
-'use strict'
-
-var markAsDeleted = require('./utils/mark-as-deleted')
-
-var updateOne = require('./helpers/update-one')
-var updateMany = require('./helpers/update-many')
-
-module.exports = remove
-
-/**
- * removes existing object
- *
- * @param  {Object|Function} objectsOrIds   id or object with `.id` property
- * @param  {Object|Function} [change]       Change properties or function that
- *                                          changes existing object
- * @return {Promise}
- */
-function remove (objectsOrIds, change) {
-  return Array.isArray(objectsOrIds)
-    ? updateMany.call(this, objectsOrIds.map(markAsDeleted.bind(null, change)))
-    : updateOne.call(this, markAsDeleted(change, objectsOrIds))
-}
-
-},{"./helpers/update-many":313,"./helpers/update-one":314,"./utils/mark-as-deleted":330}],324:[function(require,module,exports){
-module.exports = updateAll
-
-var extend = require('pouchdb-extend')
-var Promise = require('lie')
-
-var toObject = require('./utils/to-object')
-var toDoc = require('./utils/to-doc')
-var addTimestamps = require('./utils/add-timestamps')
-var isntDesignDoc = require('./utils/isnt-design-doc')
-
-/**
- * updates all existing objects
- *
- * @param  {Object|Function} change   changed properties or function that
- *                                    alters passed object
- * @return {Promise}
- */
-function updateAll (changedProperties) {
-  var type = typeof changedProperties
-  var objects
-
-  if (type !== 'object' && type !== 'function') {
-    return Promise.reject(new Error('Must provide object or function'))
-  }
-
-  return this.allDocs({
-    include_docs: true
-  })
-
-  .then(function (res) {
-    objects = res.rows
-      .filter(isntDesignDoc)
-      .map(function (row) {
-        return toObject(row.doc)
-      })
-
-    objects.forEach(addTimestamps)
-
-    if (type === 'function') {
-      objects.forEach(changedProperties)
-      return objects.map(toDoc)
-    }
-
-    return objects.map(function (object) {
-      extend(object, changedProperties)
-      return toDoc(object)
-    })
-  })
-
-  .then(function (result) {
-    return result
-  })
-  .then(this.bulkDocs.bind(this))
-
-  .then(function (results) {
-    return results.map(function (result, i) {
-      objects[i]._rev = result.rev
-      return objects[i]
-    })
-  })
-}
-
-},{"./utils/add-timestamps":327,"./utils/isnt-design-doc":329,"./utils/to-doc":332,"./utils/to-object":334,"lie":100,"pouchdb-extend":301}],325:[function(require,module,exports){
-'use strict'
-
-var updateOrAddOne = require('./helpers/update-or-add-one')
-var updateOrAddMany = require('./helpers/update-or-add-many')
-
-module.exports = updateOrAdd
-
-/**
- * updates existing object, or creates otherwise.
- *
- * @param  {String|Object|Object[]} - id or object with `.id` property, or
- *                                    array of properties
- * @param  {Object} [properties]      If id passed, properties for new
- *                                    or existing object
- * @return {Promise}
- */
-function updateOrAdd (idOrObjectOrArray, newObject) {
-  return Array.isArray(idOrObjectOrArray)
-    ? updateOrAddMany.call(this, idOrObjectOrArray)
-    : updateOrAddOne.call(this, idOrObjectOrArray, newObject)
-}
-
-},{"./helpers/update-or-add-many":315,"./helpers/update-or-add-one":316}],326:[function(require,module,exports){
-module.exports = update
-
-var Promise = require('lie')
-
-var updateOne = require('./helpers/update-one')
-var updateMany = require('./helpers/update-many')
-
-/**
- * updates existing object.
- *
- * @param  {String|Object}   idOrObject   id or object with `.id` property
- * @param  {Object|Function} [change]     Changed properties or function
- *                                        that changes existing object
- * @return {Promise}
- */
-function update (objectsOrIds, change) {
-  if (typeof objectsOrIds !== 'object' && !change) {
-    return Promise.reject(
-      new Error('Must provide change')
-    )
-  }
-
-  return Array.isArray(objectsOrIds)
-    ? updateMany.call(this, objectsOrIds, change)
-    : updateOne.call(this, objectsOrIds, change)
-}
-
-},{"./helpers/update-many":313,"./helpers/update-one":314,"lie":100}],327:[function(require,module,exports){
-'use strict'
-
-var now = require('./now')
-
-module.exports = function addTimestamps (object) {
-  object.updatedAt = now()
-  object.createdAt = object.createdAt || object.updatedAt
-
-  if (object._deleted) {
-    object.deletedAt = object.deletedAt || object.updatedAt
-  }
-
-  return object
-}
-
-},{"./now":331}],328:[function(require,module,exports){
-'use strict'
-
-var extend = require('pouchdb-extend')
-
-/**
-  * change object either by passing changed properties
-  * as an object, or by passing a change function that
-  * manipulates the passed object directly
-  **/
-module.exports = function changeObject (change, object) {
-  if (typeof change === 'object') {
-    return extend(object, change)
-  }
-
-  change(object)
-  return object
-}
-
-},{"pouchdb-extend":301}],329:[function(require,module,exports){
-'use strict'
-
-// Checks for a design doc, so we can filters out docs that shouldn't return in *All methods
-module.exports = function isntDesignDoc (row) {
-  return row.id.match(/^_design/) === null
-}
-
-},{}],330:[function(require,module,exports){
-'use strict'
-
-var extend = require('pouchdb-extend')
-var changeObject = require('./change-object')
-
-// Normalizes objectOrId, applies changes if any, and mark as deleted
-module.exports = function markAsDeleted (change, objectOrId) {
-  var object = typeof objectOrId === 'string' ? { id: objectOrId } : objectOrId
-
-  if (change) {
-    changeObject(change, object)
-  }
-
-  return extend({_deleted: true}, object)
-}
-
-},{"./change-object":328,"pouchdb-extend":301}],331:[function(require,module,exports){
-module.exports = function now () {
-  return new Date().toISOString()
-}
-
-},{}],332:[function(require,module,exports){
-'use strict'
-
-var extend = require('pouchdb-extend')
-
-module.exports = function objectToDoc (object) {
-  var doc = extend({}, object, {
-    _id: object.id
-  })
-
-  delete doc.id
-  return doc
-}
-
-},{"pouchdb-extend":301}],333:[function(require,module,exports){
-'use strict'
-
-module.exports = function objectOrIdToId (objectOrId) {
-  return typeof objectOrId === 'object' ? objectOrId.id : objectOrId
-}
-
-},{}],334:[function(require,module,exports){
-'use strict'
-
-var extend = require('pouchdb-extend')
-
-module.exports = function docToObject (doc) {
-  if (doc instanceof Error) {
-    return doc
-  }
-
-  var object = extend({}, doc, {
-    id: doc._id
-  })
-
-  delete object._id
-  return object
-}
-
-},{"pouchdb-extend":301}],335:[function(require,module,exports){
-module.exports = { hoodieSync: hoodieSync }
-
-var getState = require('./lib/utils/get-state')
-
-function hoodieSync (options) {
-  var state = getState(this, options)
-
-  state.api = {
-    db: this,
-    pull: require('./lib/pull').bind(null, state),
-    push: require('./lib/push').bind(null, state),
-    sync: require('./lib/sync').bind(null, state),
-    connect: require('./lib/connect').bind(null, state),
-    disconnect: require('./lib/disconnect').bind(null, state),
-    isConnected: require('./lib/is-connected').bind(null, state),
-    on: require('./lib/on').bind(null, state),
-    off: require('./lib/off').bind(null, state),
-    one: require('./lib/one').bind(null, state)
-  }
-
-  return state.api
-}
-
-/* istanbul ignore next */
-if (typeof window !== 'undefined' && window.PouchDB) {
-  window.PouchDB.plugin(module.exports)
-}
-
-},{"./lib/connect":336,"./lib/disconnect":337,"./lib/is-connected":338,"./lib/off":339,"./lib/on":340,"./lib/one":341,"./lib/pull":342,"./lib/push":343,"./lib/sync":344,"./lib/utils/get-state":345}],336:[function(require,module,exports){
-module.exports = connect
-
-var Promise = require('lie')
-
-/**
- * connects local and remote database
- *
- * @return {Promise}
- */
-function connect (state) {
-  if (!state.replication) {
-    state.replication = state.db.sync(state.remote, {
-      create_target: true,
-      live: true,
-      retry: true
-    })
-
-    state.replication.on('error', function (error) {
-      state.emitter.emit('error', error)
-    })
-
-    state.replication.on('change', function (change) {
-      for (var i = 0; i < change.change.docs.length; i++) {
-        state.emitter.emit(change.direction, change.change.docs[i])
-      }
-    })
-
-    state.emitter.emit('connect')
-  }
-
-  return Promise.resolve()
-}
-
-},{"lie":100}],337:[function(require,module,exports){
-module.exports = disconnect
-
-var Promise = require('lie')
-
-/**
- * disconnects local and remote database
- *
- * @return {Promise}
- */
-function disconnect (state) {
-  if (state.replication) {
-    state.replication.cancel()
-    delete state.replication
-    state.emitter.emit('disconnect')
-  }
-
-  return Promise.resolve()
-}
-
-},{"lie":100}],338:[function(require,module,exports){
-module.exports = isConnected
-
-/**
- * checks if database connection is open and working
- *
- * @return {Boolean}
- */
-function isConnected (state) {
-  return !!state.replication
-}
-
-},{}],339:[function(require,module,exports){
-module.exports = off
-
-/**
- * unbinds event from handler
- *
- * @param  {String} eventName   push, pull, connect, disconnect
- * @param  {Function} handler   function unbound from event
- * @return {Promise}
- */
-function off (state, eventName, handler) {
-  if (arguments.length === 2) {
-    state.emitter.removeAllListeners(eventName)
-  } else {
-    state.emitter.removeListener(eventName, handler)
-  }
-
-  return state.api
-}
-
-},{}],340:[function(require,module,exports){
-module.exports = on
-
-/**
- * binds event to handler
- *
- * @param  {String} eventName   push, pull, connect, disconnect
- * @param  {Function} handler   function bound to event
- * @return {Promise}
- */
-function on (state, eventName, handler) {
-  state.emitter.on(eventName, handler)
-
-  return state.api
-}
-
-},{}],341:[function(require,module,exports){
-module.exports = one
-
-/**
- * binds event only once to handler
- *
- * @param  {String} eventName   push, pull, connect, disconnect
- * @param  {Function} handler   function once bound to event
- * @return {Promise}
- */
-function one (state, eventName, handler) {
-  state.emitter.once(eventName, handler)
-
-  return state.api
-}
-
-},{}],342:[function(require,module,exports){
-module.exports = pull
-
-var Promise = require('lie')
-
-var toId = require('./utils/to-id')
-
-/**
- * pulls one or multiple objects from remote to local database
- *
- * @param  {StringOrObject} docsOrIds   object or ID of object or array of objects/ids (all optional)
- * @return {Promise}
- */
-function pull (state, docsOrIds) {
-  var pulledObjects = []
-  var errors = state.db.constructor.Errors
-  var defer = {}
-
-  defer.promise = new Promise(function (resolve, reject) {
-    defer.resolve = function resolveCallback () {
-      resolve.apply(null, arguments)
-    }
-    defer.reject = function rejectCallback () {
-      reject.apply(null, arguments)
-    }
-  })
-
-  if (Array.isArray(docsOrIds)) {
-    docsOrIds = docsOrIds.map(toId)
-  } else {
-    docsOrIds = docsOrIds && [toId(docsOrIds)]
-  }
-
-  if (docsOrIds && docsOrIds.filter(Boolean).length !== docsOrIds.length) {
-    return Promise.reject(errors.NOT_AN_OBJECT)
-  }
-
-  var replication = state.db.replicate.from(state.remote, {
-    doc_ids: docsOrIds
-  })
-
-  replication.catch(function () {
-    // handled trough 'error' event
-  })
-
-  replication.on('complete', function () {
-    defer.resolve(pulledObjects)
-  })
-  replication.on('error', defer.reject)
-
-  replication.on('change', function (change) {
-    pulledObjects = pulledObjects.concat(change.docs)
-    for (var i = 0; i < change.docs.length; i++) {
-      state.emitter.emit('pull', change.docs[i])
-    }
-  })
-
-  return defer.promise
-}
-
-},{"./utils/to-id":346,"lie":100}],343:[function(require,module,exports){
-module.exports = push
-
-var Promise = require('lie')
-
-var toId = require('./utils/to-id')
-
-/**
- * pushes one or multiple objects from local to remote database
- *
- * @param  {StringOrObject} docsOrIds   object or ID of object or array of objects/ids (all optional)
- * @return {Promise}
- */
-
-function push (state, docsOrIds) {
-  var pushedObjects = []
-  var errors = state.db.constructor.Errors
-  var defer = {}
-
-  defer.promise = new Promise(function (resolve, reject) {
-    defer.resolve = function resolveCallback () {
-      resolve.apply(null, arguments)
-    }
-    defer.reject = function rejectCallback () {
-      reject.apply(null, arguments)
-    }
-  })
-  if (Array.isArray(docsOrIds)) {
-    docsOrIds = docsOrIds.map(toId)
-  } else {
-    docsOrIds = docsOrIds && [toId(docsOrIds)]
-  }
-
-  if (docsOrIds && docsOrIds.filter(Boolean).length !== docsOrIds.length) {
-    return Promise.reject(errors.NOT_AN_OBJECT)
-  }
-
-  var replication = state.db.replicate.to(state.remote, {
-    create_target: true,
-    doc_ids: docsOrIds,
-    include_docs: true
-  })
-
-  replication.catch(function () {
-    // handled trough 'error' event
-  })
-
-  replication.on('complete', function () {
-    defer.resolve(pushedObjects)
-  })
-  replication.on('error', defer.reject)
-  replication.on('change', function (change) {
-    pushedObjects = pushedObjects.concat(change.docs)
-
-    for (var i = 0; i < change.docs.length; i++) {
-      state.emitter.emit('push', change.docs[i])
-    }
-  })
-
-  return defer.promise
-}
-
-},{"./utils/to-id":346,"lie":100}],344:[function(require,module,exports){
-module.exports = sync
-
-var Promise = require('lie')
-
-var toId = require('./utils/to-id')
-
-/**
- * syncs one or multiple objects between local and remote database
- *
- * @param  {StringOrObject} docsOrIds   object or ID of object or array of objects/ids (all optional)
- * @return {Promise}
- */
-function sync (state, docsOrIds) {
-  var syncedObjects = []
-  var errors = state.db.constructor.Errors
-  var defer = {}
-
-  defer.promise = new Promise(function (resolve, reject) {
-    defer.resolve = function resolveCallback () {
-      resolve.apply(null, arguments)
-    }
-    defer.reject = function rejectCallback () {
-      reject.apply(null, arguments)
-    }
-  })
-
-  if (Array.isArray(docsOrIds)) {
-    docsOrIds = docsOrIds.map(toId)
-  } else {
-    docsOrIds = docsOrIds && [toId(docsOrIds)]
-  }
-
-  if (docsOrIds && docsOrIds.filter(Boolean).length !== docsOrIds.length) {
-    return Promise.reject(errors.NOT_AN_OBJECT)
-  }
-
-  var replication = state.db.sync(state.remote, {
-    doc_ids: docsOrIds,
-    include_docs: true
-  })
-
-  /* istanbul ignore next */
-  replication.catch(function () {
-    // handled trough 'error' event
-  })
-
-  replication.on('complete', function () {
-    defer.resolve(syncedObjects)
-  })
-  replication.on('error', defer.reject)
-
-  replication.on('change', function (change) {
-    syncedObjects = syncedObjects.concat(change.change.docs)
-
-    for (var i = 0; i < change.change.docs.length; i++) {
-      state.emitter.emit(change.direction, change.change.docs[i])
-    }
-  })
-  return defer.promise
-}
-
-},{"./utils/to-id":346,"lie":100}],345:[function(require,module,exports){
-module.exports = getState
-
-var EventEmitter = require('events').EventEmitter
-
-function getState (db, options) {
-  if (typeof options === 'string') {
-    options = {
-      remote: options
-    }
-  }
-
-  if (!options || !options.remote) {
-    throw new Error('options.remote required')
-  }
-
-  return {
-    emitter: options && options.emitter || new EventEmitter(),
-    remote: options.remote,
-    ajaxOptions: options.ajax,
-    db: db
-  }
-}
-
-},{"events":90}],346:[function(require,module,exports){
-module.exports = docOrIdToId
-
-/**
- * It's an internal method. It checks if param is an doc object or an ID string and makes it an ID.
- *
- * @param  {String, Object} docOrId
- * @return {Promise}
- */
-
-function docOrIdToId (docOrId) {
-  if (typeof docOrId === 'object') {
-    return docOrId._id || docOrId.id
-  }
-
-  return docOrId
-}
-
-},{}],347:[function(require,module,exports){
-// Generated by CoffeeScript 1.9.2
-(function() {
-  var hasProp = {}.hasOwnProperty,
-    slice = [].slice;
-
-  module.exports = function(source, scope) {
-    var key, keys, value, values;
-    keys = [];
-    values = [];
-    for (key in scope) {
-      if (!hasProp.call(scope, key)) continue;
-      value = scope[key];
-      if (key === 'this') {
-        continue;
-      }
-      keys.push(key);
-      values.push(value);
-    }
-    return Function.apply(null, slice.call(keys).concat([source])).apply(scope["this"], values);
+    return true;
   };
+}
 
-}).call(this);
+function flatten(arrs) {
+  var res = [];
+  for (var i = 0, len = arrs.length; i < len; i++) {
+    res = res.concat(arrs[i]);
+  }
+  return res;
+}
 
-},{}],348:[function(require,module,exports){
+// shim for Function.prototype.name,
+// for browsers that don't support it like IE
+
+/* istanbul ignore next */
+function f() {}
+
+var hasName = f.name;
+var res;
+
+// We dont run coverage in IE
+/* istanbul ignore else */
+if (hasName) {
+  res = function (fun) {
+    return fun.name;
+  };
+} else {
+  res = function (fun) {
+    return fun.toString().match(/^\s*function\s*(\S*)\s*\(/)[1];
+  };
+}
+
+var res$1 = res;
+
+// Determine id an ID is valid
+//   - invalid IDs begin with an underescore that does not begin '_design' or
+//     '_local'
+//   - any other string value is a valid id
+// Returns the specific error object for each case
+function invalidIdError(id) {
+  var err;
+  if (!id) {
+    err = pouchdbErrors.createError(pouchdbErrors.MISSING_ID);
+  } else if (typeof id !== 'string') {
+    err = pouchdbErrors.createError(pouchdbErrors.INVALID_ID);
+  } else if (/^_/.test(id) && !(/^_(design|local)/).test(id)) {
+    err = pouchdbErrors.createError(pouchdbErrors.RESERVED_ID);
+  }
+  if (err) {
+    throw err;
+  }
+}
+
+function isCordova() {
+  return (typeof cordova !== "undefined" ||
+  typeof PhoneGap !== "undefined" ||
+  typeof phonegap !== "undefined");
+}
+
+// Checks if a PouchDB object is "remote" or not. This is
+// designed to opt-in to certain optimizations, such as
+// avoiding checks for "dependentDbs" and other things that
+// we know only apply to local databases. In general, "remote"
+// should be true for the http adapter, and for third-party
+// adapters with similar expensive boundaries to cross for
+// every API call, such as socket-pouch and worker-pouch.
+// Previously, this was handled via db.type() === 'http'
+// which is now deprecated.
+
+function isRemote(db) {
+  if (typeof db._remote === 'boolean') {
+    return db._remote;
+  }
+  /* istanbul ignore next */
+  if (typeof db.type === 'function') {
+    guardedConsole('warn',
+      'db.type() is deprecated and will be removed in ' +
+      'a future version of PouchDB');
+    return db.type() === 'http';
+  }
+  /* istanbul ignore next */
+  return false;
+}
+
+function listenerCount(ee, type) {
+  return 'listenerCount' in ee ? ee.listenerCount(type) :
+                                 events.EventEmitter.listenerCount(ee, type);
+}
+
+function parseDesignDocFunctionName(s) {
+  if (!s) {
+    return null;
+  }
+  var parts = s.split('/');
+  if (parts.length === 2) {
+    return parts;
+  }
+  if (parts.length === 1) {
+    return [s, s];
+  }
+  return null;
+}
+
+function normalizeDesignDocFunctionName(s) {
+  var normalized = parseDesignDocFunctionName(s);
+  return normalized ? normalized.join('/') : null;
+}
+
+// originally parseUri 1.2.2, now patched by us
+// (c) Steven Levithan <stevenlevithan.com>
+// MIT License
+var keys = ["source", "protocol", "authority", "userInfo", "user", "password",
+    "host", "port", "relative", "path", "directory", "file", "query", "anchor"];
+var qName ="queryKey";
+var qParser = /(?:^|&)([^&=]*)=?([^&]*)/g;
+
+// use the "loose" parser
+/* eslint maxlen: 0, no-useless-escape: 0 */
+var parser = /^(?:(?![^:@]+:[^:@\/]*@)([^:\/?#.]+):)?(?:\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/;
+
+function parseUri(str) {
+  var m = parser.exec(str);
+  var uri = {};
+  var i = 14;
+
+  while (i--) {
+    var key = keys[i];
+    var value = m[i] || "";
+    var encoded = ['user', 'password'].indexOf(key) !== -1;
+    uri[key] = encoded ? decodeURIComponent(value) : value;
+  }
+
+  uri[qName] = {};
+  uri[keys[12]].replace(qParser, function ($0, $1, $2) {
+    if ($1) {
+      uri[qName][$1] = $2;
+    }
+  });
+
+  return uri;
+}
+
+// Based on https://github.com/alexdavid/scope-eval v0.0.3
+// (source: https://unpkg.com/scope-eval@0.0.3/scope_eval.js)
+// This is basically just a wrapper around new Function()
+
+function scopeEval(source, scope) {
+  var keys = [];
+  var values = [];
+  for (var key in scope) {
+    if (scope.hasOwnProperty(key)) {
+      keys.push(key);
+      values.push(scope[key]);
+    }
+  }
+  keys.push(source);
+  return Function.apply(null, keys).apply(null, values);
+}
+
+// this is essentially the "update sugar" function from daleharvey/pouchdb#1388
+// the diffFun tells us what delta to apply to the doc.  it either returns
+// the doc, or false if it doesn't need to do an update after all
+function upsert(db, docId, diffFun) {
+  return new Promise(function (fulfill, reject) {
+    db.get(docId, function (err, doc) {
+      if (err) {
+        /* istanbul ignore next */
+        if (err.status !== 404) {
+          return reject(err);
+        }
+        doc = {};
+      }
+
+      // the user might change the _rev, so save it for posterity
+      var docRev = doc._rev;
+      var newDoc = diffFun(doc);
+
+      if (!newDoc) {
+        // if the diffFun returns falsy, we short-circuit as
+        // an optimization
+        return fulfill({updated: false, rev: docRev});
+      }
+
+      // users aren't allowed to modify these values,
+      // so reset them here
+      newDoc._id = docId;
+      newDoc._rev = docRev;
+      fulfill(tryAndPut(db, newDoc, diffFun));
+    });
+  });
+}
+
+function tryAndPut(db, doc, diffFun) {
+  return db.put(doc).then(function (res) {
+    return {
+      updated: true,
+      rev: res.rev
+    };
+  }, function (err) {
+    /* istanbul ignore next */
+    if (err.status !== 409) {
+      throw err;
+    }
+    return upsert(db, doc._id, diffFun);
+  });
+}
+
+function rev() {
+  return uuidV4.v4().replace(/-/g, '').toLowerCase();
+}
+
+var uuid = uuidV4.v4;
+
+exports.adapterFun = adapterFun;
+exports.assign = assign$1;
+exports.bulkGetShim = bulkGet;
+exports.changesHandler = Changes;
+exports.clone = clone;
+exports.defaultBackOff = defaultBackOff;
+exports.explainError = explainError;
+exports.filterChange = filterChange;
+exports.flatten = flatten;
+exports.functionName = res$1;
+exports.guardedConsole = guardedConsole;
+exports.hasLocalStorage = hasLocalStorage;
+exports.invalidIdError = invalidIdError;
+exports.isChromeApp = isChromeApp;
+exports.isCordova = isCordova;
+exports.isRemote = isRemote;
+exports.listenerCount = listenerCount;
+exports.nextTick = immediate;
+exports.normalizeDdocFunctionName = normalizeDesignDocFunctionName;
+exports.once = once;
+exports.parseDdocFunctionName = parseDesignDocFunctionName;
+exports.parseUri = parseUri;
+exports.pick = pick;
+exports.rev = rev;
+exports.scopeEval = scopeEval;
+exports.toPromise = toPromise;
+exports.upsert = upsert;
+exports.uuid = uuid;
+
+},{"argsarray":91,"events":105,"immediate":112,"inherits":113,"pouchdb-collections":308,"pouchdb-errors":316,"pouchdb-promise":317,"uuid":321}],319:[function(require,module,exports){
 (function (factory) {
     if (typeof exports === 'object') {
         // Node/CommonJS
@@ -26125,7 +26924,7 @@ function docOrIdToId (docOrId) {
     return SparkMD5;
 }));
 
-},{}],349:[function(require,module,exports){
+},{}],320:[function(require,module,exports){
 
 exports = module.exports = trim;
 
@@ -26141,7 +26940,212 @@ exports.right = function(str){
   return str.replace(/\s*$/, '');
 };
 
-},{}],350:[function(require,module,exports){
+},{}],321:[function(require,module,exports){
+var v1 = require('./v1');
+var v4 = require('./v4');
+
+var uuid = v4;
+uuid.v1 = v1;
+uuid.v4 = v4;
+
+module.exports = uuid;
+
+},{"./v1":324,"./v4":325}],322:[function(require,module,exports){
+/**
+ * Convert array of 16 byte values to UUID string format of the form:
+ * XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+ */
+var byteToHex = [];
+for (var i = 0; i < 256; ++i) {
+  byteToHex[i] = (i + 0x100).toString(16).substr(1);
+}
+
+function bytesToUuid(buf, offset) {
+  var i = offset || 0;
+  var bth = byteToHex;
+  return bth[buf[i++]] + bth[buf[i++]] +
+          bth[buf[i++]] + bth[buf[i++]] + '-' +
+          bth[buf[i++]] + bth[buf[i++]] + '-' +
+          bth[buf[i++]] + bth[buf[i++]] + '-' +
+          bth[buf[i++]] + bth[buf[i++]] + '-' +
+          bth[buf[i++]] + bth[buf[i++]] +
+          bth[buf[i++]] + bth[buf[i++]] +
+          bth[buf[i++]] + bth[buf[i++]];
+}
+
+module.exports = bytesToUuid;
+
+},{}],323:[function(require,module,exports){
+(function (global){
+// Unique ID creation requires a high quality random # generator.  In the
+// browser this is a little complicated due to unknown quality of Math.random()
+// and inconsistent support for the `crypto` API.  We do the best we can via
+// feature-detection
+var rng;
+
+var crypto = global.crypto || global.msCrypto; // for IE 11
+if (crypto && crypto.getRandomValues) {
+  // WHATWG crypto RNG - http://wiki.whatwg.org/wiki/Crypto
+  var rnds8 = new Uint8Array(16); // eslint-disable-line no-undef
+  rng = function whatwgRNG() {
+    crypto.getRandomValues(rnds8);
+    return rnds8;
+  };
+}
+
+if (!rng) {
+  // Math.random()-based (RNG)
+  //
+  // If all else fails, use Math.random().  It's fast, but is of unspecified
+  // quality.
+  var rnds = new Array(16);
+  rng = function() {
+    for (var i = 0, r; i < 16; i++) {
+      if ((i & 0x03) === 0) r = Math.random() * 0x100000000;
+      rnds[i] = r >>> ((i & 0x03) << 3) & 0xff;
+    }
+
+    return rnds;
+  };
+}
+
+module.exports = rng;
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],324:[function(require,module,exports){
+var rng = require('./lib/rng');
+var bytesToUuid = require('./lib/bytesToUuid');
+
+// **`v1()` - Generate time-based UUID**
+//
+// Inspired by https://github.com/LiosK/UUID.js
+// and http://docs.python.org/library/uuid.html
+
+// random #'s we need to init node and clockseq
+var _seedBytes = rng();
+
+// Per 4.5, create and 48-bit node id, (47 random bits + multicast bit = 1)
+var _nodeId = [
+  _seedBytes[0] | 0x01,
+  _seedBytes[1], _seedBytes[2], _seedBytes[3], _seedBytes[4], _seedBytes[5]
+];
+
+// Per 4.2.2, randomize (14 bit) clockseq
+var _clockseq = (_seedBytes[6] << 8 | _seedBytes[7]) & 0x3fff;
+
+// Previous uuid creation time
+var _lastMSecs = 0, _lastNSecs = 0;
+
+// See https://github.com/broofa/node-uuid for API details
+function v1(options, buf, offset) {
+  var i = buf && offset || 0;
+  var b = buf || [];
+
+  options = options || {};
+
+  var clockseq = options.clockseq !== undefined ? options.clockseq : _clockseq;
+
+  // UUID timestamps are 100 nano-second units since the Gregorian epoch,
+  // (1582-10-15 00:00).  JSNumbers aren't precise enough for this, so
+  // time is handled internally as 'msecs' (integer milliseconds) and 'nsecs'
+  // (100-nanoseconds offset from msecs) since unix epoch, 1970-01-01 00:00.
+  var msecs = options.msecs !== undefined ? options.msecs : new Date().getTime();
+
+  // Per 4.2.1.2, use count of uuid's generated during the current clock
+  // cycle to simulate higher resolution clock
+  var nsecs = options.nsecs !== undefined ? options.nsecs : _lastNSecs + 1;
+
+  // Time since last uuid creation (in msecs)
+  var dt = (msecs - _lastMSecs) + (nsecs - _lastNSecs)/10000;
+
+  // Per 4.2.1.2, Bump clockseq on clock regression
+  if (dt < 0 && options.clockseq === undefined) {
+    clockseq = clockseq + 1 & 0x3fff;
+  }
+
+  // Reset nsecs if clock regresses (new clockseq) or we've moved onto a new
+  // time interval
+  if ((dt < 0 || msecs > _lastMSecs) && options.nsecs === undefined) {
+    nsecs = 0;
+  }
+
+  // Per 4.2.1.2 Throw error if too many uuids are requested
+  if (nsecs >= 10000) {
+    throw new Error('uuid.v1(): Can\'t create more than 10M uuids/sec');
+  }
+
+  _lastMSecs = msecs;
+  _lastNSecs = nsecs;
+  _clockseq = clockseq;
+
+  // Per 4.1.4 - Convert from unix epoch to Gregorian epoch
+  msecs += 12219292800000;
+
+  // `time_low`
+  var tl = ((msecs & 0xfffffff) * 10000 + nsecs) % 0x100000000;
+  b[i++] = tl >>> 24 & 0xff;
+  b[i++] = tl >>> 16 & 0xff;
+  b[i++] = tl >>> 8 & 0xff;
+  b[i++] = tl & 0xff;
+
+  // `time_mid`
+  var tmh = (msecs / 0x100000000 * 10000) & 0xfffffff;
+  b[i++] = tmh >>> 8 & 0xff;
+  b[i++] = tmh & 0xff;
+
+  // `time_high_and_version`
+  b[i++] = tmh >>> 24 & 0xf | 0x10; // include version
+  b[i++] = tmh >>> 16 & 0xff;
+
+  // `clock_seq_hi_and_reserved` (Per 4.2.2 - include variant)
+  b[i++] = clockseq >>> 8 | 0x80;
+
+  // `clock_seq_low`
+  b[i++] = clockseq & 0xff;
+
+  // `node`
+  var node = options.node || _nodeId;
+  for (var n = 0; n < 6; ++n) {
+    b[i + n] = node[n];
+  }
+
+  return buf ? buf : bytesToUuid(b);
+}
+
+module.exports = v1;
+
+},{"./lib/bytesToUuid":322,"./lib/rng":323}],325:[function(require,module,exports){
+var rng = require('./lib/rng');
+var bytesToUuid = require('./lib/bytesToUuid');
+
+function v4(options, buf, offset) {
+  var i = buf && offset || 0;
+
+  if (typeof(options) == 'string') {
+    buf = options == 'binary' ? new Array(16) : null;
+    options = null;
+  }
+  options = options || {};
+
+  var rnds = options.random || (options.rng || rng)();
+
+  // Per 4.4, set bits for version and `clock_seq_hi_and_reserved`
+  rnds[6] = (rnds[6] & 0x0f) | 0x40;
+  rnds[8] = (rnds[8] & 0x3f) | 0x80;
+
+  // Copy bytes to buffer, if provided
+  if (buf) {
+    for (var ii = 0; ii < 16; ++ii) {
+      buf[i + ii] = rnds[ii];
+    }
+  }
+
+  return buf || bytesToUuid(rnds);
+}
+
+module.exports = v4;
+
+},{"./lib/bytesToUuid":322,"./lib/rng":323}],326:[function(require,module,exports){
 'use strict';
 
 /**
@@ -26316,7 +27320,7 @@ exports.parse = function (str) {
   }
 };
 
-},{}],351:[function(require,module,exports){
+},{}],327:[function(require,module,exports){
 "use strict";
 var window = require("global/window")
 var isFunction = require("is-function")
@@ -26384,7 +27388,7 @@ function _createXHR(options) {
 
     function readystatechange() {
         if (xhr.readyState === 4) {
-            loadFunc()
+            setTimeout(loadFunc, 0)
         }
     }
 
@@ -26549,7 +27553,7 @@ function getXml(xhr) {
     if (xhr.responseType === "document") {
         return xhr.responseXML
     }
-    var firefoxBugTakenEffect = xhr.status === 204 && xhr.responseXML && xhr.responseXML.documentElement.nodeName === "parsererror"
+    var firefoxBugTakenEffect = xhr.responseXML && xhr.responseXML.documentElement.nodeName === "parsererror"
     if (xhr.responseType === "" && !firefoxBugTakenEffect) {
         return xhr.responseXML
     }
@@ -26559,7 +27563,7 @@ function getXml(xhr) {
 
 function noop() {}
 
-},{"global/window":92,"is-function":99,"parse-headers":290,"xtend":352}],352:[function(require,module,exports){
+},{"global/window":107,"is-function":114,"parse-headers":306,"xtend":328}],328:[function(require,module,exports){
 module.exports = extend
 
 var hasOwnProperty = Object.prototype.hasOwnProperty;

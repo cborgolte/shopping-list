@@ -49,7 +49,7 @@ export class ShoppingListService {
     const li = this.lineItems; // alias
     const cat = this.categories;
 
-    hoodie.ready.then( () => {
+    //hoodie.ready.then( () => {
 
         function init(items: any[]) {
 
@@ -113,8 +113,8 @@ export class ShoppingListService {
           init([]);
         });
 
-      }
-    );
+      //}
+    //);
   }
 
   public getCategories(): any[] {
@@ -123,12 +123,12 @@ export class ShoppingListService {
 
   private db_updateOrCreateLineItem(id: string, lineItemRepr: any) {
     hoodie.store.find(id).then((lineItem) => {
-      lineItemRepr.id = id;
+      lineItemRepr._id = id;
       // merge categories
       lineItemRepr.categories = Array.from(new Set(lineItem.categories.concat(lineItemRepr.categories)));
       this.db_updateLineItem(lineItemRepr);
     }).catch(() => {
-      lineItemRepr.id = id;
+      lineItemRepr._id = id;
       this.db_addLineItem(lineItemRepr);
     });
   }
@@ -143,7 +143,7 @@ export class ShoppingListService {
   private db_updateLineItem(lineItem: LineItem): void {
     const lineItemRepr = (<any>lineItem);
     hoodie.store.update(
-      lineItemRepr.id,
+      lineItemRepr._id,
       lineItem
     );
   }
@@ -155,7 +155,7 @@ export class ShoppingListService {
 
   private db_deleteLineItem(lineItem: LineItem) {
     const lineItemRepr = (<any>lineItem);
-    hoodie.store.remove({id: lineItemRepr.id});
+    hoodie.store.remove({_id: lineItemRepr._id});
   }
 
   onReorder(category: string) {
@@ -184,7 +184,7 @@ export class ShoppingListService {
     lineItem.name = name;
     lineItem.selected = selected;
     lineItem.categories.push(category);
-    this.db_updateOrCreateLineItem(name, lineItem);
+    this.db_updateOrCreateLineItem(id, lineItem);
   }
 
   updateLineItem(item: LineItem) {
