@@ -1,4 +1,6 @@
 import {Injectable} from '@angular/core';
+import * as  Hoodie from '@hoodie/client';
+
 import { LineItem } from './line-item';
 import { Observable } from 'rxjs';
 import { Subject } from 'rxjs/Subject';
@@ -7,13 +9,14 @@ import { AsyncSubject } from 'rxjs/AsyncSubject';
 import { Subscription } from 'rxjs/Subscription';
 import 'rxjs/add/operator/distinctUntilChanged';
 
+const hoodie = new Hoodie({
+  url: window.location.origin,
+  PouchDB: require('pouchdb-browser').default
+})
 
-
-const _window: any = (<any>window);
-const hoodie: any = _window.hoodie;
 
 @Injectable()
-export class ShoppingListService { 
+export class ShoppingListService {
   public obsCategories = new BehaviorSubject<any[]>([]);
   public obsLineItems = new BehaviorSubject<Map<string, LineItem[]>>(new Map<string, LineItem[]>());
 

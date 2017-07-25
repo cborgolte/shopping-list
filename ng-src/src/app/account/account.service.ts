@@ -1,9 +1,12 @@
 import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs/Subject';
+import * as  Hoodie from '@hoodie/client';
+// import * as PouchDB from 'pouchdb';
 
-// HACK: Get a handle to the hoodie client
-const _window: any = (<any>window);
-const hoodie: any = _window.hoodie;
+const hoodie = new Hoodie({
+  url: window.location.origin,
+  PouchDB: require('pouchdb-browser').default
+})
 
 @Injectable()
 export class AccountService {
