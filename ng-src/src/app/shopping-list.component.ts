@@ -13,8 +13,8 @@ import { ShoppingListService } from './shopping-list.service';
 })
 export class ShoppingListComponent {
   title = 'Shopping List';
-  private lineItems: Map<string, LineItem[]>;
-  private categories: any[];
+  private lineItems = new Map<string, LineItem[]>();
+  private categories: any[] = [];
   private activeTab: string;
 
   constructor(
@@ -22,12 +22,12 @@ export class ShoppingListComponent {
     private route: ActivatedRoute,
     private location: Location
   ) {
-    this.lineItems = shoppingListService.getLineItems();
-    this.categories = shoppingListService.getCategories();
+    shoppingListService.obsLineItems.subscribe((lineItems) => this.lineItems = lineItems);
+    shoppingListService.obsCategories.subscribe((cat) => this.categories.push(cat));
   }
 
   // return line items that were selected for the shopping list
-  getLineItems(category: string): LineItem[] {
+  getLineItems = (category: string) =>  {
     if (this.lineItems && this.lineItems[category]) {
       return this.lineItems[category].filter((item: LineItem) => item.selected);
     }

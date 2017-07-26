@@ -17,6 +17,7 @@ import { ShoppingListComponent }  from './shopping-list.component';
 import { ShoppingListModifyComponent } from './shopping-list-modify.component';
 import {DragulaModule, DragulaService} from 'ng2-dragula/ng2-dragula';
 import { AccountSignUpComponent } from './account/account-sign-up/account-sign-up.component';
+import { CategoryComponent } from './category/category.component';
 
 
 @NgModule({
@@ -25,7 +26,8 @@ import { AccountSignUpComponent } from './account/account-sign-up/account-sign-u
     ShoppingListModifyComponent,
     ShoppingListComponent,
     AccountSignInComponent,
-    AccountSignUpComponent
+    AccountSignUpComponent,
+    CategoryComponent
   ],
   imports: [
     BrowserModule,

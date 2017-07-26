@@ -18,8 +18,8 @@ export class ShoppingListModifyComponent {
   constructor(private shoppingListService: ShoppingListService, private dragulaService: DragulaService) { 
     // this.lineItems = shoppingListService.getLineItems();
 
-    shoppingListService.obsCategories.subscribe((a) => this.categories.push(a));
-    shoppingListService.obsLineItems.subscribe((a) => this.lineItems = a);
+    shoppingListService.obsCategories.subscribe((cat) => this.categories.push(cat));
+    shoppingListService.obsLineItems.subscribe((lineItemMap) => this.lineItems = lineItemMap);
 
     dragulaService.drop.subscribe((value) => {
       console.log("reorder", this.lineItems[value[0]]);
