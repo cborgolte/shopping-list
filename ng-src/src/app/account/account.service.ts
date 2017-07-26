@@ -1,4 +1,5 @@
-import { Injectable, Component, NgZone } from '@angular/core';
+import { Injectable } from '@angular/core';
+import { Subject } from 'rxjs/Subject';
 
 // HACK: Get a handle to the hoodie client
 const _window: any = (<any>window);
@@ -7,37 +8,34 @@ const hoodie: any = _window.hoodie;
 @Injectable()
 export class AccountService {
 
-    private account: any = {}
+    public obsAccount = new Subject<any>();
 
-    constructor(private zone: NgZone) {
-
-        let self = this;
+    constructor() {
 
         hoodie.account.get(['session', 'username'], { local: true })
-            .then(function (properties) {
+            .then((properties) => {
                 if (properties.session) {
-                    self.setUser(properties.username);
+                    this.setUser(properties.username);
                 } else {
-                    self.clearUser();
+                    this.clearUser();
                 }
-            });
+            }).catch(() => this.clearUser());
     }
 
     private setUser(username: string) {
-        this.zone.run(() => {
-            this.account.username = username;
-            this.account.logged_in = true;
-        });
+        const account = {
+            username: username,
+            logged_in: true
+        };
+        this.obsAccount.next(account);
     }
 
     private clearUser() {
-        this.zone.runOutsideAngular(() => {
-            this.account.username = "";
-            this.account.logged_in = false;
-            // for (let attr in this.account) {
-            //     delete (this.account[attr]);
-            // }
-        });
+        const account = {
+            username: "",
+            logged_in: false
+        };
+        this.obsAccount.next(account);
     }
 
     public signUp(username: String, password: String): any {
@@ -64,10 +62,6 @@ export class AccountService {
                 this.signOut();
                 alert("log in failed: " + error);
             });
-    }
-
-    public getAccount(): any {
-        return this.account;
     }
 
     public signOut(): void {

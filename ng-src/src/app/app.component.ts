@@ -13,9 +13,9 @@ import {DragulaService} from 'ng2-dragula/ng2-dragula';
 })
 export class AppComponent {
 
-  private user: any;
+  private user: any = {};
   constructor(private accountService: AccountService) {
-    this.user = accountService.getAccount();
+    this.accountService.obsAccount.subscribe((user) => this.user = user);
   }
 
   username(): string {
@@ -25,9 +25,4 @@ export class AppComponent {
   loggedIn(): boolean {
     return this.user.logged_in;
   }
-
-  setUser() {
-    this.user = this.accountService.getAccount();
-  }
-
 }
