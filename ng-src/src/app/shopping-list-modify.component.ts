@@ -12,12 +12,14 @@ import {DragulaService} from 'ng2-dragula/ng2-dragula';
 })
 export class ShoppingListModifyComponent {
   title = 'Modify Shopping List';
-  lineItems: Map<string, LineItem[]>;
-  categories: any[];
+  lineItems: Map<string, LineItem[]> = new Map<string, LineItem[]>();
+  categories: any[] = [];
 
   constructor(private shoppingListService: ShoppingListService, private dragulaService: DragulaService) { 
-    this.lineItems = shoppingListService.getLineItems();
-    this.categories = shoppingListService.getCategories();
+    // this.lineItems = shoppingListService.getLineItems();
+
+    shoppingListService.obsCategories.subscribe((a) => this.categories.push(a));
+    shoppingListService.obsLineItems.subscribe((a) => this.lineItems = a);
 
     dragulaService.drop.subscribe((value) => {
       console.log("reorder", this.lineItems[value[0]]);

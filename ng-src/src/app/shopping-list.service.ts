@@ -1,13 +1,17 @@
-import {Injectable, Component, NgZone} from '@angular/core';
+import {Injectable} from '@angular/core';
 import { LineItem } from './line-item';
+import { Observable } from 'rxjs';
+import { Subject } from 'rxjs/Subject';
+import { AsyncSubject } from 'rxjs/AsyncSubject';
+import { Subscription } from 'rxjs/Subscription';
+
 
 const _window: any = (<any>window);
 const hoodie: any = _window.hoodie;
 
 @Injectable()
 export class ShoppingListService {
-  lineItems: Map<string, LineItem[]> = new Map<string, LineItem[]>();
-  // categories: string[] = ['all'];
+  lineItems: Map<string, LineItem[]>;
 
   categories: any[] = [
     {
@@ -43,78 +47,70 @@ export class ShoppingListService {
       updated: new Date('1/18/16'),
     }
   ];
+  public obsCategories = Observable.from(this.categories);
+  public obsLineItems = new Subject<Map<string, LineItem[]>>();
 
-  constructor(zone: NgZone) {
+  constructor() {
 
-    const li = this.lineItems; // alias
-    const cat = this.categories;
+    // TODO: this.obsCategories.subscribe( (val) => this.categories = val);
+    this.obsLineItems.subscribe( (val) => this.lineItems = val);
 
-    //hoodie.ready.then( () => {
+    // initalize db
+    this.dbHasChanged();
 
-        function init(items: any[]) {
+    //// Events
 
-          // clear all data
-          // WTF: li.clear() does not work!
-          cat.forEach((c) => li[c.name] = []);
-          // cat.length = 0;
+    // Handle store changes
+    hoodie.store.on('change', this.dbHasChanged);
 
-          // retrieve all line items
-          let dbItems = items.filter( (element, index, array) => {
-            let retval = element.type === 'LineItem';
-            return retval;
-          }).sort((lhs, rhs) => lhs.pos - rhs.pos);
+    // Load new user's data after a new user signs in
+    hoodie.account.on('signin', (accountProperties) => {
+      this.init([]);
+    });
 
-          // collect all category entries (not implemented yet)
-          let dbCategories = items.filter( (element) => element.type === 'Category')
-            .sort((lhs: any, rhs: any) => lhs.pos - rhs.pos)
-            .map((c) => c.name);
+    // Clear data after a user signs out
+    hoodie.account.on('signout', (accountProperties) => {
+      this.init([]);
+    });
+  }
 
-          zone.run(() => {
+  private init = (items: any[]) => {
+    let lineItems = new Map<string, LineItem[]>();
 
-            // add all db categories
-            Array.prototype.push.apply(cat, dbCategories);
+    // retrieve all line items
+    let dbItems = items.filter((element, index, array) => {
+      let retval = element.type === 'LineItem';
+      return retval;
+    }).sort((lhs, rhs) => lhs.pos - rhs.pos);
 
-            // collect items per category
-            dbItems.forEach( (val: LineItem) => {
-              if (val.categories) {
-                val.categories.forEach((category) => {
-                  if (!li[category]) {
-                    li[category] = [];
-                  }
-                  li[category].push(val);
-                  if (cat.findIndex((value) => value.name === category) === -1) {
-                    cat.push(category);
-                  }
-                });
-              }
-            });
-          });
-        }
+    // collect all category entries (not implemented yet)
+    let dbCategories = items.filter((element) => element.type === 'Category')
+      .sort((lhs: any, rhs: any) => lhs.pos - rhs.pos)
+      .map((c) => c.name);
 
-        function dbHasChanged() {
-          hoodie.store.findAll().then(init);
-        }
+    // add all db categories
+    Array.prototype.push.apply(this.categories, dbCategories);
 
-        // initalize db
-        dbHasChanged();
-
-        //// Events
-
-        // Handle store changes
-        hoodie.store.on('change', dbHasChanged);
-
-        // Load new user's data after a new user signs in
-        hoodie.account.on('signin', (accountProperties) => {
-          init([]);
+    // collect items per category
+    dbItems.forEach((val: LineItem) => {
+      if (val.categories) {
+        val.categories.forEach((category) => {
+          if (!lineItems[category]) {
+            lineItems[category] = [];
+          }
+          lineItems[category].push(val);
+          if (this.categories.findIndex((value) => value.name === category) === -1) {
+            this.categories.push(category);
+          }
         });
+      }
+    });
+    // inform subscribers
+    this.obsLineItems.next(lineItems);
+  }
 
-        // Clear data after a user signs out
-        hoodie.account.on('signout', (accountProperties) => {
-          init([]);
-        });
-
-      //}
-    //);
+  private dbHasChanged = () => {
+    hoodie.store.findAll().then(this.init);
   }
 
   public getCategories(): any[] {
