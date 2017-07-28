@@ -22,6 +22,7 @@ export class ShoppingListComponent {
     private route: ActivatedRoute,
     private location: Location
   ) {
+    console.log('constructor', this);
     shoppingListService.obsLineItems.subscribe((lineItems) => this.lineItems = lineItems);
     shoppingListService.obsCategories.subscribe((cat) => this.categories.push(cat));
   }

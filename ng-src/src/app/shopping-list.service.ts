@@ -2,6 +2,7 @@ import {Injectable} from '@angular/core';
 import { LineItem } from './line-item';
 import { Observable } from 'rxjs';
 import { Subject } from 'rxjs/Subject';
+import { BehaviorSubject } from 'rxjs/BehaviorSubject';
 import { AsyncSubject } from 'rxjs/AsyncSubject';
 import { Subscription } from 'rxjs/Subscription';
 
@@ -48,7 +49,7 @@ export class ShoppingListService {
     }
   ];
   public obsCategories = Observable.from(this.categories);
-  public obsLineItems = new Subject<Map<string, LineItem[]>>();
+  public obsLineItems = new BehaviorSubject<Map<string, LineItem[]>>(new Map<string, LineItem[]>());
 
   constructor() {
 
