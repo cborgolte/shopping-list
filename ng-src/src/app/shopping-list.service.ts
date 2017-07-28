@@ -11,50 +11,16 @@ const _window: any = (<any>window);
 const hoodie: any = _window.hoodie;
 
 @Injectable()
-export class ShoppingListService {
+export class ShoppingListService {  
+  
   lineItems: Map<string, LineItem[]>;
 
-  categories: any[] = [
-    {
-      name: 'Obst + Gemüse',
-      updated: new Date('1/1/16'),
-    },
-    {
-      name: 'Getränke',
-      updated: new Date('1/17/16'),
-    },
-    {
-      name: 'Aufschnitt',
-      updated: new Date('1/28/16'),
-    },
-    {
-      name: 'Tiefkühl',
-      updated: new Date('2/20/16'),
-    },
-    {
-      name: 'Bad',
-      updated: new Date('1/18/16'),
-    },
-    {
-      name: 'Haushaltswaren',
-      updated: new Date('1/28/16'),
-    },
-    {
-      name: 'sonstiges',
-      updated: new Date('2/20/16'),
-    },
-    {
-      name: 'all',
-      updated: new Date('1/18/16'),
-    }
-  ];
-  public obsCategories = Observable.from(this.categories);
+  public obsCategories = new BehaviorSubject<any[]>([]);
   public obsLineItems = new BehaviorSubject<Map<string, LineItem[]>>(new Map<string, LineItem[]>());
 
   constructor() {
-
-    // TODO: this.obsCategories.subscribe( (val) => this.categories = val);
     this.obsLineItems.subscribe( (val) => this.lineItems = val);
+    this.obsCategories.subscribe( (val) => console.log(val));
 
     // initalize db
     this.dbHasChanged();
@@ -73,9 +39,51 @@ export class ShoppingListService {
     hoodie.account.on('signout', (accountProperties) => {
       this.init([]);
     });
+
+    Observable.of(this.createDefaultCategories.bind(this)).delay(500).subscribe((fnc) => fnc());
+  }
+
+  private createDefaultCategories() {
+    const categories: any[] = [
+      {
+        name: 'Obst + Gemüse',
+        updated: new Date('1/1/16'),
+      },
+      {
+        name: 'Getränke',
+        updated: new Date('1/17/16'),
+      },
+      {
+        name: 'Aufschnitt',
+        updated: new Date('1/28/16'),
+      },
+      {
+        name: 'Tiefkühl',
+        updated: new Date('2/20/16'),
+      },
+      {
+        name: 'Bad',
+        updated: new Date('1/18/16'),
+      },
+      {
+        name: 'Haushaltswaren',
+        updated: new Date('1/28/16'),
+      },
+      {
+        name: 'sonstiges',
+        updated: new Date('2/20/16'),
+      },
+      {
+        name: 'all',
+        updated: new Date('1/18/16'),
+      }
+    ];
+
+    this.obsCategories.next(categories);
   }
 
   private init = (items: any[]) => {
+    let categories = [];
     let lineItems = new Map<string, LineItem[]>();
 
     // retrieve all line items
@@ -90,7 +98,7 @@ export class ShoppingListService {
       .map((c) => c.name);
 
     // add all db categories
-    Array.prototype.push.apply(this.categories, dbCategories);
+    Array.prototype.push.apply(categories, dbCategories);
 
     // collect items per category
     dbItems.forEach((val: LineItem) => {
@@ -100,22 +108,19 @@ export class ShoppingListService {
             lineItems[category] = [];
           }
           lineItems[category].push(val);
-          if (this.categories.findIndex((value) => value.name === category) === -1) {
-            this.categories.push(category);
+          if (categories.findIndex((value) => value.name === category) === -1) {
+            categories.push(category);
           }
         });
       }
     });
     // inform subscribers
     this.obsLineItems.next(lineItems);
+    // TODO: this.obsCategories.next(categories);
   }
 
   private dbHasChanged = () => {
     hoodie.store.findAll().then(this.init);
-  }
-
-  public getCategories(): any[] {
-    return this.categories;
   }
 
   private db_updateOrCreateLineItem(id: string, lineItemRepr: any) {
@@ -200,4 +205,9 @@ export class ShoppingListService {
     });
     this.db_updateLineItems(items);
   }
+
+  createCategory(name: string): void {
+    // this.obsCategories
+  }
+
 };

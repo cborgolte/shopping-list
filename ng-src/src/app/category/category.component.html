@@ -1,3 +1,24 @@
-<p>
-  category works!
-</p>
+<div>
+    <md-card>
+        <md-card-content>
+            <md-input-container>
+                <input mdInput (keyup.enter)="onEnter(box)" #box placeholder="add category" value="">
+            </md-input-container>
+        </md-card-content>
+    </md-card>
+    <md-card>
+        <md-card-content>
+            <md-list class="lst-items"><!-- [dragula]='category.name' [dragulaModel]='lineItems[category.name]'--> 
+                <md-list-item *ngFor="let category of getCategories()" layout="row">
+                    <span class="item">{{category.name}}</span>
+                    <div class="button-list" flex>
+                        <button md-icon-button (click)="remove(item)">
+                            <md-icon>delete</md-icon>
+                        </button>
+                    </div>
+                    <md-divider ng-if="!$last"></md-divider>
+                </md-list-item>
+            </md-list>
+        </md-card-content>
+    </md-card>
+</div>

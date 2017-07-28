@@ -24,7 +24,8 @@ export class ShoppingListComponent {
   ) {
     console.log('constructor', this);
     shoppingListService.obsLineItems.subscribe((lineItems) => this.lineItems = lineItems);
-    shoppingListService.obsCategories.subscribe((cat) => this.categories.push(cat));
+    shoppingListService.obsCategories.subscribe((cat) => this.categories = cat);
+    shoppingListService.obsCategories.subscribe((cat) => console.log("xx", cat));
   }
 
   // return line items that were selected for the shopping list

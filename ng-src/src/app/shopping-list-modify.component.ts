@@ -18,7 +18,7 @@ export class ShoppingListModifyComponent {
   constructor(private shoppingListService: ShoppingListService, private dragulaService: DragulaService) { 
     // this.lineItems = shoppingListService.getLineItems();
 
-    shoppingListService.obsCategories.subscribe((cat) => this.categories.push(cat));
+    shoppingListService.obsCategories.subscribe((cat) => this.categories = cat);
     shoppingListService.obsLineItems.subscribe((lineItemMap) => this.lineItems = lineItemMap);
 
     dragulaService.drop.subscribe((value) => {
@@ -29,7 +29,6 @@ export class ShoppingListModifyComponent {
 
   // handle entering a new item
   onEnter(input: any) {
-    console.log(input);
     let value = input.value.trim();
     let amount = parseInt(value.split(' ', 1));
     if (!isNaN(amount)) {
@@ -40,12 +39,7 @@ export class ShoppingListModifyComponent {
       amount = 1;
     }
     let category = input.dataset.category;
-    console.log(category);
     this.shoppingListService.createLineItem(value, amount, true, category);
-    /*
-    this.lineItems[category] = this.lineItems[category] || [];
-    this.lineItems[category].push(li);
-    */
     // clear input
     input.value = "";
   }
