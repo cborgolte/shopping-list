@@ -29,7 +29,11 @@ export class ShoppingListService {
 
     // Load new user's data after a new user signs in
     hoodie.account.on('signin', (accountProperties) => {
-      this.init([]);
+      // HACK: always provide an 'all' category
+      hoodie.store.updateOrAdd('all', { type: 'Category', isDefault: true, name: 'all', visible: true, pos: 1000 });
+
+      // init db
+      this.dbHasChanged();
     });
 
     // Clear data after a user signs out

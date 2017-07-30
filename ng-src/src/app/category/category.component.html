@@ -9,7 +9,7 @@
     <md-card>
         <md-card-content>
             <md-list class="lst-items" [dragula]='"categories"' [dragulaModel]='categories'> 
-                <md-list-item *ngFor="let category of categories; trackBy:trackCagegory" layout="row">
+                <md-list-item *ngFor="let category of categories; trackBy:trackCategory" layout="row">
                     <span [ngClass]="'flex1'" class="item">{{category.name}}</span>
                     <span *ngIf="category.state === 'from_item'">from item</span>
                     <div class="button-list" flex>
