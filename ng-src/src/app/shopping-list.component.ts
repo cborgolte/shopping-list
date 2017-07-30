@@ -22,10 +22,8 @@ export class ShoppingListComponent {
     private route: ActivatedRoute,
     private location: Location
   ) {
-    console.log('constructor', this);
     shoppingListService.obsLineItems.subscribe((lineItems) => this.lineItems = lineItems);
     shoppingListService.obsCategories.subscribe((cat) => this.categories = cat);
-    shoppingListService.obsCategories.subscribe((cat) => console.log("xx", cat));
   }
 
   // return line items that were selected for the shopping list
@@ -36,14 +34,20 @@ export class ShoppingListComponent {
     return [];
   }
 
-  getCategories(): any[] {
-    return this.categories;
+  getVisibleCategories(): any[] {
+    return this.categories
+      .filter(c => c.visible)
+      .filter(c => this.getLineItems(c.name).length > 0);
   }
 
   // track items
-  trackLineItems(index: number, lineItem: LineItem) {
+  trackLineItems(index: number, lineItem: LineItem): string {
     const lineItemRepr = (<any>lineItem);
-    return lineItemRepr.id;
+    return lineItemRepr._id;
+  }
+
+  trackCategory(index: number, category: any): string {
+    return category._id;
   }
 
   // done - clear bought items from list

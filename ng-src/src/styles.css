@@ -10,6 +10,10 @@
     padding-right: 6px;
 }
 
+.flex1 {
+    flex: 1;
+}
+
 .item {
     display: inline-block;
     /* width: 200px;*/

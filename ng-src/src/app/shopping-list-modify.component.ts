@@ -21,10 +21,12 @@ export class ShoppingListModifyComponent {
     shoppingListService.obsCategories.subscribe((cat) => this.categories = cat);
     shoppingListService.obsLineItems.subscribe((lineItemMap) => this.lineItems = lineItemMap);
 
+    /*
     dragulaService.drop.subscribe((value) => {
       console.log("reorder", this.lineItems[value[0]]);
       this.shoppingListService.onReorder(value[0]);
     });
+    */
   }
 
   // handle entering a new item
@@ -68,13 +70,17 @@ export class ShoppingListModifyComponent {
   }
 
   // track items
-  trackLineItems(index: number, lineItem: LineItem) {
+  trackLineItems(index: number, lineItem: LineItem): string {
     const lineItemRepr = (<any>lineItem);
-    return lineItemRepr.id;
+    return lineItemRepr._id;
   }
 
-  getCategories(): any[] {
-    return this.categories;
+  trackCategory(index: number, category: any): string {
+    return category._id;
+  }
+
+  getVisibleCategories(): any[] {
+    return this.categories.filter(c => c.visible);
   }
 
 }

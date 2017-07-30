@@ -1,12 +1,12 @@
 <md-tab-group>
-    <ng-container *ngFor="let category of getCategories()">
-    <md-tab  *ngIf="getLineItems(category.name).length > 0" label="{{category.name}}">
+    <ng-container *ngFor="let category of getVisibleCategories(); trackBy:trackCategory">
+    <md-tab label="{{category.name}}">
         <div>
             <md-card>
                 <md-card-content>
                     <md-list class="lst-items">
                         <md-list-item *ngFor="let item of getLineItems(category.name); trackBy: trackLineItems" layout="row">
-                            <md-checkbox [(ngModel)]="item.bought" (click)="shoppingListService.updateLineItem(item)">
+                            <md-checkbox [ngClass]="'flex1'" [(ngModel)]="item.bought" (click)="shoppingListService.updateLineItem(item)">
                                 <span class="qty">{{item.qty}}</span>
                                 <span class="item">{{item.name}}</span>
                             </md-checkbox>

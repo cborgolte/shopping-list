@@ -1,5 +1,5 @@
 <md-tab-group>
-    <md-tab *ngFor="let category of getCategories()" label="{{category.name}}">
+    <md-tab *ngFor="let category of getVisibleCategories(); trackBy:trackCategory" label="{{category.name}}">
         <div>
             <md-card>
                 <md-card-content>
@@ -12,8 +12,8 @@
             <md-card>
                 <md-card-content>
                     <md-list class="lst-items"><!-- [dragula]='category.name' [dragulaModel]='lineItems[category.name]'--> 
-                        <md-list-item *ngFor="let item of lineItems[category.name]" layout="row">
-                            <md-checkbox [(ngModel)]="item.selected" (click)="shoppingListService.updateLineItem(item)">
+                        <md-list-item *ngFor="let item of lineItems[category.name]; trackBy:trackLineItems" layout="row">
+                            <md-checkbox [ngClass]="'flex1'" [(ngModel)]="item.selected" (click)="shoppingListService.updateLineItem(item)">
                                 <span class="qty">{{item.qty}}</span>
                                 <span class="item">{{item.name}}</span>
                             </md-checkbox>
