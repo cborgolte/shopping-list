@@ -1,11 +1,11 @@
 import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs/Subject';
 import * as  Hoodie from '@hoodie/client';
-// import * as PouchDB from 'pouchdb';
+import * as PouchDB from 'pouchdb-browser';
 
 const hoodie = new Hoodie({
   url: window.location.origin,
-  PouchDB: require('pouchdb-browser').default
+  PouchDB: PouchDB
 })
 
 @Injectable()

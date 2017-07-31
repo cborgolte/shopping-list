@@ -1,5 +1,6 @@
 import {Injectable} from '@angular/core';
 import * as  Hoodie from '@hoodie/client';
+import * as  PouchDB from 'pouchdb-browser';
 
 import { LineItem } from './line-item';
 import { Observable } from 'rxjs';
@@ -11,7 +12,7 @@ import 'rxjs/add/operator/distinctUntilChanged';
 
 const hoodie = new Hoodie({
   url: window.location.origin,
-  PouchDB: require('pouchdb-browser').default
+  PouchDB: PouchDB
 })
 
 
