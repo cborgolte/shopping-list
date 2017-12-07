@@ -1,37 +1,37 @@
 <div>
-    <md-card>
-        <md-card-content>
-            <md-input-container>
+    <mat-card>
+        <mat-card-content>
+            <mat-input-container>
                 <input mdInput (keyup.enter)="onEnter(box)" #box placeholder="add category" value="">
-            </md-input-container>
-        </md-card-content>
-    </md-card>
-    <md-card>
-        <md-card-content>
-            <md-list class="lst-items" [dragula]='"categories"' [dragulaModel]='categories'> 
-                <md-list-item *ngFor="let category of categories; trackBy:trackCategory" layout="row">
+            </mat-input-container>
+        </mat-card-content>
+    </mat-card>
+    <mat-card>
+        <mat-card-content>
+            <mat-list class="lst-items" [dragula]='"categories"' [dragulaModel]='categories'> 
+                <mat-list-item *ngFor="let category of categories; trackBy:trackCategory" layout="row">
                     <span [ngClass]="'flex1'" class="item">{{category.name}}</span>
                     <span *ngIf="category.state === 'from_item'">from item</span>
                     <div class="button-list" flex>
-                        <button *ngIf="category.__state === 'from_item'" md-icon-button (click)="save(category.name)"
+                        <button *ngIf="category.__state === 'from_item'" mat-icon-button (click)="save(category.name)"
                         title="This category is not saved yet. Instead it is given by at least one line item in your list.">
-                            <md-icon>save</md-icon>
+                            <mat-icon>save</mat-icon>
                         </button>
-                        <button *ngIf="category.__state !== 'from_item' && !category.isDefault" md-icon-button (click)="remove(category._id)">
-                            <md-icon>delete</md-icon>
+                        <button *ngIf="category.__state !== 'from_item' && !category.isDefault" mat-icon-button (click)="remove(category._id)">
+                            <mat-icon>delete</mat-icon>
                         </button>
-                        <button *ngIf="!category.visible" md-icon-button (click)="visible(category._id, true)"
+                        <button *ngIf="!category.visible" mat-icon-button (click)="visible(category._id, true)"
                         title="Show this category in shopping list.">
-                            <md-icon>visibility</md-icon>
+                            <mat-icon>visibility</mat-icon>
                         </button>
-                        <button *ngIf="category.visible" md-icon-button (click)="visible(category._id, false)"
+                        <button *ngIf="category.visible" mat-icon-button (click)="visible(category._id, false)"
                         title="Don't show this category in shopping list.">
-                            <md-icon>visibility_off</md-icon>
+                            <mat-icon>visibility_off</mat-icon>
                         </button>
                     </div>
-                    <md-divider ng-if="!$last"></md-divider>
-                </md-list-item>
-            </md-list>
-        </md-card-content>
-    </md-card>
+                    <mat-divider ng-if="!$last"></mat-divider>
+                </mat-list-item>
+            </mat-list>
+        </mat-card-content>
+    </mat-card>
 </div>

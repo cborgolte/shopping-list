@@ -1,20 +1,20 @@
-<md-toolbar>
+<mat-toolbar>
     <nav>
         <a routerLink="/modify" routerLinkActive="active">
-            <md-icon>mode edit</md-icon></a>
+            <mat-icon>mode edit</mat-icon></a>
         <a routerLink="/shop" routerLinkActive="active">
-            <md-icon>store</md-icon></a>
+            <mat-icon>store</mat-icon></a>
         <a routerLink="/categories" routerLinkActive="active">
-            <md-icon>category</md-icon></a>
+            <mat-icon>category</mat-icon></a>
     </nav>
     <span class="spacer"></span>
     <span class="user">Hi <strong>{{username() || "-"}}</strong>&nbsp;|&nbsp;</span>
     <nav>
         <a *ngIf="!loggedIn()" routerLink="/sign-in" routerLinkActive="active">Sign in</a>
-        <button title="sign out" md-icon-button *ngIf="loggedIn()" (click)="accountService.signOut()"><md-icon>lock-open</md-icon></button>
+        <button title="sign out" mat-icon-button *ngIf="loggedIn()" (click)="accountService.signOut()"><mat-icon>lock-open</mat-icon></button>
         <a *ngIf="!loggedIn()" routerLink="/sign-up" routerLinkActive="active">Sign up</a>
     </nav>
-</md-toolbar>
+</mat-toolbar>
 <div class="app-content">
     <router-outlet></router-outlet>
 </div>

@@ -1,12 +1,12 @@
-<md-card>
-    <md-card-title>Sign up</md-card-title>
-    <md-card-content>
-        <md-input-container>
+<mat-card>
+    <mat-card-title>Sign up</mat-card-title>
+    <mat-card-content>
+        <mat-input-container>
             <input mdInput [(ngModel)]="account.username" placeholder="username" value="">
-        </md-input-container>
-        <md-input-container>
+        </mat-input-container>
+        <mat-input-container>
             <input mdInput [(ngModel)]="account.password" type="password" placeholder="password" value="">
-        </md-input-container>
-        <button (click)="signUp()" md-button>Submit</button>
-    </md-card-content>
-</md-card>
+        </mat-input-container>
+        <button (click)="signUp()" mat-button>Submit</button>
+    </mat-card-content>
+</mat-card>
