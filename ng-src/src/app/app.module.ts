@@ -72,9 +72,14 @@ import { CategoryComponent } from './category/category.component';
     // material
     MatCardModule,
     MatIconModule,
+    MatInputModule,
     MatListModule,
     MatTableModule,
     MatTabsModule,
+    MatToolbarModule,
+    MatCheckboxModule,
+    MatButtonModule,
+    MatButtonToggleModule,
   ],
   providers: [DragulaService, ShoppingListService, AccountService],
   bootstrap: [AppComponent]
