@@ -34,10 +34,9 @@ export class ShoppingListModifyComponent {
     let value = input.value.trim();
     let amount = parseInt(value.split(' ', 1));
     if (!isNaN(amount)) {
-      let valueSplitted = value.split(' ');
+      const valueSplitted = value.split(' ');
       value = valueSplitted.slice(1).join(' ');
-    }
-    else {
+    } else {
       amount = 1;
     }
     let category = input.dataset.category;
