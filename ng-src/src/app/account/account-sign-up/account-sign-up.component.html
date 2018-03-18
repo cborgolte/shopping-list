@@ -2,10 +2,10 @@
     <mat-card-title>Sign up</mat-card-title>
     <mat-card-content>
         <mat-input-container>
-            <input mdInput [(ngModel)]="account.username" placeholder="username" value="">
+            <input matInput [(ngModel)]="account.username" placeholder="username" value="">
         </mat-input-container>
         <mat-input-container>
-            <input mdInput [(ngModel)]="account.password" type="password" placeholder="password" value="">
+            <input matInput [(ngModel)]="account.password" type="password" placeholder="password" value="">
         </mat-input-container>
         <button (click)="signUp()" mat-button>Submit</button>
     </mat-card-content>
