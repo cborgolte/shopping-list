@@ -29,7 +29,19 @@ export class ShoppingListComponent {
   // return line items that were selected for the shopping list
   getLineItems = (category: string) =>  {
     if (this.lineItems && this.lineItems[category]) {
-      return this.lineItems[category].filter((item: LineItem) => item.selected);
+      const items = this.lineItems[category].filter((item: LineItem) => item.selected);
+      items.sort((lhs: LineItem, rhs: LineItem) => {
+        let catRhs = rhs.categories.find((cat) => cat !== "all");
+        let catLhs = lhs.categories.find((cat) => cat !== "all");
+        if (catLhs > catRhs) {
+          return 1;
+        }
+        if (catLhs < catRhs) {
+          return -1;
+        }
+        return 0;
+      });
+      return items;
     }
     return [];
   }
