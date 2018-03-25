@@ -31,8 +31,8 @@ export class ShoppingListComponent {
     if (this.lineItems && this.lineItems[category]) {
       const items = this.lineItems[category].filter((item: LineItem) => item.selected);
       items.sort((lhs: LineItem, rhs: LineItem) => {
-        let catRhs = rhs.categories.find((cat) => cat !== "all");
-        let catLhs = lhs.categories.find((cat) => cat !== "all");
+        const catRhs = rhs.categories.find((cat) => cat !== 'all');
+        const catLhs = lhs.categories.find((cat) => cat !== 'all');
         if (catLhs > catRhs) {
           return 1;
         }
