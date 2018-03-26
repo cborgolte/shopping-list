@@ -1,5 +1,5 @@
 import {Injectable} from '@angular/core';
-import { LineItem } from './line-item';
+import { LineItem, createLineItem } from './line-item';
 import { Observable } from 'rxjs';
 import { Subject } from 'rxjs/Subject';
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
@@ -135,11 +135,7 @@ export class ShoppingListService {
 
   createLineItem(name: string, qty: number, selected: boolean, category: string): void {
     const id = name.toLowerCase();
-    const lineItem = new LineItem();
-    lineItem.qty = qty;
-    lineItem.name = name;
-    lineItem.selected = selected;
-    lineItem.categories.push(category);
+    const lineItem = createLineItem(qty, name, selected, [category]);
     this.db_updateOrCreateLineItem(id, lineItem);
   }
 
