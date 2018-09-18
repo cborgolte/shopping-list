@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Subject } from 'rxjs/Subject';
+import { Subject } from 'rxjs';
 
 // HACK: Get a handle to the hoodie client
 const _window: any = (<any>window);

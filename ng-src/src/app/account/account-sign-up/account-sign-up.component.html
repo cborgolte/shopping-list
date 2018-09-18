@@ -1,12 +1,12 @@
 <mat-card>
     <mat-card-title>Sign up</mat-card-title>
     <mat-card-content>
-        <mat-input-container>
+        <mat-form-field>
             <input matInput [(ngModel)]="account.username" placeholder="username" value="">
-        </mat-input-container>
-        <mat-input-container>
+        </mat-form-field>
+        <mat-form-field>
             <input matInput [(ngModel)]="account.password" type="password" placeholder="password" value="">
-        </mat-input-container>
+        </mat-form-field>
         <button (click)="signUp()" mat-button>Submit</button>
     </mat-card-content>
 </mat-card>

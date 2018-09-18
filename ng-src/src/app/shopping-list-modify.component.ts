@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { LineItem } from './line-item';
 import { ShoppingListService } from './shopping-list.service';
 
-import {DragulaService} from 'ng2-dragula/ng2-dragula';
+import { DragulaService } from 'ng2-dragula';
 
 @Component({
   selector: 'shopping-list-modify',
@@ -15,7 +15,7 @@ export class ShoppingListModifyComponent {
   lineItems: Map<string, LineItem[]> = new Map<string, LineItem[]>();
   categories: any[] = [];
 
-  constructor(private shoppingListService: ShoppingListService, private dragulaService: DragulaService) { 
+  constructor(private shoppingListService: ShoppingListService, private dragulaService: DragulaService) {
     // this.lineItems = shoppingListService.getLineItems();
 
     shoppingListService.obsCategories.subscribe((cat) => this.categories = cat);
@@ -53,7 +53,7 @@ export class ShoppingListModifyComponent {
     }
     this.shoppingListService.updateLineItem(item);
   }
-  
+
   // increase item quantity
   increase(item: LineItem) {
     if (item.qty === undefined || item.qty === null) {

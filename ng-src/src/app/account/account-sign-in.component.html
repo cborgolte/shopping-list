@@ -1,12 +1,12 @@
 <mat-card>
     <mat-card-title>Sign in</mat-card-title>
     <mat-card-content>
-        <mat-input-container>
+        <mat-form-field>
             <input mdInput [(ngModel)]="account.username" placeholder="username" value="">
-        </mat-input-container>
-        <mat-input-container>
+        </mat-form-field>
+        <mat-form-field>
             <input mdInput [(ngModel)]="account.password" type="password" placeholder="password" value="">
-        </mat-input-container>
+        </mat-form-field>
         <button (click)="signIn()" mat-button>Submit</button>
     </mat-card-content>
 </mat-card>

@@ -1,11 +1,11 @@
 import {Injectable} from '@angular/core';
 import { LineItem } from './line-item';
 import { Observable } from 'rxjs';
-import { Subject } from 'rxjs/Subject';
-import { BehaviorSubject } from 'rxjs/BehaviorSubject';
-import { AsyncSubject } from 'rxjs/AsyncSubject';
-import { Subscription } from 'rxjs/Subscription';
-import 'rxjs/add/operator/distinctUntilChanged';
+import { Subject } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
+import { AsyncSubject } from 'rxjs';
+import { Subscription } from 'rxjs';
+// import 'rxjs/add/operator/distinctUntilChanged';
 
 
 
@@ -13,7 +13,7 @@ const _window: any = (<any>window);
 const hoodie: any = _window.hoodie;
 
 @Injectable()
-export class ShoppingListService { 
+export class ShoppingListService {
   public obsCategories = new BehaviorSubject<any[]>([]);
   public obsLineItems = new BehaviorSubject<Map<string, LineItem[]>>(new Map<string, LineItem[]>());
 

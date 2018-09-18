@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import {DragulaService} from 'ng2-dragula/ng2-dragula';
+import { DragulaService } from 'ng2-dragula';
 import { ShoppingListService } from '../shopping-list.service';
 
 @Component({
@@ -15,7 +15,7 @@ export class CategoryComponent implements OnInit {
 
   ngOnInit() {
     this.shoppingListService.obsCategories.subscribe((cat) => this.categories = cat);
-    this.dragulaService.drop.subscribe((value) => {
+    this.dragulaService.drop().subscribe((value) => {
       this.categories.forEach((v, i) => this.shoppingListService.updateCategory(v._id, {pos: i}));
     });
   }
