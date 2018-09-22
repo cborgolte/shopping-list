@@ -11,3 +11,11 @@ if (environment.production) {
 
 platformBrowserDynamic().bootstrapModule(AppModule)
   .catch(err => console.log(err));
+
+// unregister former service workers
+navigator.serviceWorker.getRegistrations().then(function (registrations) {
+  for (const registration of registrations) {
+    registration.unregister();
+  }
+}
+);
