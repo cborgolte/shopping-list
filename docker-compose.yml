@@ -22,6 +22,7 @@ services:
             - hoodie_adminPassword=${COUCH_PW}
             - hoodie_dbUrl=http://admin:${COUCH_PW}@couch:5984/
             - hoodie_inMemory=true
+            #- hoodie_public=public/shopping-list
     caddy:
         image: abiosoft/caddy
         restart: always
