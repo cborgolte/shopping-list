@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { Router, ActivatedRoute } from '@angular/router';
+import { Router } from '@angular/router';
 import { AccountService } from '../account.service';
 
 @Component({
@@ -11,8 +11,8 @@ export class AccountSignUpComponent implements OnInit {
 
     // ngModel
     account = {
-        username: "",
-        password: "",
+        username: '',
+        password: '',
     };
 
   constructor(private accountService: AccountService, private router: Router) { }
@@ -25,7 +25,7 @@ export class AccountSignUpComponent implements OnInit {
         .then( () => this.accountService.signIn(this.account.username, this.account.password) )
         .then( () => {
             // TODO: check for redirect URL in query parameters
-            this.router.navigate(["/modify"]);
+            this.router.navigate(['/modify']);
         });
     }
 

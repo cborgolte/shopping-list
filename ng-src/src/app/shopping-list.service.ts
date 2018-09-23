@@ -1,10 +1,6 @@
-import {Injectable} from '@angular/core';
-import { LineItem } from './line-item';
-import { Observable } from 'rxjs';
-import { Subject } from 'rxjs';
+import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
-import { AsyncSubject } from 'rxjs';
-import { Subscription } from 'rxjs';
+import { LineItem } from './line-item';
 // import 'rxjs/add/operator/distinctUntilChanged';
 
 
@@ -43,16 +39,16 @@ export class ShoppingListService {
   }
 
   private init = (items: any[]) => {
-    let lineItems = new Map<string, LineItem[]>();
+    const lineItems = new Map<string, LineItem[]>();
 
     // retrieve all line items
-    let dbItems = items.filter((element, index, array) => {
-      let retval = element.type === 'LineItem';
+    const dbItems = items.filter((element, index, array) => {
+      const retval = element.type === 'LineItem';
       return retval;
     }).sort((lhs, rhs) => lhs.pos - rhs.pos);
 
     // collect all category entries
-    let categories = items.filter((element) => element.type === 'Category')
+    const categories = items.filter((element) => element.type === 'Category')
       .sort((lhs: any, rhs: any) => lhs.pos - rhs.pos);
 
     // collect items per category
@@ -94,7 +90,7 @@ export class ShoppingListService {
   private db_addLineItem(lineItem: LineItem): void {
     const lineItemRepr = (<any>lineItem);
     lineItemRepr.type = 'LineItem';
-    hoodie.store.add(lineItemRepr).then(function(){
+    hoodie.store.add(lineItemRepr).then(function() {
     });
   }
 
@@ -117,24 +113,24 @@ export class ShoppingListService {
   }
 
   onReorder(category: string) {
-    let lineItems: Map<string, LineItem[]> = this.getLineItems();
-    let positions = lineItems[category]
+    const lineItems: Map<string, LineItem[]> = this.getLineItems();
+    const positions = lineItems[category]
       .map((lineItem: LineItem, pos: number, array: LineItem[]) => lineItem.pos)
       .sort();
-    let dbItems = lineItems[category].map((lineItem: LineItem, pos: number, array: LineItem[]) => {
-      let newPos = positions[pos];
+    const dbItems = lineItems[category].map((lineItem: LineItem, pos: number, array: LineItem[]) => {
+      const newPos = positions[pos];
       if (newPos !== lineItem.pos) {
         lineItem.pos = newPos;
         return lineItem;
       }
       return null;
-    }).filter((lineItem: LineItem, pos: number, array: LineItem[]) => {return lineItem != null;});
+    }).filter((lineItem: LineItem, pos: number, array: LineItem[]) => lineItem != null);
     this.db_updateLineItems(dbItems);
   }
 
   private getLineItems(): Map<string, LineItem[]> {
     let lineItems: Map<string, LineItem[]>;
-    this.obsLineItems.subscribe((items)=> lineItems = items);
+    this.obsLineItems.subscribe((items) => lineItems = items);
     return lineItems;
   }
 
@@ -157,7 +153,7 @@ export class ShoppingListService {
   }
 
   resetLineItems(lineItems: LineItem[]) {
-    let items = lineItems.map((item) => {
+    const items = lineItems.map((item) => {
       item.bought = false;
       item.selected = false;
       return item;
@@ -198,4 +194,4 @@ export class ShoppingListService {
       hoodie.store.update(id, category);
     });
   }
-};
+}
