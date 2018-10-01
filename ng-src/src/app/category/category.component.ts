@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { DragulaService } from 'ng2-dragula';
 import { ShoppingListService } from '../shopping-list.service';
@@ -8,7 +8,7 @@ import { ShoppingListService } from '../shopping-list.service';
   templateUrl: './category.component.html',
   styleUrls: ['./category.component.css']
 })
-export class CategoryComponent implements OnInit {
+export class CategoryComponent implements OnInit, OnDestroy {
 
   categories: any[];
   categoryInput = new FormControl('');
@@ -20,11 +20,22 @@ export class CategoryComponent implements OnInit {
   ngOnInit() {
     this.shoppingListService.obsCategories.subscribe((cat) => {
       this.categories = cat;
-      this.changeDetectorRefs.detectChanges();
+      this.detectChanges();
     });
+
     this.dragulaService.drop().subscribe((value) => {
       this.categories.forEach((v, i) => this.shoppingListService.updateCategory(v._id, {pos: i}));
     });
+  }
+
+  ngOnDestroy(): void {
+    this.changeDetectorRefs.detach();
+  }
+
+  private detectChanges(): void {
+    if (!this.changeDetectorRefs['destroyed']) {
+      this.changeDetectorRefs.detectChanges();
+    }
   }
 
   onSubmit() {
@@ -48,5 +59,4 @@ export class CategoryComponent implements OnInit {
   visible(id: string, val: boolean): void {
     this.shoppingListService.updateCategory(id, {visible: val});
   }
-
 }

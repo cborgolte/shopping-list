@@ -1,8 +1,7 @@
-import { Component, ChangeDetectorRef, OnInit } from '@angular/core';
+import { Component, ChangeDetectorRef, OnInit, OnDestroy } from '@angular/core';
 import { LineItem } from './line-item';
 import { ShoppingListService } from './shopping-list.service';
 
-import { DragulaService } from 'ng2-dragula';
 import { FormControl } from '@angular/forms';
 
 @Component({
@@ -11,57 +10,49 @@ import { FormControl } from '@angular/forms';
   styleUrls: ['./shopping-list-modify.component.css'],
   providers: []
 })
-export class ShoppingListModifyComponent implements OnInit {
+export class ShoppingListModifyComponent implements OnInit, OnDestroy {
   title = 'Modify Shopping List';
   lineItems: Map<string, LineItem[]> = new Map<string, LineItem[]>();
   categories: any[] = [];
   itemInput: FormControl = new FormControl('');
 
   constructor(private shoppingListService: ShoppingListService,
-    private changeDetectorRefs: ChangeDetectorRef,
-    private dragulaService: DragulaService) {
-
+    private changeDetectorRefs: ChangeDetectorRef) {
     }
 
   ngOnInit(): void {
-
     this.shoppingListService.obsCategories.subscribe((cat) => {
       this.categories = cat;
-      this.changeDetectorRefs.detectChanges();
+      this.detectChanges();
     });
+
     this.shoppingListService.obsLineItems.subscribe((lineItemMap) => {
        this.lineItems = lineItemMap;
-       this.changeDetectorRefs.detectChanges();
+       this.detectChanges();
     });
   }
 
-  // handle entering a new item
-  onEnter(input: any) {
-    let value = input.value.trim();
-    let amount = parseInt(value.split(' ', 1));
-    if (!isNaN(amount)) {
-      const valueSplitted = value.split(' ');
-      value = valueSplitted.slice(1).join(' ');
-    } else {
-      amount = 1;
+  ngOnDestroy(): void {
+    this.changeDetectorRefs.detach();
+  }
+
+  private detectChanges(): void {
+    if (!this.changeDetectorRefs['destroyed']) {
+      this.changeDetectorRefs.detectChanges();
     }
-    let category = input.dataset.category;
-    this.shoppingListService.createLineItem(value, amount, true, category);
-    // clear input
-    input.value = "";
   }
 
   onSubmit(categoryName: string) {
     let value = this.itemInput.value.trim();
-    let amount = parseInt(value.split(' ', 1), 1);
+    let amount = parseInt(value.split(' ', 1), 10);
     if (!isNaN(amount)) {
       const valueSplitted = value.split(' ');
       value = valueSplitted.slice(1).join(' ');
     } else {
       amount = 1;
     }
-    this.shoppingListService.createLineItem(value, amount, true, categoryName);
     this.itemInput.setValue('');
+    this.shoppingListService.createLineItem(value, amount, true, categoryName);
   }
 
   // decrease item quantity

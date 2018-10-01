@@ -13,7 +13,7 @@
 
             <mat-card>
                 <mat-card-content>
-                    <mat-list class="lst-items"><!-- [dragula]='category.name' [dragulaModel]='lineItems[category.name]'-->
+                    <mat-list class="lst-items">
                         <mat-list-item *ngFor="let item of lineItems[category.name]; trackBy:trackLineItems" layout="row">
                             <mat-checkbox [ngClass]="'flex1'" [(ngModel)]="item.selected" (click)="shoppingListService.updateLineItem(item)">
                                 <span class="qty">{{item.qty}}</span>
@@ -33,8 +33,6 @@
                             <mat-divider ng-if="!$last"></mat-divider>
                         </mat-list-item>
                     </mat-list>
-                    <!-- <pre>{{lineItems|json}}</pre> -->
-
                 </mat-card-content>
             </mat-card>
 
