@@ -3,9 +3,11 @@
         <div>
             <mat-card>
                 <mat-card-content>
-                    <mat-form-field>
-                        <input matInput (keyup.enter)="onEnter(box)" #box placeholder="add item" [attr.data-category]="category.name" value="">
-                    </mat-form-field>
+                    <form (ngSubmit)="onSubmit(category.name)">
+                        <mat-form-field>
+                            <input matInput [formControl]="itemInput" placeholder="add item" value="">
+                        </mat-form-field>
+                    </form>
                 </mat-card-content>
             </mat-card>
 

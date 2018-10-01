@@ -1,8 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectorRef, OnInit } from '@angular/core';
 import { LineItem } from './line-item';
 import { ShoppingListService } from './shopping-list.service';
 
 import { DragulaService } from 'ng2-dragula';
+import { FormControl } from '@angular/forms';
 
 @Component({
   selector: 'shopping-list-modify',
@@ -10,23 +11,28 @@ import { DragulaService } from 'ng2-dragula';
   styleUrls: ['./shopping-list-modify.component.css'],
   providers: []
 })
-export class ShoppingListModifyComponent {
+export class ShoppingListModifyComponent implements OnInit {
   title = 'Modify Shopping List';
   lineItems: Map<string, LineItem[]> = new Map<string, LineItem[]>();
   categories: any[] = [];
+  itemInput: FormControl = new FormControl('');
 
-  constructor(private shoppingListService: ShoppingListService, private dragulaService: DragulaService) {
-    // this.lineItems = shoppingListService.getLineItems();
+  constructor(private shoppingListService: ShoppingListService,
+    private changeDetectorRefs: ChangeDetectorRef,
+    private dragulaService: DragulaService) {
 
-    shoppingListService.obsCategories.subscribe((cat) => this.categories = cat);
-    shoppingListService.obsLineItems.subscribe((lineItemMap) => this.lineItems = lineItemMap);
+    }
 
-    /*
-    dragulaService.drop.subscribe((value) => {
-      console.log("reorder", this.lineItems[value[0]]);
-      this.shoppingListService.onReorder(value[0]);
+  ngOnInit(): void {
+
+    this.shoppingListService.obsCategories.subscribe((cat) => {
+      this.categories = cat;
+      this.changeDetectorRefs.detectChanges();
     });
-    */
+    this.shoppingListService.obsLineItems.subscribe((lineItemMap) => {
+       this.lineItems = lineItemMap;
+       this.changeDetectorRefs.detectChanges();
+    });
   }
 
   // handle entering a new item
@@ -43,6 +49,19 @@ export class ShoppingListModifyComponent {
     this.shoppingListService.createLineItem(value, amount, true, category);
     // clear input
     input.value = "";
+  }
+
+  onSubmit(categoryName: string) {
+    let value = this.itemInput.value.trim();
+    let amount = parseInt(value.split(' ', 1), 1);
+    if (!isNaN(amount)) {
+      const valueSplitted = value.split(' ');
+      value = valueSplitted.slice(1).join(' ');
+    } else {
+      amount = 1;
+    }
+    this.shoppingListService.createLineItem(value, amount, true, categoryName);
+    this.itemInput.setValue('');
   }
 
   // decrease item quantity
