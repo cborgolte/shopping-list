@@ -11,7 +11,8 @@
     <mat-card>
         <mat-card-content>
             <mat-list class="lst-items" [dragula]='"categories"' [dragulaModel]='categories'>
-                <mat-list-item *ngFor="let category of categories; trackBy:trackCategory" [attr.data-category]="category.name" layout="row">
+                <mat-list-item *ngFor="let category of categories; trackBy:trackCategory"
+                [attr.data-category]="category.name" layout="row">
                     <span [ngClass]="'flex1'" class="item">{{category.name}}</span>
                     <span *ngIf="category.state === 'from_item'">from item</span>
                     <div class="button-list" flex>
