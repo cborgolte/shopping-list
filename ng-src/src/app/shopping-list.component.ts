@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, ParamMap } from '@angular/router';
 import { Location } from '@angular/common';
 
@@ -11,7 +11,7 @@ import { ShoppingListService } from './shopping-list.service';
   styleUrls: ['./shopping-list-modify.component.css'],
   providers: []
 })
-export class ShoppingListComponent {
+export class ShoppingListComponent implements OnInit, OnDestroy {
   title = 'Shopping List';
   private lineItems = new Map<string, LineItem[]>();
   private categories: any[] = [];
@@ -19,11 +19,51 @@ export class ShoppingListComponent {
 
   constructor(
     private shoppingListService: ShoppingListService,
+    private changeDetectorRefs: ChangeDetectorRef,
     private route: ActivatedRoute,
     private location: Location
-  ) {
-    shoppingListService.obsLineItems.subscribe((lineItems) => this.lineItems = lineItems);
-    shoppingListService.obsCategories.subscribe((cat) => this.categories = cat);
+  ) { }
+
+  ngOnInit(): void {
+    this.shoppingListService.obsLineItems.subscribe((lineItems) => {
+      this.lineItems = lineItems;
+      console.log('+++kjdljdlkjflkdjf',lineItems);
+      console.log('---kjdljdlkjflkdjf');
+      this.detectChanges();
+    });
+    this.shoppingListService.obsCategories.subscribe((cat) => {
+      this.categories = cat;
+      this.detectChanges();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.changeDetectorRefs.detach();
+  }
+
+  private detectChanges(): void {
+    if (!this.changeDetectorRefs['destroyed']) {
+      this.changeDetectorRefs.detectChanges();
+    }
+  }
+
+  updateLineItem(event, item: LineItem) {
+    const displayLocationInfo = (position) => {
+      item.meta.boughtAt.push({
+        longitude: position.coords.longitude,
+        latitude: position.coords.latitude,
+        speed: position.coords.speed,
+        heading: position.coords.heading,
+        accuracy: position.coords.accuracy,
+        timestamp: new Date(position.timestamp)
+      });
+      this.shoppingListService.updateLineItem(item);
+    };
+    if (item.bought && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(displayLocationInfo);
+    } else {
+      this.shoppingListService.updateLineItem(item);
+    }
   }
 
   // return line items that were selected for the shopping list
@@ -31,8 +71,8 @@ export class ShoppingListComponent {
     if (this.lineItems && this.lineItems[category]) {
       const items = this.lineItems[category].filter((item: LineItem) => item.selected);
       items.sort((lhs: LineItem, rhs: LineItem) => {
-        let catRhs = rhs.categories.find((cat) => cat !== "all");
-        let catLhs = lhs.categories.find((cat) => cat !== "all");
+        const catRhs = rhs.categories.find((cat) => cat !== 'all');
+        const catLhs = lhs.categories.find((cat) => cat !== 'all');
         if (catLhs > catRhs) {
           return 1;
         }
@@ -64,7 +104,7 @@ export class ShoppingListComponent {
 
   // done - clear bought items from list
   done(category: string) {
-    let bought = this.lineItems[category].filter((item: LineItem) => item.bought);
+    const bought = this.lineItems[category].filter((item: LineItem) => item.bought);
     this.shoppingListService.resetLineItems(bought);
   }
 }

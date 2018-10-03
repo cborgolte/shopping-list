@@ -6,4 +6,7 @@ export class LineItem {
   selected: boolean;
   bought: boolean;
   categories: Array<string> = ['all'];
+  meta: {
+    boughtAt: any[];
+  };
 }

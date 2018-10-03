@@ -53,6 +53,8 @@ export class ShoppingListService {
 
     // collect items per category
     dbItems.forEach((val: LineItem) => {
+      val.meta = val.meta || {boughtAt: []};
+      val.meta.boughtAt = val.meta.boughtAt || [];
       if (val.categories) {
         val.categories.forEach((category) => {
           if (!lineItems[category]) {
