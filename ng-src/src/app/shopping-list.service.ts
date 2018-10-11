@@ -114,28 +114,6 @@ export class ShoppingListService {
     hoodie.store.remove({_id: lineItemRepr._id});
   }
 
-  onReorder(category: string) {
-    const lineItems: Map<string, LineItem[]> = this.getLineItems();
-    const positions = lineItems[category]
-      .map((lineItem: LineItem, pos: number, array: LineItem[]) => lineItem.pos)
-      .sort();
-    const dbItems = lineItems[category].map((lineItem: LineItem, pos: number, array: LineItem[]) => {
-      const newPos = positions[pos];
-      if (newPos !== lineItem.pos) {
-        lineItem.pos = newPos;
-        return lineItem;
-      }
-      return null;
-    }).filter((lineItem: LineItem, pos: number, array: LineItem[]) => lineItem != null);
-    this.db_updateLineItems(dbItems);
-  }
-
-  private getLineItems(): Map<string, LineItem[]> {
-    let lineItems: Map<string, LineItem[]>;
-    this.obsLineItems.subscribe((items) => lineItems = items);
-    return lineItems;
-  }
-
   createLineItem(name: string, qty: number, selected: boolean, category: string): void {
     const id = name.toLowerCase();
     const lineItem = new LineItem();
