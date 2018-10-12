@@ -1,19 +1,14 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { LineItem } from './line-item';
-// import 'rxjs/add/operator/distinctUntilChanged';
-
-
-
-const _window: any = (<any>window);
-const hoodie: any = _window.hoodie;
+import { HoodieService } from './common/service/hoodie.service';
 
 @Injectable()
 export class ShoppingListService {
   public obsCategories = new BehaviorSubject<any[]>([]);
   public obsLineItems = new BehaviorSubject<Map<string, LineItem[]>>(new Map<string, LineItem[]>());
 
-  constructor() {
+  constructor(private hoodieService: HoodieService) {
 
     // initalize db
     this.dbHasChanged();
@@ -21,24 +16,23 @@ export class ShoppingListService {
     //// Events
 
     // Handle store changes
-    hoodie.store.on('change', this.dbHasChanged);
+    hoodieService.storeOn('change', () => this.dbHasChanged());
 
     // Load new user's data after a new user signs in
-    hoodie.account.on('signin', (accountProperties) => {
+    hoodieService.accountOn('signin', (accountProperties) => {
       // HACK: always provide an 'all' category
-      hoodie.store.updateOrAdd('all', { type: 'Category', isDefault: true, name: 'all', visible: true, pos: 1000 });
+      hoodieService.storeUpdateOrAdd('all',
+       { type: 'Category', isDefault: true, name: 'all', visible: true, pos: 1000 });
 
       // init db
       this.dbHasChanged();
     });
 
     // Clear data after a user signs out
-    hoodie.account.on('signout', (accountProperties) => {
-      this.init([]);
-    });
+    hoodieService.accountOn('signout', (accountProperties) => this.init([]));
   }
 
-  private init = (items: any[]) => {
+  private init(items: any[]) {
     const lineItems = new Map<string, LineItem[]>();
 
     // retrieve all line items
@@ -73,12 +67,12 @@ export class ShoppingListService {
     this.obsCategories.next(categories);
   }
 
-  private dbHasChanged = () => {
-    hoodie.store.findAll().then(this.init);
+  private dbHasChanged() {
+    this.hoodieService.storeFindAll().then((vals) => this.init(vals));
   }
 
   private db_updateOrCreateLineItem(id: string, lineItemRepr: any) {
-    hoodie.store.find(id).then((lineItem) => {
+    this.hoodieService.storeFind(id).then((lineItem) => {
       lineItemRepr._id = id;
       // merge categories
       lineItemRepr.categories = Array.from(new Set(lineItem.categories.concat(lineItemRepr.categories)));
@@ -92,26 +86,22 @@ export class ShoppingListService {
   private db_addLineItem(lineItem: LineItem): void {
     const lineItemRepr = (<any>lineItem);
     lineItemRepr.type = 'LineItem';
-    hoodie.store.add(lineItemRepr).then(function() {
-    });
+    this.hoodieService.storeAdd(lineItemRepr);
   }
 
   private db_updateLineItem(lineItem: LineItem): void {
     const lineItemRepr = (<any>lineItem);
-    hoodie.store.update(
-      lineItemRepr._id,
-      lineItem
-    );
+    this.hoodieService.storeUpdate(lineItemRepr._id, lineItem);
   }
 
   private db_updateLineItems(lineItems: LineItem[]): void {
     const lineItemsRepr = (<any[]>lineItems);
-    hoodie.store.update(lineItemsRepr);
+    this.hoodieService.storeUpdate(lineItemsRepr);
   }
 
   private db_deleteLineItem(lineItem: LineItem) {
     const lineItemRepr = (<any>lineItem);
-    hoodie.store.remove({_id: lineItemRepr._id});
+    this.hoodieService.storeRemove({_id: lineItemRepr._id});
   }
 
   createLineItem(name: string, qty: number, selected: boolean, category: string): void {
@@ -154,24 +144,25 @@ export class ShoppingListService {
     const id = encodeURIComponent(name.toLowerCase());
     const index = categories.findIndex((val) => val._id === id);
     if (index === -1) {
-      hoodie.store.updateOrAdd(id, { type: 'Category', name: name, pos: categories.length });
+      this.hoodieService.storeUpdateOrAdd(id,
+         { type: 'Category', name: name, pos: categories.length });
     }
   }
 
   removeCategory(id: string): void {
     const cat = this.getCategories().find((val) => val._id === id);
     if (!cat.isDefault) {
-      hoodie.store.remove({ _id: id });
+      this.hoodieService.storeRemove({ _id: id });
     }
   }
 
   updateCategory(id: string, options: any): void {
-    hoodie.store.find(id).then( (category) => {
+    this.hoodieService.storeFind(id).then( (category) => {
       Object.keys(options).forEach( (key) => {
         const value = options[key];
         category[key] = value;
       });
-      hoodie.store.update(id, category);
+      this.hoodieService.storeUpdate(id, category);
     });
   }
 }
