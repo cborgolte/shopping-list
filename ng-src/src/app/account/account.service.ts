@@ -35,7 +35,7 @@ export class AccountService {
         this.obsAccount.next(account);
     }
 
-    public signUp(username: String, password: String): any {
+    public signUp(username: String, password: String): Promise<any> {
 
         const options = { username: username, password: password };
         return this.hoodieService.accountSignUp(options)
@@ -48,7 +48,7 @@ export class AccountService {
             });
     }
 
-    public signIn(username: String, password: String): any {
+    public signIn(username: String, password: String): Promise<any> {
 
         const options = { username: username, password: password };
         return this.hoodieService.accountSignIn(options)
@@ -56,8 +56,8 @@ export class AccountService {
                 this.setUser(sessionProp.username);
             })
             .catch((error) => {
-                this.signOut();
                 alert('log in failed: ' + error);
+                this.signOut();
             });
     }
 
