@@ -40,7 +40,7 @@ export class HoodieService {
   }
 
   storeUpdateOrAdd(id: String, property: Object) {
-    return this.hoodie.updateOrAdd(id, property);
+    return this.hoodie.store.updateOrAdd(id, property);
   }
 
   storeFindAll(): Promise<any> {
