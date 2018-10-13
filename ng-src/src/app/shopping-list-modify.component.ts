@@ -1,4 +1,4 @@
-import { Component, ChangeDetectorRef, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { LineItem } from './line-item';
 import { ShoppingListService } from './shopping-list.service';
 
@@ -16,31 +16,19 @@ export class ShoppingListModifyComponent implements OnInit, OnDestroy {
   categories: any[] = [];
   itemInput: FormControl = new FormControl('');
 
-  constructor(private shoppingListService: ShoppingListService,
-    private changeDetectorRefs: ChangeDetectorRef) {
-    }
+  constructor(private shoppingListService: ShoppingListService) {}
 
   ngOnInit(): void {
     this.shoppingListService.obsCategories.subscribe((cat) => {
       this.categories = cat;
-      this.detectChanges();
     });
 
     this.shoppingListService.obsLineItems.subscribe((lineItemMap) => {
        this.lineItems = lineItemMap;
-       this.detectChanges();
     });
   }
 
-  ngOnDestroy(): void {
-    this.changeDetectorRefs.detach();
-  }
-
-  private detectChanges(): void {
-    if (!this.changeDetectorRefs['destroyed']) {
-      this.changeDetectorRefs.detectChanges();
-    }
-  }
+  ngOnDestroy(): void {}
 
   onSubmit(categoryName: string) {
     let value = this.itemInput.value.trim();

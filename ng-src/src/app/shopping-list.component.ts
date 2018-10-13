@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, ParamMap } from '@angular/router';
 import { Location } from '@angular/common';
 
@@ -19,7 +19,6 @@ export class ShoppingListComponent implements OnInit, OnDestroy {
 
   constructor(
     private shoppingListService: ShoppingListService,
-    private changeDetectorRefs: ChangeDetectorRef,
     private route: ActivatedRoute,
     private location: Location
   ) { }
@@ -27,24 +26,13 @@ export class ShoppingListComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.shoppingListService.obsLineItems.subscribe((lineItems) => {
       this.lineItems = lineItems;
-      console.log('+++kjdljdlkjflkdjf',lineItems);
-      console.log('---kjdljdlkjflkdjf');
-      this.detectChanges();
     });
     this.shoppingListService.obsCategories.subscribe((cat) => {
       this.categories = cat;
-      this.detectChanges();
     });
   }
 
   ngOnDestroy(): void {
-    this.changeDetectorRefs.detach();
-  }
-
-  private detectChanges(): void {
-    if (!this.changeDetectorRefs['destroyed']) {
-      this.changeDetectorRefs.detectChanges();
-    }
   }
 
   updateLineItem(event, item: LineItem) {
