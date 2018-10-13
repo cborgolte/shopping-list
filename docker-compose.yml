@@ -10,8 +10,7 @@ services:
             - COUCHDB_USER=admin
             - COUCHDB_PASSWORD=${COUCH_PW}
         volumes:
-            - ./couch-data/:/opt/couchdb/data/
-            #- ./couch-data:/usr/local/var/lib/couchdb
+            - ~/couch-data/:/opt/couchdb/data/
     hoodie-app:
         image: cborgolte/hoodie
         restart: always
