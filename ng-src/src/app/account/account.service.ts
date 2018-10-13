@@ -1,18 +1,15 @@
 import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs';
-
-// HACK: Get a handle to the hoodie client
-const _window: any = (<any>window);
-const hoodie: any = _window.hoodie;
+import { HoodieService } from '../common/service/hoodie.service';
 
 @Injectable()
 export class AccountService {
 
     public obsAccount = new Subject<any>();
 
-    constructor() {
+    constructor(private hoodieService: HoodieService) {
 
-        hoodie.account.get(['session', 'username'], { local: true })
+        this.hoodieService.accountGet(['session', 'username'], { local: true })
             .then((properties) => {
                 if (properties.session) {
                     this.setUser(properties.username);
@@ -41,7 +38,7 @@ export class AccountService {
     public signUp(username: String, password: String): any {
 
         const options = { username: username, password: password };
-        return hoodie.account.signUp(options)
+        return this.hoodieService.accountSignUp(options)
             .then((sessionProp) => {
                 this.setUser(sessionProp.username);
             })
@@ -54,7 +51,7 @@ export class AccountService {
     public signIn(username: String, password: String): any {
 
         const options = { username: username, password: password };
-        return hoodie.account.signIn(options)
+        return this.hoodieService.accountSignIn(options)
             .then((sessionProp) => {
                 this.setUser(sessionProp.username);
             })
@@ -65,7 +62,7 @@ export class AccountService {
     }
 
     public signOut(): void {
-        hoodie.account.signOut().then(() => {
+        this.hoodieService.accountSignOut().then(() => {
             this.clearUser();
         });
     }

@@ -10,8 +10,32 @@ export class HoodieService {
 
   constructor() { }
 
-  storeOn(eventName: String, callback): any {
-    return this.hoodie.store.on(eventName, callback);
+  // account ...
+
+  accountSignUp(options: { username: String; password: String; }): Promise<any> {
+    return this.hoodie.account.signUp(options);
+  }
+
+  accountSignIn(options: { username: String; password: String; }): Promise<any> {
+    return this.hoodie.account.signIn(options);
+  }
+
+  accountSignOut(): Promise<any> {
+    return this.hoodie.account.signOut();
+  }
+
+  accountOn(eventName: String, handler) {
+    return this.hoodie.account.on(eventName, handler);
+  }
+
+  accountGet(path: String|String[], options: Object): Promise<any> {
+    return this.hoodie.account.get(path, options);
+  }
+
+  // store ...
+
+  storeOn(eventName: String, handler): any {
+    return this.hoodie.store.on(eventName, handler);
   }
 
   storeUpdateOrAdd(id: String, property: Object) {
@@ -28,10 +52,6 @@ export class HoodieService {
 
   storeAdd(doc: Object): Promise<any> {
     return this.hoodie.store.add(doc);
-  }
-
-  accountOn(eventName: String, callback) {
-    return this.hoodie.account.on(eventName, callback);
   }
 
   storeUpdate(id_or_doc: String|Object, doc?: Object): any {
