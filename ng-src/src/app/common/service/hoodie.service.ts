@@ -1,14 +1,15 @@
 import { Injectable } from '@angular/core';
 
+import * as Hoodie from '@hoodie/client';
+import * as PouchDB from 'pouchdb-browser';
+
 
 @Injectable({
   providedIn: 'root'
 })
 export class HoodieService {
-  _window: any = (<any>window);
-  hoodie: any = this._window.hoodie;
 
-  constructor() { }
+  hoodie = new Hoodie({ url: location.origin, PouchDB: PouchDB.default });
 
   // account ...
 
