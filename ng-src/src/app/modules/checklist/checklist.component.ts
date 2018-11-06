@@ -7,11 +7,11 @@ import { ShoppingListService } from '../../shared/service/shopping-list.service'
 
 @Component({
   selector: 'shopping-list',
-  templateUrl: './shopping-list.component.html',
+  templateUrl: './checklist.component.html',
   styleUrls: ['../editor/editor.component.css'],
   providers: []
 })
-export class ShoppingListComponent implements OnInit, OnDestroy {
+export class ChecklistComponent implements OnInit, OnDestroy {
   title = 'Shopping List';
   private lineItems = new Map<string, LineItem[]>();
   private categories: any[] = [];
