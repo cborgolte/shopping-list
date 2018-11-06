@@ -1,11 +1,11 @@
-import { NgModule }             from '@angular/core';
+import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 
-import { ShoppingListModifyComponent }  from './shopping-list-modify.component';
-import { ShoppingListComponent }  from './shopping-list.component';
-import { AccountSignInComponent }  from './account/account-sign-in.component';
-import { AccountSignUpComponent }  from './account/account-sign-up/account-sign-up.component';
-import { CategoryComponent }  from './category/category.component';
+import { ShoppingListModifyComponent } from './modules/editor/shopping-list-modify.component';
+import { ShoppingListComponent } from './modules/checklist/shopping-list.component';
+import { AccountSignInComponent } from './modules/account/account-sign-in.component';
+import { AccountSignUpComponent } from './modules/account/account-sign-up/account-sign-up.component';
+import { CategoryComponent } from './modules/category/category.component';
 
 const routes: Routes = [
   { path: '', redirectTo: '/modify', pathMatch: 'full' },

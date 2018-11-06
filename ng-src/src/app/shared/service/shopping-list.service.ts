@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
-import { LineItem } from './line-item';
-import { HoodieService } from './common/service/hoodie.service';
+import { LineItem } from '../models/line-item';
+import { HoodieService } from '../service/hoodie.service';
 
 @Injectable()
 export class ShoppingListService {

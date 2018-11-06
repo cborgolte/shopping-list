@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs';
-import { HoodieService } from '../common/service/hoodie.service';
+import { HoodieService } from '../../shared/service/hoodie.service';
 
 @Injectable()
 export class AccountService {

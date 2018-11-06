@@ -2,13 +2,13 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, ParamMap } from '@angular/router';
 import { Location } from '@angular/common';
 
-import { LineItem } from './line-item';
-import { ShoppingListService } from './shopping-list.service';
+import { LineItem } from '../../shared/models/line-item';
+import { ShoppingListService } from '../../shared/service/shopping-list.service';
 
 @Component({
   selector: 'shopping-list',
   templateUrl: './shopping-list.component.html',
-  styleUrls: ['./shopping-list-modify.component.css'],
+  styleUrls: ['../editor/shopping-list-modify.component.css'],
   providers: []
 })
 export class ShoppingListComponent implements OnInit, OnDestroy {

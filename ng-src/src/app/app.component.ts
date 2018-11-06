@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
-import { LineItem } from './line-item';
-import { ShoppingListService } from './shopping-list.service';
-import { AccountService } from './account/account.service';
+import { LineItem } from './shared/models/line-item';
+import { ShoppingListService } from './shared/service/shopping-list.service';
+import { AccountService } from './modules/account/account.service';
 import { DragulaService } from 'ng2-dragula';
 
 @Component({

@@ -4,51 +4,30 @@ import { ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 
 import {
-  MatAutocompleteModule,
   MatButtonModule,
   MatButtonToggleModule,
   MatCardModule,
   MatCheckboxModule,
-  MatChipsModule,
-  MatDatepickerModule,
-  MatDialogModule,
-  MatExpansionModule,
-  MatGridListModule,
   MatIconModule,
   MatInputModule,
   MatListModule,
-  MatMenuModule,
-  MatNativeDateModule,
-  MatPaginatorModule,
-  MatProgressBarModule,
-  MatProgressSpinnerModule,
-  MatRadioModule,
-  MatRippleModule,
-  MatSelectModule,
-  MatSidenavModule,
-  MatSliderModule,
-  MatSlideToggleModule,
-  MatSnackBarModule,
-  MatSortModule,
   MatTableModule,
   MatTabsModule,
   MatToolbarModule,
-  MatTooltipModule,
-  MatStepperModule,
 } from '@angular/material';
 
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routing.module';
-import { ShoppingListService } from './shopping-list.service';
-import { AccountService } from './account/account.service';
-import { AccountSignInComponent } from './account/account-sign-in.component';
-import { ShoppingListComponent } from './shopping-list.component';
-import { ShoppingListModifyComponent } from './shopping-list-modify.component';
+import { ShoppingListService } from './shared/service/shopping-list.service';
+import { AccountService } from './modules/account/account.service';
+import { AccountSignInComponent } from './modules/account/account-sign-in.component';
+import { ShoppingListComponent } from './modules/checklist/shopping-list.component';
+import { ShoppingListModifyComponent } from './modules/editor/shopping-list-modify.component';
 import { DragulaModule, DragulaService  } from 'ng2-dragula';
-import { AccountSignUpComponent } from './account/account-sign-up/account-sign-up.component';
-import { CategoryComponent } from './category/category.component';
+import { AccountSignUpComponent } from './modules/account/account-sign-up/account-sign-up.component';
+import { CategoryComponent } from './modules/category/category.component';
 
 
 @NgModule({

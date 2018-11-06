@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { LineItem } from './line-item';
-import { ShoppingListService } from './shopping-list.service';
+import { LineItem } from '../../shared/models/line-item';
+import { ShoppingListService } from '../../shared/service/shopping-list.service';
 
 import { FormControl } from '@angular/forms';
 

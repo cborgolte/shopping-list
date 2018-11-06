@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { DragulaService } from 'ng2-dragula';
-import { ShoppingListService } from '../shopping-list.service';
+import { ShoppingListService } from '../../shared/service/shopping-list.service';
 
 @Component({
   selector: 'app-category',

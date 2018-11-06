@@ -12,8 +12,8 @@ export class AccountSignInComponent {
 
     // ngModel
     account = {
-        username: "",
-        password: "",
+        username: '',
+        password: '',
     };
 
     constructor(
@@ -26,7 +26,7 @@ export class AccountSignInComponent {
         this.accountService.signIn(this.account.username, this.account.password)
         .then( () => {
             // TODO: check for redirect URL in query parameters
-            this.router.navigate(["/modify"]);
+            this.router.navigate(['/modify']);
         });
     }
 }
