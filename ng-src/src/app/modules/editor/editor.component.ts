@@ -6,11 +6,11 @@ import { FormControl } from '@angular/forms';
 
 @Component({
   selector: 'shopping-list-modify',
-  templateUrl: './shopping-list-modify.component.html',
-  styleUrls: ['./shopping-list-modify.component.css'],
+  templateUrl: './editor.component.html',
+  styleUrls: ['./editor.component.css'],
   providers: []
 })
-export class ShoppingListModifyComponent implements OnInit, OnDestroy {
+export class EditorComponent implements OnInit, OnDestroy {
   title = 'Modify Shopping List';
   lineItems: Map<string, LineItem[]> = new Map<string, LineItem[]>();
   categories: any[] = [];

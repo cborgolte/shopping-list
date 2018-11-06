@@ -24,7 +24,7 @@ import { ShoppingListService } from './shared/service/shopping-list.service';
 import { AccountService } from './modules/account/account.service';
 import { AccountSignInComponent } from './modules/account/account-sign-in.component';
 import { ShoppingListComponent } from './modules/checklist/shopping-list.component';
-import { ShoppingListModifyComponent } from './modules/editor/shopping-list-modify.component';
+import { EditorComponent } from './modules/editor/editor.component';
 import { DragulaModule, DragulaService  } from 'ng2-dragula';
 import { AccountSignUpComponent } from './modules/account/account-sign-up/account-sign-up.component';
 import { CategoryComponent } from './modules/category/category.component';
@@ -33,8 +33,8 @@ import { CategoryComponent } from './modules/category/category.component';
 @NgModule({
   declarations: [
     AppComponent,
-    ShoppingListModifyComponent,
     ShoppingListComponent,
+    EditorComponent,
     AccountSignInComponent,
     AccountSignUpComponent,
     CategoryComponent

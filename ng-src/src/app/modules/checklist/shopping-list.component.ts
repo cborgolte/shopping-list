@@ -8,7 +8,7 @@ import { ShoppingListService } from '../../shared/service/shopping-list.service'
 @Component({
   selector: 'shopping-list',
   templateUrl: './shopping-list.component.html',
-  styleUrls: ['../editor/shopping-list-modify.component.css'],
+  styleUrls: ['../editor/editor.component.css'],
   providers: []
 })
 export class ShoppingListComponent implements OnInit, OnDestroy {
