@@ -1,25 +1,22 @@
 <mat-tab-group>
     <ng-container *ngFor="let category of getVisibleCategories(); trackBy:trackCategory">
-    <mat-tab label="{{category.name}}">
-        <div>
+        <mat-tab label="{{category.name}}">
             <mat-card>
                 <mat-card-content>
-                    <mat-list class="lst-items">
-                        <mat-list-item *ngFor="let item of getLineItems(category.name); trackBy: trackLineItems" layout="row">
-                            <mat-checkbox [ngClass]="'flex1'" [(ngModel)]="item.bought"
-                            (ngModelChange)="updateLineItem($event, item)">
+                    <mat-list>
+                        <mat-list-item *ngFor="let item of getLineItems(category.name); trackBy: trackLineItems" class="checklist-item"
+                            layout="row">
+                            <mat-checkbox [ngClass]="'flex1'" [(ngModel)]="item.bought" (ngModelChange)="updateLineItem($event, item)">
                                 <span class="qty">{{item.qty}}</span>
                                 <span class="item">{{item.name}}</span>
                             </mat-checkbox>
-                            <mat-divider ng-if="!$last"></mat-divider>
                         </mat-list-item>
                     </mat-list>
                 </mat-card-content>
             </mat-card>
-        </div>
-        <section>
-            <button (click)="done(category.name)" mat-button>done</button>
-        </section>
-    </mat-tab>
+            <section>
+                <button (click)="done(category.name)" mat-button>done</button>
+            </section>
+        </mat-tab>
     </ng-container>
 </mat-tab-group>

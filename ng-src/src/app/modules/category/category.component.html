@@ -12,6 +12,7 @@
         <mat-card-content>
             <mat-list class="lst-items" [dragula]='"categories"' [dragulaModel]='categories'>
                 <mat-list-item *ngFor="let category of categories; trackBy:trackCategory"
+                class="category-item"
                 [attr.data-category]="category.name" layout="row">
                     <span [ngClass]="'flex1'" class="item">{{category.name}}</span>
                     <span *ngIf="category.state === 'from_item'">from item</span>
@@ -32,7 +33,6 @@
                             <mat-icon>visibility_off</mat-icon>
                         </button>
                     </div>
-                    <mat-divider ng-if="!$last"></mat-divider>
                 </mat-list-item>
             </mat-list>
         </mat-card-content>
