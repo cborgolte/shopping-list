@@ -36,7 +36,7 @@
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "~0.7.0",
-    "@angular/cli": "~6.1.5",
+    "@angular/cli": "~7.1.4",
     "@angular/compiler-cli": "^7.0.0",
     "@angular/language-service": "^7.0.0",
     "@types/hammerjs": "^2.0.36",
@@ -54,6 +54,6 @@
     "protractor": "~5.4.0",
     "ts-node": "~5.0.1",
     "tslint": "~5.9.1",
-    "typescript": "^3.1.6"
+    "typescript": "~3.2.2"
   }
 }
