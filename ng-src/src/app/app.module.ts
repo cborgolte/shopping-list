@@ -28,6 +28,7 @@ import { ChecklistComponent } from './modules/checklist/checklist.component';
 import { DragulaModule, DragulaService  } from 'ng2-dragula';
 import { AccountSignUpComponent } from './modules/account/account-sign-up/account-sign-up.component';
 import { CategoryComponent } from './modules/category/category.component';
+import { CategoryItemComponent } from './modules/category/category-item/category-item.component';
 
 
 @NgModule({
@@ -37,7 +38,8 @@ import { CategoryComponent } from './modules/category/category.component';
     ChecklistComponent,
     AccountSignInComponent,
     AccountSignUpComponent,
-    CategoryComponent
+    CategoryComponent,
+    CategoryItemComponent
   ],
   imports: [
     BrowserModule,
