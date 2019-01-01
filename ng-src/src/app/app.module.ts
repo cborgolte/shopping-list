@@ -2,6 +2,7 @@ import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 import { ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
+import { DragDropModule } from '@angular/cdk/drag-drop';
 
 import {
   MatButtonModule,
@@ -25,7 +26,6 @@ import { AccountService } from './modules/account/account.service';
 import { AccountSignInComponent } from './modules/account/account-sign-in.component';
 import { EditorComponent } from './modules/editor/editor.component';
 import { ChecklistComponent } from './modules/checklist/checklist.component';
-import { DragulaModule, DragulaService  } from 'ng2-dragula';
 import { AccountSignUpComponent } from './modules/account/account-sign-up/account-sign-up.component';
 import { CategoryComponent } from './modules/category/category.component';
 import { CategoryItemComponent } from './modules/category/category-item/category-item.component';
@@ -42,13 +42,13 @@ import { CategoryItemComponent } from './modules/category/category-item/category
     CategoryItemComponent
   ],
   imports: [
+    DragDropModule,
     BrowserModule,
     FormsModule,
     ReactiveFormsModule,
     HttpClientModule,
     BrowserAnimationsModule,
     AppRoutingModule,
-    DragulaModule.forRoot(),
     // material
     MatCardModule,
     MatIconModule,
@@ -61,7 +61,7 @@ import { CategoryItemComponent } from './modules/category/category-item/category
     MatButtonModule,
     MatButtonToggleModule,
   ],
-  providers: [DragulaService, ShoppingListService, AccountService],
+  providers: [ShoppingListService, AccountService],
   bootstrap: [AppComponent]
 })
 export class AppModule { }
