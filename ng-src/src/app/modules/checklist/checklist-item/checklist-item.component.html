@@ -1,0 +1,6 @@
+<mat-list-item class="checklist-item" layout="row">
+  <mat-checkbox [ngClass]="'flex1'" [(ngModel)]="item.bought" (ngModelChange)="updateLineItem($event, item)">
+    <span class="qty">{{item.qty}}</span>
+    <span class="item">{{item.name}}</span>
+  </mat-checkbox>
+</mat-list-item>

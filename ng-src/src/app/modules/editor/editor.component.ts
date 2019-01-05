@@ -5,7 +5,7 @@ import { ShoppingListService } from '../../shared/service/shopping-list.service'
 import { FormControl } from '@angular/forms';
 
 @Component({
-  selector: 'shopping-list-modify',
+  selector: 'app-editor-modify',
   templateUrl: './editor.component.html',
   styleUrls: ['./editor.component.css'],
   providers: []

@@ -29,6 +29,7 @@ import { ChecklistComponent } from './modules/checklist/checklist.component';
 import { AccountSignUpComponent } from './modules/account/account-sign-up/account-sign-up.component';
 import { CategoryComponent } from './modules/category/category.component';
 import { CategoryItemComponent } from './modules/category/category-item/category-item.component';
+import { ChecklistItemComponent } from './modules/checklist/checklist-item/checklist-item.component';
 
 
 @NgModule({
@@ -39,7 +40,8 @@ import { CategoryItemComponent } from './modules/category/category-item/category
     AccountSignInComponent,
     AccountSignUpComponent,
     CategoryComponent,
-    CategoryItemComponent
+    CategoryItemComponent,
+    ChecklistItemComponent
   ],
   imports: [
     DragDropModule,

@@ -6,7 +6,7 @@ import { LineItem } from '../../shared/models/line-item';
 import { ShoppingListService } from '../../shared/service/shopping-list.service';
 
 @Component({
-  selector: 'shopping-list',
+  selector: 'app-checklist-list',
   templateUrl: './checklist.component.html',
   styleUrls: ['./checklist.component.css'],
   providers: []
@@ -33,25 +33,6 @@ export class ChecklistComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-  }
-
-  updateLineItem(event, item: LineItem) {
-    const displayLocationInfo = (position) => {
-      item.meta.boughtAt.push({
-        longitude: position.coords.longitude,
-        latitude: position.coords.latitude,
-        speed: position.coords.speed,
-        heading: position.coords.heading,
-        accuracy: position.coords.accuracy,
-        timestamp: new Date(position.timestamp)
-      });
-      this.shoppingListService.updateLineItem(item);
-    };
-    if (item.bought && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(displayLocationInfo);
-    } else {
-      this.shoppingListService.updateLineItem(item);
-    }
   }
 
   // return line items that were selected for the shopping list

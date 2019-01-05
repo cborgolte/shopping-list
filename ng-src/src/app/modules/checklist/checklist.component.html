@@ -4,13 +4,9 @@
             <mat-card>
                 <mat-card-content>
                     <mat-list>
-                        <mat-list-item *ngFor="let item of getLineItems(category.name); trackBy: trackLineItems" class="checklist-item"
-                            layout="row">
-                            <mat-checkbox [ngClass]="'flex1'" [(ngModel)]="item.bought" (ngModelChange)="updateLineItem($event, item)">
-                                <span class="qty">{{item.qty}}</span>
-                                <span class="item">{{item.name}}</span>
-                            </mat-checkbox>
-                        </mat-list-item>
+                        <app-checklist-item *ngFor="let item of getLineItems(category.name); trackBy: trackLineItems"
+                            [item]="item">
+                        </app-checklist-item>
                     </mat-list>
                 </mat-card-content>
             </mat-card>
