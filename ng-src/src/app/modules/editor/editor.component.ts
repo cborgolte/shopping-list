@@ -43,29 +43,6 @@ export class EditorComponent implements OnInit, OnDestroy {
     this.shoppingListService.createLineItem(value, amount, true, categoryName);
   }
 
-  // decrease item quantity
-  decrease(item: LineItem) {
-    const minValue = 1;
-    if (item.qty > minValue) {
-      item.qty -= 1;
-    }
-    this.shoppingListService.updateLineItem(item);
-  }
-
-  // increase item quantity
-  increase(item: LineItem) {
-    if (item.qty === undefined || item.qty === null) {
-      item.qty = 0;
-    }
-    item.qty += 1;
-    this.shoppingListService.updateLineItem(item);
-  }
-
-  // remove item from list
-  remove(item: LineItem) {
-    this.shoppingListService.removeItem(item);
-  }
-
   // track items
   trackLineItems(index: number, lineItem: LineItem): string {
     const lineItemRepr = (<any>lineItem);

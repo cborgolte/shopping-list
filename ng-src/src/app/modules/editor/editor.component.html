@@ -10,27 +10,10 @@
                     </form>
                 </mat-card-content>
             </mat-card>
-
             <mat-card>
                 <mat-card-content>
                     <mat-list>
-                        <mat-list-item class="editor-item" *ngFor="let item of lineItems[category.name]; trackBy:trackLineItems" layout="row">
-                            <mat-checkbox [ngClass]="'flex1'" [(ngModel)]="item.selected" (click)="shoppingListService.updateLineItem(item)">
-                                <span class="qty">{{item.qty}}</span>
-                                <span class="item">{{item.name}}</span>
-                            </mat-checkbox>
-                            <div class="button-list" flex>
-                                <button mat-icon-button (click)="decrease(item)">
-                                    <mat-icon>remove</mat-icon>
-                                </button>
-                                <button mat-icon-button (click)="increase(item)">
-                                    <mat-icon>add</mat-icon>
-                                </button>
-                                <button mat-icon-button (click)="remove(item)">
-                                    <mat-icon>delete</mat-icon>
-                                </button>
-                            </div>
-                        </mat-list-item>
+                        <app-editor-item *ngFor="let item of lineItems[category.name]; trackBy:trackLineItems" [item]="item"></app-editor-item>
                     </mat-list>
                 </mat-card-content>
             </mat-card>
