@@ -39,4 +39,8 @@ export class EditorItemComponent implements OnInit {
     this.shoppingListService.removeItem(item);
   }
 
+  updateLineItem(item: LineItem) {
+    this.shoppingListService.updateLineItem(item);
+  }
+
 }
