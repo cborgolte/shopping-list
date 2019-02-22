@@ -1,7 +1,9 @@
 import { Injectable } from '@angular/core';
 
+/*
 import * as Hoodie from '@hoodie/client';
 import * as PouchDB from 'pouchdb-browser';
+*/
 
 
 @Injectable({
@@ -9,7 +11,30 @@ import * as PouchDB from 'pouchdb-browser';
 })
 export class HoodieService {
 
-  hoodie = new Hoodie({ url: location.origin, PouchDB: PouchDB.default });
+  hoodie: any;
+  constructor() {
+
+    // HACK: Get a handle to the hoodie client
+    const _window: any = (<any>window);
+    const hoodie: any = _window.hoodie;
+    // this.hoodie = new Hoodie({ url: location.origin, PouchDB: PouchDB.default });
+    this.hoodie = hoodie;
+
+    /*
+    const credentials = {username: 'user', password: 'passw'};
+    this.hoodie.account.signUp(credentials)
+    .finally(() => this.hoodie.account.signIn(credentials)
+      .then((val) => {
+        console.log('signed in as ', val);
+        this.hoodie.store.add({xx: 10, yy: new Date()});
+
+      })
+      .catch((error) => console.log('error: ', error)));
+
+    this.hoodie.store.on('change', () => this.hoodie.store.findAll()
+      .then((items) => console.log('items: ', items)));
+    */
+  }
 
   // account ...
 
