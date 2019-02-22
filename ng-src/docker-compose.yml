@@ -1,0 +1,29 @@
+version: "3.3"
+
+services:
+    couch:
+        image: couchdb
+        restart: always
+        ports:
+            - "25984:5984"
+        environment:
+            - COUCHDB_USER=admin
+            - COUCHDB_PASSWORD=${COUCH_PW}
+        volumes:
+            - couch-data:/opt/couchdb/data/
+    hoodie:
+        image: cborgolte/hoodie
+        restart: always
+        ports:
+            - "8080:8080"
+        depends_on:
+            - couch
+        environment:
+            - hoodie_adminPassword=${COUCH_PW}
+            - hoodie_dbUrl=http://admin:${COUCH_PW}@couch:5984/
+            - hoodie_inMemory=true
+            - hoodie_public=/app/public
+        volumes:
+            - $PWD/dist/shopping-list:/app/public
+volumes:
+    couch-data:
