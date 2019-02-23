@@ -1,23 +1,22 @@
-<mat-tab-group>
-    <mat-tab *ngFor="let category of getVisibleCategories(); trackBy:trackCategory" label="{{category.name}}">
-        <div>
-            <mat-card>
-                <mat-card-content>
-                    <form (ngSubmit)="onSubmit(category.name)">
-                        <mat-form-field>
-                            <input matInput [formControl]="itemInput" placeholder="add item" value="">
-                        </mat-form-field>
-                    </form>
-                </mat-card-content>
-            </mat-card>
-            <mat-card>
-                <mat-card-content>
-                    <mat-list>
-                        <app-editor-item *ngFor="let item of lineItems[category.name]; trackBy:trackLineItems" [item]="item"></app-editor-item>
-                    </mat-list>
-                </mat-card-content>
-            </mat-card>
+<div class="grid">
+<mat-card class="container" [class.mat-elevation-z4]=true
+    *ngFor="let category of getVisibleCategories(); trackBy:trackCategory">
 
-        </div>
-    </mat-tab>
-</mat-tab-group>
+    <mat-card-header>
+        <mat-card-title>{{category.name}}</mat-card-title>
+        <mat-card-subtitle>
+            <form (ngSubmit)="onSubmit(category.name)">
+                <mat-form-field>
+                    <input matInput [formControl]="itemInput" placeholder="add item" value="">
+                </mat-form-field>
+            </form>
+        </mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+        <mat-list>
+            <app-editor-item *ngFor="let item of lineItems[category.name]; trackBy:trackLineItems" [item]="item">
+            </app-editor-item>
+        </mat-list>
+    </mat-card-content>
+</mat-card>
+</div>
