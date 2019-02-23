@@ -54,7 +54,7 @@ export class EditorComponent implements OnInit, OnDestroy {
   }
 
   getVisibleCategories(): any[] {
-    return this.categories.filter(c => c.visible);
+    return this.categories.filter(c => c.name !== 'all' && c.visible);
   }
 
 }
