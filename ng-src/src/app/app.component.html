@@ -1,21 +1,36 @@
-<mat-toolbar>
-    <nav>
-        <a routerLink="/modify" routerLinkActive="active">
-            <mat-icon>mode edit</mat-icon></a>
-        <a routerLink="/shop" routerLinkActive="active">
-            <mat-icon>store</mat-icon></a>
-        <a routerLink="/categories" routerLinkActive="active">
-            <mat-icon>category</mat-icon></a>
-    </nav>
-    <span class="spacer"></span>
-    <span class="user">Hi <strong>{{username() || "-"}}</strong>&nbsp;|&nbsp;</span>
-    <nav>
-        <a *ngIf="!loggedIn()" routerLink="/sign-in" routerLinkActive="active">Sign in</a>
-        <button title="sign out" mat-icon-button *ngIf="loggedIn()" (click)="accountService.signOut()"><mat-icon>lock-open</mat-icon></button>
-        <a *ngIf="!loggedIn()" routerLink="/sign-up" routerLinkActive="active">Sign up</a>
-    </nav>
+<mat-toolbar [class.mat-elevation-z2]="true" color="primary">
+    <mat-toolbar-row>
+        <span>
+            <button mat-icon-button [matMenuTriggerFor]="menu">
+                <mat-icon>menu</mat-icon>
+            </button>
+            <mat-menu #menu="matMenu">
+                <button mat-menu-item routerLink="/modify">
+                    <mat-icon>edit</mat-icon>
+                    <span>Editor</span>
+                </button>
+                <button mat-menu-item routerLink="/shop">
+                    <mat-icon>store</mat-icon>
+                    <span>Shopping</span>
+                </button>
+                <button mat-menu-item routerLink="/categories">
+                    <mat-icon>category</mat-icon>
+                    <span>Categories</span>
+                </button>
+            </mat-menu>
+        </span>
+        <span class="spacer"></span>
+        <span class="user">Hi <strong>{{username() || "-"}}</strong>&nbsp;|&nbsp;</span>
+        <span>
+            <a *ngIf="!loggedIn()" routerLink="/sign-in" routerLinkActive="active">Sign in</a>
+            <button title="sign out" mat-icon-button *ngIf="loggedIn()" (click)="accountService.signOut()">
+                <mat-icon>lock-open</mat-icon>
+            </button>
+            <a *ngIf="!loggedIn()" routerLink="/sign-up" routerLinkActive="active">Sign up</a>
+        </span>
+    </mat-toolbar-row>
 </mat-toolbar>
-<div class="app-content">
+<div [class.mat-elevation-z2]="true" class="app-content">
     <router-outlet></router-outlet>
 </div>
 <a class="legal" href="/impressum.html">Impressum</a>
