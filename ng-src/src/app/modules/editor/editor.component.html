@@ -14,7 +14,7 @@
     </mat-card-header>
     <mat-card-content>
         <mat-list>
-            <app-editor-item *ngFor="let item of lineItems[category.name]; trackBy:trackLineItems" [item]="item">
+            <app-editor-item *ngFor="let item of lineItems[category.name]; trackBy:trackLineItems" [item]="item" [category]="category">
             </app-editor-item>
         </mat-list>
     </mat-card-content>

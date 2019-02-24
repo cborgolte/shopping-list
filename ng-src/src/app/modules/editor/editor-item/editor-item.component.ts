@@ -12,6 +12,7 @@ import { MatMenuTrigger } from '@angular/material';
 export class EditorItemComponent implements OnInit {
 
   @Input() item: LineItem;
+  @Input() category: any;
   openMenu: EventTarget;
 
   constructor(private shoppingListService: ShoppingListService) { }
@@ -36,9 +37,11 @@ export class EditorItemComponent implements OnInit {
     this.shoppingListService.updateLineItem(item);
   }
 
-  // remove item from list
+  // remove item from category
   remove(item: LineItem) {
-    this.shoppingListService.removeItem(item);
+    const categories = item.categories.filter((cat) => cat !== this.category.name);
+    item.categories = categories;
+    this.shoppingListService.updateLineItem(item);
   }
 
   updateLineItem(item: LineItem) {
