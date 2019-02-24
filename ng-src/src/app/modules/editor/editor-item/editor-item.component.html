@@ -3,15 +3,26 @@
     <span class="qty">{{item.qty}}</span>
     <span class="item">{{item.name}}</span>
   </mat-checkbox>
-  <div class="button-list" flex>
-    <button mat-icon-button (click)="decrease(item)">
-      <mat-icon>remove</mat-icon>
+  <button mat-icon-button [matMenuTriggerFor]="menu">
+    <mat-icon>more_vert</mat-icon>
+  </button>
+  <mat-menu #menu="matMenu">
+    <button mat-menu-item (click)="stopPropagation($event)">
+      <mat-icon>edit</mat-icon>
+      <input matInput [ngModel]="item.name" (keydown)="nameChanged(item, $event)">
     </button>
-    <button mat-icon-button (click)="increase(item)">
-      <mat-icon>add</mat-icon>
+    <button mat-menu-item>
+      <button mat-icon-button (click)="decrease(item)">
+        <mat-icon>remove</mat-icon>
+      </button>
+      <mat-slider thumbLabel min="1" [(ngModel)]="item.qty" (change)="updateLineItem(item)"></mat-slider>
+      <button mat-icon-button (click)="increase(item)">
+        <mat-icon>add</mat-icon>
+      </button>
     </button>
-    <button mat-icon-button (click)="remove(item)">
+    <button mat-menu-item (click)="remove(item)">
       <mat-icon>delete</mat-icon>
+      <span>delete</span>
     </button>
-  </div>
+  </mat-menu>
 </mat-list-item>

@@ -15,6 +15,8 @@ import {
   MatTableModule,
   MatTabsModule,
   MatToolbarModule,
+  MatMenuModule,
+  MatSliderModule,
 } from '@angular/material';
 
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
@@ -64,6 +66,8 @@ import { EditorItemComponent } from './modules/editor/editor-item/editor-item.co
     MatCheckboxModule,
     MatButtonModule,
     MatButtonToggleModule,
+    MatMenuModule,
+    MatSliderModule
   ],
   providers: [ShoppingListService, AccountService],
   bootstrap: [AppComponent]
