@@ -33,6 +33,8 @@ import { CategoryComponent } from './modules/category/category.component';
 import { CategoryItemComponent } from './modules/category/category-item/category-item.component';
 import { ChecklistItemComponent } from './modules/checklist/checklist-item/checklist-item.component';
 import { EditorItemComponent } from './modules/editor/editor-item/editor-item.component';
+import { CategoryModule } from './modules/category/category.module';
+import { MaterialModule } from './modules/material/material.module';
 
 
 @NgModule({
@@ -42,8 +44,6 @@ import { EditorItemComponent } from './modules/editor/editor-item/editor-item.co
     ChecklistComponent,
     AccountSignInComponent,
     AccountSignUpComponent,
-    CategoryComponent,
-    CategoryItemComponent,
     ChecklistItemComponent,
     EditorItemComponent
   ],
@@ -55,19 +55,9 @@ import { EditorItemComponent } from './modules/editor/editor-item/editor-item.co
     HttpClientModule,
     BrowserAnimationsModule,
     AppRoutingModule,
-    // material
-    MatCardModule,
-    MatIconModule,
-    MatInputModule,
-    MatListModule,
-    MatTableModule,
-    MatTabsModule,
-    MatToolbarModule,
-    MatCheckboxModule,
-    MatButtonModule,
-    MatButtonToggleModule,
-    MatMenuModule,
-    MatSliderModule
+    // own
+    MaterialModule,
+    CategoryModule,
   ],
   providers: [ShoppingListService, AccountService],
   bootstrap: [AppComponent]
