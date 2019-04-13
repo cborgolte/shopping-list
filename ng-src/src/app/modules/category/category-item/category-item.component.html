@@ -1,4 +1,4 @@
-<mat-list-item class="category-item" [attr.data-category]="category.name" layout="row">
+<mat-list-item [class.mat-elevation-z4]=true class="category-item" [attr.data-category]="category.name" layout="row">
   <span [ngClass]="'flex1'" class="item">{{category.name}}</span>
   <span *ngIf="category.state === 'from_item'">from item</span>
   <div class="button-list" flex>

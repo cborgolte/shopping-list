@@ -11,7 +11,7 @@
     <mat-card>
         <mat-card-content>
             <mat-list class="lst-items" cdkDropList (cdkDropListDropped)="drop($event)">
-                <app-category-item cdkDrag *ngFor="let category of categories; trackBy:trackCategory" [(category)]="category"></app-category-item>
+                <app-category-item [class.mat-elevation-z8]=true cdkDrag *ngFor="let category of categories; trackBy:trackCategory" [(category)]="category"></app-category-item>
             </mat-list>
         </mat-card-content>
     </mat-card>
