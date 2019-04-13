@@ -36,15 +36,14 @@ import { EditorItemComponent } from './modules/editor/editor-item/editor-item.co
 import { CategoryModule } from './modules/category/category.module';
 import { MaterialModule } from './modules/material/material.module';
 import { ChecklistModule } from './modules/checklist/checklist.module';
+import { EditorModule } from './modules/editor/editor.module';
 
 
 @NgModule({
   declarations: [
     AppComponent,
-    EditorComponent,
     AccountSignInComponent,
     AccountSignUpComponent,
-    EditorItemComponent
   ],
   imports: [
     DragDropModule,
@@ -57,7 +56,8 @@ import { ChecklistModule } from './modules/checklist/checklist.module';
     // own
     MaterialModule,
     CategoryModule,
-    ChecklistModule
+    ChecklistModule,
+    EditorModule
   ],
   providers: [ShoppingListService, AccountService],
   bootstrap: [AppComponent]
