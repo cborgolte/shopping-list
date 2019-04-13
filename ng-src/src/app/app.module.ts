@@ -1,8 +1,6 @@
-import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 import { ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
-import { DragDropModule } from '@angular/cdk/drag-drop';
 
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
@@ -15,7 +13,6 @@ import { MaterialModule } from './modules/material/material.module';
 import { ChecklistModule } from './modules/checklist/checklist.module';
 import { EditorModule } from './modules/editor/editor.module';
 import { AccountModule } from './modules/account/account.module';
-
 
 @NgModule({
   declarations: [
