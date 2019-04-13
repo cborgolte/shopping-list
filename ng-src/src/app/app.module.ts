@@ -35,16 +35,15 @@ import { ChecklistItemComponent } from './modules/checklist/checklist-item/check
 import { EditorItemComponent } from './modules/editor/editor-item/editor-item.component';
 import { CategoryModule } from './modules/category/category.module';
 import { MaterialModule } from './modules/material/material.module';
+import { ChecklistModule } from './modules/checklist/checklist.module';
 
 
 @NgModule({
   declarations: [
     AppComponent,
     EditorComponent,
-    ChecklistComponent,
     AccountSignInComponent,
     AccountSignUpComponent,
-    ChecklistItemComponent,
     EditorItemComponent
   ],
   imports: [
@@ -58,6 +57,7 @@ import { MaterialModule } from './modules/material/material.module';
     // own
     MaterialModule,
     CategoryModule,
+    ChecklistModule
   ],
   providers: [ShoppingListService, AccountService],
   bootstrap: [AppComponent]
