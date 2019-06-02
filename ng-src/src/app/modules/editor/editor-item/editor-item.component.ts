@@ -2,7 +2,7 @@ import { Component, OnInit, Input, ViewChild } from '@angular/core';
 import { LineItem } from '../../../shared/models/line-item';
 import { ShoppingListService } from '../../../shared/service/shopping-list.service';
 import { isNgTemplate } from '@angular/compiler';
-import { MatMenuTrigger } from '@angular/material';
+import { MatMenuTrigger } from '@angular/material/menu';
 
 @Component({
   selector: 'app-editor-item',
