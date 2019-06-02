@@ -1,6 +1,6 @@
 <div class="grid">
 <mat-card class="container" [class.mat-elevation-z4]=true
-    *ngFor="let category of getVisibleCategories(); trackBy:trackCategory">
+    *ngFor="let category of categories; trackBy:trackCategory">
 
     <mat-card-header>
         <mat-card-title>{{category.name}}</mat-card-title>

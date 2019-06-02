@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { LineItem } from '../../shared/models/line-item';
 import { ShoppingListService } from '../../shared/service/shopping-list.service';
 
@@ -16,15 +16,22 @@ export class EditorComponent implements OnInit, OnDestroy {
   categories: any[] = [];
   itemInput: FormControl = new FormControl('');
 
-  constructor(private shoppingListService: ShoppingListService) {}
+  constructor(
+    private shoppingListService: ShoppingListService,
+    private changeDetectorRefs: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
-    this.shoppingListService.obsCategories.subscribe((cat) => {
+    this.shoppingListService.obsCategories.subscribe(cat => {
+      // console.table(cat);
       this.categories = cat;
+      this.changeDetectorRefs.detectChanges();
     });
 
-    this.shoppingListService.obsLineItems.subscribe((lineItemMap) => {
-       this.lineItems = lineItemMap;
+    this.shoppingListService.obsLineItems.subscribe(lineItemMap => {
+      console.table(lineItemMap['cat1']);
+      this.lineItems = lineItemMap;
+      this.changeDetectorRefs.detectChanges();
     });
   }
 
@@ -45,7 +52,7 @@ export class EditorComponent implements OnInit, OnDestroy {
 
   // track items
   trackLineItems(index: number, lineItem: LineItem): string {
-    const lineItemRepr = (<any>lineItem);
+    const lineItemRepr = <any>lineItem;
     return lineItemRepr._id;
   }
 
@@ -56,5 +63,4 @@ export class EditorComponent implements OnInit, OnDestroy {
   getVisibleCategories(): any[] {
     return this.categories.filter(c => c.name !== 'all' && c.visible);
   }
-
 }

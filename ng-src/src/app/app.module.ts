@@ -15,9 +15,7 @@ import { EditorModule } from './modules/editor/editor.module';
 import { AccountModule } from './modules/account/account.module';
 
 @NgModule({
-  declarations: [
-    AppComponent,
-  ],
+  declarations: [AppComponent],
   imports: [
     FormsModule,
     ReactiveFormsModule,
@@ -34,4 +32,4 @@ import { AccountModule } from './modules/account/account.module';
   providers: [ShoppingListService, AccountService],
   bootstrap: [AppComponent]
 })
-export class AppModule { }
+export class AppModule {}
