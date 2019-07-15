@@ -2,13 +2,12 @@ import { Component } from '@angular/core';
 import { LineItem } from './shared/models/line-item';
 import { ShoppingListService } from './shared/service/shopping-list.service';
 import { AccountService } from './modules/account/account.service';
-import { DragulaService } from 'ng2-dragula';
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css'],
-  viewProviders: [DragulaService],
+  viewProviders: [],
   providers: []
 })
 export class AppComponent {
