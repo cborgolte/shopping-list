@@ -12,9 +12,12 @@
   box-shadow: 0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22);
 }
 
-/* does not work ...
-label.mat-checkbox-layout {
-    color: blue;
-    width: 100%;
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
 }
-*/
+
+.grid .container {
+padding: 1em;
+margin: 1em;
+}

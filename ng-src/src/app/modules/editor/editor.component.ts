@@ -23,8 +23,7 @@ export class EditorComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.shoppingListService.obsCategories.subscribe(cat => {
-      // console.table(cat);
-      this.categories = cat;
+      this.categories = cat.filter(c => c.name !== 'all');
       this.changeDetectorRefs.detectChanges();
     });
 

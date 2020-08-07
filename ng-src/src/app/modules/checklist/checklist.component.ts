@@ -36,7 +36,7 @@ export class ChecklistComponent implements OnInit, OnDestroy {
   }
 
   // return line items that were selected for the shopping list
-  getLineItems = (category: string) =>  {
+  getLineItems = (category: string) => {
     if (this.lineItems && this.lineItems[category]) {
       const items = this.lineItems[category].filter((item: LineItem) => item.selected);
       items.sort((lhs: LineItem, rhs: LineItem) => {
@@ -72,8 +72,11 @@ export class ChecklistComponent implements OnInit, OnDestroy {
   }
 
   // done - clear bought items from list
-  done(category: string) {
-    const bought = this.lineItems[category].filter((item: LineItem) => item.bought);
-    this.shoppingListService.resetLineItems(bought);
+  done() {
+    for (let cat of this.getVisibleCategories()) {
+      const lineItems = this.lineItems[cat.name];
+      const bought = lineItems.filter((item: LineItem) => item.bought);
+      this.shoppingListService.resetLineItems(bought);
+    }
   }
 }
